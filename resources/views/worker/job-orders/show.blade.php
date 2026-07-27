@@ -3,20 +3,33 @@
 
 @section('content')
 
+@php
+    $reqId = $project->request_id;
+    $catName = strtolower($project->request->category->category_name ?? '');
+    $prefix = match(true) {
+        str_contains($catName, 'landscaping') => 'LS',
+        str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+        str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+        str_contains($catName, 'plumbing') => 'PS',
+        default => 'REQ'
+    };
+    $reqCode = $reqId ? ($prefix . '-' . str_pad($reqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($project->project_id, 3, '0', STR_PAD_LEFT));
+@endphp
+
 <!-- Header -->
 <div class="flex justify-between items-center mb-6">
     <div>
-        <a href="{{ route('worker.job-orders.index') }}" class="text-sm font-medium text-gray-500 hover:text-[#1a3c8f] flex items-center gap-1 mb-2">
+        <a href="{{ route('worker.job-orders.index') }}" class="text-xs font-semibold text-gray-500 hover:text-[#0038A8] flex items-center gap-1 mb-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
             Back to Job Orders
         </a>
-        <h1 class="text-[#1a3c8f] text-2xl font-bold flex items-center gap-3">
-            Project #{{ $project->project_id }}
+        <h1 class="text-[#042B74] dark:text-blue-400 text-2xl font-bold flex items-center gap-3">
+            Requisition #{{ $reqCode }}
             <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider
-                @if($project->current_status === 'Pending') bg-red-100 text-red-800
-                @elseif($project->current_status === 'In Progress') bg-amber-100 text-amber-800
-                @elseif($project->current_status === 'Pending Verification') bg-blue-100 text-blue-800
-                @else bg-emerald-100 text-emerald-800 @endif">
+                @if($project->current_status === 'Pending') bg-red-50 text-red-700 border border-red-200
+                @elseif($project->current_status === 'In Progress') bg-amber-50 text-amber-700 border border-amber-200
+                @elseif($project->current_status === 'Pending Verification') bg-blue-50 text-blue-700 border border-blue-200
+                @else bg-emerald-50 text-emerald-700 border border-emerald-200 @endif">
                 {{ $project->current_status }}
             </span>
         </h1>
@@ -190,13 +203,19 @@
                     <div class="text-sm font-bold text-gray-900">{{ $project->request->category->category_name ?? 'N/A' }}</div>
                 </div>
                 <div>
-                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Priority</div>
-                    <div class="text-sm font-bold text-gray-900">
+                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Priority Level</div>
+                    <div>
                         @php
-                            $priority = ucfirst($project->request->priority ?? 'Low');
-                            $color = $priority == 'High' ? 'red' : ($priority == 'Medium' ? 'amber' : 'emerald');
+                            $priority = ucfirst(strtolower($project->request->priority ?? 'Low'));
+                            $prioClass = match($priority) {
+                                'High' => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+                                'Medium' => 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+                                default => 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                            };
                         @endphp
-                        <span class="text-{{ $color }}-600">{{ $priority }} Priority</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-extrabold border {{ $prioClass }}">
+                            {{ $priority }} Priority
+                        </span>
                     </div>
                 </div>
                 <div>

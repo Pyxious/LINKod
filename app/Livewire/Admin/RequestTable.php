@@ -29,7 +29,7 @@ class RequestTable extends Component
 
     public function render()
     {
-        $query = ServiceRequest::with('client.user', 'category', 'latestHistory')
+        $query = ServiceRequest::with('client.user', 'category', 'latestHistory', 'project.workers.staff.user', 'project.workers.team')
             ->orderByRaw("FIELD(priority, 'High', 'Medium', 'Low')")
             ->orderBy('submitted_at', 'asc');
 

@@ -135,24 +135,52 @@
     <div class="p-6">
         <div class="space-y-3">
             @forelse($assignments->take(5) as $a)
+                @php
+                    $reqId = $a->project?->request_id;
+                    $catName = strtolower($a->project?->request?->category?->category_name ?? '');
+                    $prefix = match(true) {
+                        str_contains($catName, 'landscaping') => 'LS',
+                        str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                        str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+                        str_contains($catName, 'plumbing') => 'PS',
+                        default => 'REQ'
+                    };
+                    $reqCode = $reqId ? ($prefix . '-' . str_pad($reqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($a->project_id, 3, '0', STR_PAD_LEFT));
+                    $prio = ucfirst(strtolower($a->project?->request?->priority ?? 'Low'));
+                    $prioClass = match($prio) {
+                        'High' => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+                        'Medium' => 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+                        default => 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                    };
+                @endphp
                 <div class="border border-gray-200 dark:border-zinc-800 rounded-xl p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition group">
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-4 min-w-0">
                         <!-- Status Dot -->
                         <div class="w-3 h-3 rounded-full shrink-0 
                             @if($a->project->current_status === 'Pending') bg-red-500
                             @elseif($a->project->current_status === 'In Progress') bg-amber-500
                             @else bg-emerald-500 @endif">
                         </div>
-                        <div>
-                            <div class="text-slate-900 dark:text-white font-bold text-sm mb-1 group-hover:text-[#1a3c8f] transition">{{ $a->project->request->title ?? 'Project #'.$a->project->project_id }}</div>
-                            <div class="text-xs text-gray-500 flex items-center gap-2">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap mb-1">
+                                <span class="text-[#0038A8] dark:text-blue-300 font-extrabold bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-[10px] font-mono">
+                                    {{ $reqCode }}
+                                </span>
+                                <h4 class="text-slate-900 dark:text-white font-bold text-sm group-hover:text-[#0038A8] transition truncate">
+                                    {{ $a->project->request->title ?? 'Service Requisition' }}
+                                </h4>
+                                <span class="px-2 py-0.2 rounded-full text-[10px] font-extrabold border {{ $prioClass }}">
+                                    {{ $prio }}
+                                </span>
+                            </div>
+                            <div class="text-xs text-gray-500 flex items-center gap-2 flex-wrap">
                                 <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> {{ $a->date_assigned->format('M d, Y') }}</span>
                                 <span>&bull;</span>
-                                <span class="font-bold text-gray-600 dark:text-gray-300">{{ $a->project->current_status }}</span>
+                                <span class="font-bold text-gray-700 dark:text-gray-300">{{ $a->project->current_status }}</span>
                             </div>
                         </div>
                     </div>
-                    <a href="{{ route('worker.job-orders.show', $a->project->project_id) }}" class="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 px-4 py-2 rounded-lg text-xs font-bold transition shadow-xs">
+                    <a href="{{ route('worker.job-orders.show', $a->project->project_id) }}" class="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 px-4 py-2 rounded-lg text-xs font-bold transition shadow-xs shrink-0 ml-3">
                         View Assignment
                     </a>
                 </div>

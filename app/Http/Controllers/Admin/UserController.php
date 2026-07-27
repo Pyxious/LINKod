@@ -30,15 +30,17 @@ class UserController extends Controller
             });
         }
 
-        // Filter by date
-        if ($request->filled('date')) {
-            $date = $request->date;
-            $query->whereHas('staff', function($sq) use ($date) {
-                $sq->where('date_hired', $date);
-            });
+        // Sort Filter (recently added/joined, oldest, name)
+        $sort = $request->query('sort', 'recent');
+        if ($sort === 'oldest') {
+            $query->orderBy('user_id', 'asc');
+        } elseif ($sort === 'name') {
+            $query->orderBy('first_name', 'asc')->orderBy('last_name', 'asc');
+        } else { // default 'recent'
+            $query->orderBy('user_id', 'desc');
         }
 
-        $users = $query->with('latestLog')->orderBy('last_name')->paginate(15)->appends($request->query());
+        $users = $query->with('latestLog')->paginate(15)->appends($request->query());
 
         $totalUsers   = User::count();
         $totalAdmins  = User::where('role', 'admin')->count();

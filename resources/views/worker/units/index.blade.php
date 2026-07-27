@@ -63,11 +63,33 @@
                 @foreach($team->workers as $w)
                 <div class="flex items-center gap-4">
                     <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0 border border-gray-200">
-                        <span class="text-gray-500 font-bold text-sm">{{ strtoupper(substr($w->staff->user->first_name, 0, 1)) }}</span>
+                        <span class="text-gray-500 font-bold text-sm">{{ strtoupper(substr($w->staff->user->first_name ?? 'W', 0, 1)) }}</span>
                     </div>
-                    <div>
-                        <div class="font-bold text-gray-900 text-sm">{{ $w->staff->user->first_name }} {{ $w->staff->user->last_name }}</div>
-                        <div class="text-xs text-gray-500 mt-0.5">Skilled Worker</div>
+                    <div class="min-w-0">
+                        <div class="font-bold text-gray-900 text-sm flex items-center gap-2 flex-wrap">
+                            <span>{{ $w->staff->user->first_name ?? '' }} {{ $w->staff->user->last_name ?? '' }}</span>
+                            @if(!$w->is_available)
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                                    Busy
+                                </span>
+                            @else
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-800 border border-green-200 shrink-0">
+                                    Available
+                                </span>
+                            @endif
+                        </div>
+                        @php
+                            $activeProject = $w->projects->first();
+                            $taskTitle = $activeProject?->request?->title ?? ($activeProject?->request?->category?->category_name ?? null);
+                        @endphp
+                        @if(!$w->is_available && ($taskTitle || $activeProject))
+                            <div class="text-xs text-[#0033a0] font-semibold mt-0.5 flex items-center gap-1">
+                                <span class="text-gray-400 font-normal">Assigned:</span>
+                                <span class="truncate max-w-[180px]" title="{{ $taskTitle }}">{{ $taskTitle ?? 'Project #'.$activeProject->project_id }}</span>
+                            </div>
+                        @else
+                            <div class="text-xs text-gray-500 mt-0.5">Skilled Worker</div>
+                        @endif
                     </div>
                 </div>
                 @endforeach

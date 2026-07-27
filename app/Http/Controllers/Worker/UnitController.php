@@ -17,7 +17,20 @@ class UnitController extends Controller
             return redirect()->route('worker.dashboard')->with('error', 'You are not assigned to a unit.');
         }
 
-        $team = $worker->team()->with(['leader.staff.user', 'workers.staff.user'])->first();
+        $team = $worker->team()->with([
+            'leader.staff.user', 
+            'workers' => function($wq) {
+                $wq->with([
+                    'staff.user',
+                    'projects' => function($pq) {
+                        $pq->with('request.category', 'latestHistory')
+                          ->whereHas('latestHistory', function($lh) {
+                              $lh->where('current_status', '!=', 'Completed');
+                          });
+                    }
+                ]);
+            }
+        ])->first();
         
         // Active Requests count for the team
         // This is the number of projects currently assigned to any worker in the team that are not completed

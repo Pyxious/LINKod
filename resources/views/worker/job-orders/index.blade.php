@@ -4,61 +4,163 @@
 @section('content')
 
 <!-- Page Banner -->
-<div class="bg-[#fefce8] border border-[#1a3c8f] rounded-xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm">
+<div class="bg-[#FFFDE6] dark:bg-[#18181b] border border-amber-200/80 dark:border-zinc-800 rounded-2xl px-8 py-6 flex justify-between items-center mb-6 shadow-2xs">
     <div>
-        <h1 class="text-[#1a3c8f] text-2xl font-bold mb-1">Job Orders</h1>
-        <p class="text-[#1a3c8f] text-sm opacity-90">View and manage all your assigned tasks.</p>
+        <h1 class="text-[#042B74] dark:text-blue-400 text-2xl font-bold mb-1">Job Orders & Assignments</h1>
+        <p class="text-[#47658F] dark:text-gray-400 text-sm font-medium">View and manage your assigned maintenance tasks.</p>
     </div>
 </div>
 
-<!-- Table -->
-<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-        <h3 class="text-gray-800 font-bold">All Assignments</h3>
+<!-- Admin-Style Filtering Control Bar -->
+<form method="GET" action="{{ route('worker.job-orders.index') }}" class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 font-sans">
+    <!-- Priority Toggle Buttons -->
+    <div class="flex bg-gray-100 dark:bg-zinc-800/80 p-1 rounded-xl gap-1 w-full sm:w-auto shadow-2xs">
+        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => ''])) }}"
+           class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition {{ empty($priorityFilter) ? 'bg-white dark:bg-zinc-900 text-[#0038A8] dark:text-blue-400 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
+            All Priorities
+        </a>
+        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => 'High'])) }}"
+           class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition {{ $priorityFilter === 'High' ? 'bg-red-50 text-red-600 border border-red-200 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
+            High
+        </a>
+        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => 'Medium'])) }}"
+           class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition {{ $priorityFilter === 'Medium' ? 'bg-amber-50 text-amber-700 border border-amber-300 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
+            Medium
+        </a>
+        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => 'Low'])) }}"
+           class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition {{ $priorityFilter === 'Low' ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
+            Low
+        </a>
+    </div>
+
+    <!-- Status Filter Dropdown & Search Input -->
+    <div class="flex items-center gap-3 w-full sm:w-auto">
+        <input type="hidden" name="priority" value="{{ $priorityFilter }}">
+
+        <select name="status" onchange="this.form.submit()" class="px-3.5 py-2 rounded-xl border border-[#0038A8]/30 dark:border-zinc-700 text-[#0038A8] dark:text-blue-400 bg-white dark:bg-zinc-900 text-xs font-bold outline-none cursor-pointer shadow-2xs">
+            <option value="" {{ empty($statusFilter) || $statusFilter === 'active' ? 'selected' : '' }}>Active Tasks Only</option>
+            <option value="Completed" {{ $statusFilter === 'Completed' ? 'selected' : '' }}>Completed Tasks</option>
+            <option value="In Progress" {{ $statusFilter === 'In Progress' ? 'selected' : '' }}>In Progress</option>
+            <option value="Pending" {{ $statusFilter === 'Pending' ? 'selected' : '' }}>Pending</option>
+            <option value="all" {{ $statusFilter === 'all' ? 'selected' : '' }}>All Tasks</option>
+        </select>
+
+        <div class="relative flex-1 sm:flex-initial">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#0038A8] dark:text-blue-400">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </div>
+            <input type="text" name="search" value="{{ $search }}" placeholder="Search tasks..." onchange="this.form.submit()" class="pl-9 pr-3 py-2 rounded-xl border border-[#0038A8]/30 dark:border-zinc-700 text-[#0038A8] dark:text-blue-300 text-xs font-semibold outline-none w-full sm:w-48 bg-white dark:bg-zinc-900 shadow-2xs">
+        </div>
+    </div>
+</form>
+
+<!-- Table Container -->
+<div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xs overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/40 flex justify-between items-center">
+        <h3 class="text-[#042B74] dark:text-blue-400 font-bold text-base">Your Assignments</h3>
+        @if(empty($statusFilter) || $statusFilter === 'active')
+            <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800">
+                Showing Active Tasks 
+            </span>
+        @elseif($statusFilter === 'Completed')
+            <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-800">
+                Showing Completed Tasks
+            </span>
+        @endif
     </div>
     
     <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
             <thead>
-                <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 text-xs uppercase tracking-wider">
-                    <th class="px-6 py-4 font-semibold">Project ID</th>
-                    <th class="px-6 py-4 font-semibold">Title / Concern</th>
-                    <th class="px-6 py-4 font-semibold">Assigned Date</th>
-                    <th class="px-6 py-4 font-semibold">Status</th>
-                    <th class="px-6 py-4 font-semibold text-right">Action</th>
+                <tr class="bg-gray-50/80 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 text-[#042B74] dark:text-blue-400 text-xs uppercase tracking-wider font-bold">
+                    <th class="px-6 py-4">Requisition No.</th>
+                    <th class="px-6 py-4">Title / Location</th>
+                    <th class="px-6 py-4">Priority</th>
+                    <th class="px-6 py-4">Assigned Date</th>
+                    <th class="px-6 py-4">Status</th>
+                    <th class="px-6 py-4 text-right">Action</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
                 @forelse($assignments as $a)
-                    <tr class="hover:bg-gray-50 transition group">
-                        <td class="px-6 py-4 text-sm font-bold text-gray-900">#{{ $a->project_id }}</td>
-                        <td class="px-6 py-4">
-                            <div class="text-sm font-bold text-gray-900">{{ $a->project->request->title ?? 'Untitled' }}</div>
-                            <div class="text-xs text-gray-500 mt-0.5 truncate max-w-xs">{{ $a->project->request->location ?? 'Unknown Location' }}</div>
+                    @php
+                        $reqId = $a->project?->request_id;
+                        $catName = strtolower($a->project?->request?->category?->category_name ?? '');
+                        $prefix = match(true) {
+                            str_contains($catName, 'landscaping') => 'LS',
+                            str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                            str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+                            str_contains($catName, 'plumbing') => 'PS',
+                            default => 'REQ'
+                        };
+                        $reqCode = $reqId ? ($prefix . '-' . str_pad($reqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($a->project_id, 3, '0', STR_PAD_LEFT));
+                        $prio = ucfirst(strtolower($a->project?->request?->priority ?? 'Low'));
+                        $prioClass = match($prio) {
+                            'High' => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+                            'Medium' => 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+                            default => 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                        };
+                    @endphp
+                    <tr class="hover:bg-gray-50/70 dark:hover:bg-zinc-800/50 transition group">
+                        <!-- Requisition Code -->
+                        <td class="px-6 py-4 font-extrabold text-[#0038A8] dark:text-blue-300 font-mono text-xs">
+                            <span class="bg-blue-50 dark:bg-blue-950/60 px-2 py-1 rounded-md border border-blue-200 dark:border-blue-800">
+                                {{ $reqCode }}
+                            </span>
                         </td>
-                        <td class="px-6 py-4 text-sm text-gray-600">{{ \Carbon\Carbon::parse($a->date_assigned)->format('M d, Y') }}</td>
+
+                        <!-- Title / Location -->
                         <td class="px-6 py-4">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold 
-                                @if($a->project->current_status === 'Pending') bg-red-100 text-red-800
-                                @elseif($a->project->current_status === 'In Progress') bg-amber-100 text-amber-800
-                                @else bg-emerald-100 text-emerald-800 @endif">
+                            <div class="text-xs font-bold text-gray-900 dark:text-white">{{ $a->project->request->title ?? 'Untitled Job Order' }}</div>
+                            <div class="text-[11px] text-gray-400 mt-0.5 truncate max-w-xs">{{ $a->project->request->location ?? 'Location N/A' }}</div>
+                        </td>
+
+                        <!-- Priority Badge -->
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border {{ $prioClass }}">
+                                {{ $prio }} Priority
+                            </span>
+                        </td>
+
+                        <!-- Date -->
+                        <td class="px-6 py-4 text-xs font-medium text-gray-600 dark:text-gray-300">
+                            {{ \Carbon\Carbon::parse($a->date_assigned)->format('M d, Y') }}
+                        </td>
+
+                        <!-- Status Badge -->
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold 
+                                @if($a->project->current_status === 'Pending') bg-red-50 text-red-700 border border-red-200
+                                @elseif($a->project->current_status === 'In Progress') bg-amber-50 text-amber-700 border border-amber-200
+                                @elseif($a->project->current_status === 'Completed') bg-emerald-50 text-emerald-700 border border-emerald-200
+                                @else bg-blue-50 text-blue-700 border border-blue-200 @endif">
                                 {{ $a->project->current_status }}
                             </span>
                         </td>
+
+                        <!-- Action -->
                         <td class="px-6 py-4 text-right">
-                            <a href="{{ route('worker.job-orders.show', $a->project_id) }}" class="inline-flex items-center justify-center px-4 py-2 border border-[#1a3c8f] text-[#1a3c8f] bg-white rounded-md text-sm font-semibold hover:bg-[#1a3c8f] hover:text-white transition">
+                            <a href="{{ route('worker.job-orders.show', $a->project_id) }}" class="inline-flex items-center justify-center px-4 py-2 border border-[#0038A8] text-[#0038A8] dark:text-blue-300 hover:bg-[#0038A8] hover:text-white dark:hover:bg-blue-600 rounded-lg text-xs font-bold transition shadow-2xs">
                                 Open Task
                             </a>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-6 py-12 text-center">
-                            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-4">
-                                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-zinc-800 mb-3 text-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                             </div>
-                            <h3 class="text-sm font-bold text-gray-900 mb-1">No Job Orders Found</h3>
-                            <p class="text-sm text-gray-500">You currently have no assignments.</p>
+                            <h3 class="text-xs font-bold text-gray-900 dark:text-white mb-1">No Job Orders Found</h3>
+                            <p class="text-xs text-gray-400">
+                                @if($statusFilter === 'Completed')
+                                    You have no completed job orders recorded.
+                                @else
+                                    No active task assignments match your search or filter criteria.
+                                @endif
+                            </p>
                         </td>
                     </tr>
                 @endforelse

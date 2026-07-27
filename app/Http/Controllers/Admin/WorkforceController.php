@@ -17,7 +17,16 @@ class WorkforceController extends Controller
 
     public function index()
     {
-        $workers = Worker::with('staff.user', 'team')->get();
+        $workers = Worker::with([
+            'staff.user', 
+            'team',
+            'projects' => function($q) {
+                $q->with('request.category', 'latestHistory')
+                  ->whereHas('latestHistory', function($lh) {
+                      $lh->where('current_status', '!=', 'Completed');
+                  });
+            }
+        ])->get();
         $projects = Project::with('request', 'latestHistory')
             ->whereHas('latestHistory', fn($q) => $q->where('current_status', 'Pending'))
             ->get();
@@ -28,26 +37,30 @@ class WorkforceController extends Controller
         $onLeave = 0; // Mocked
 
         $teams = \App\Models\Team::all();
-        // Decorate teams with stats
+        // Decorate teams with stats and members list
         foreach ($teams as $team) {
             $teamWorkers = $workers->where('team_id', $team->team_id);
+            $team->team_members = $teamWorkers->values();
             $team->skilled_workers = $teamWorkers->count();
             $team->available = $teamWorkers->where('is_available', true)->count();
             // Mock active tasks for the team
             $team->active_tasks = rand(0, 3);
             
-            // Team leader name
+            // Team leader name & leader worker
             $leader = null;
+            $leaderWorkerObj = null;
             if ($team->team_leader) {
                 $teamLeaderObj = \App\Models\TeamLeader::find($team->team_leader);
                 if ($teamLeaderObj) {
                     $leaderWorker = $workers->firstWhere('staff_id', $teamLeaderObj->staff_id);
                     if ($leaderWorker) {
+                        $leaderWorkerObj = $leaderWorker;
                         $leader = $leaderWorker->staff->user->first_name . ' ' . $leaderWorker->staff->user->last_name;
                     }
                 }
             }
             $team->leader_name = $leader ?? 'Not Assigned';
+            $team->leader_worker = $leaderWorkerObj;
 
             // Match icons based on name
             $name = strtolower($team->team_name);

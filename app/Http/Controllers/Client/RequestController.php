@@ -52,7 +52,7 @@ class RequestController extends Controller
                 }
             }
 
-            // Search Query (Supports EMS-0001, PS-0012, title, location, campus, etc.)
+            // Search Query
             if ($request->filled('search')) {
                 $rawSearch = trim($request->search);
                 $numericId = (int) preg_replace('/[^0-9]/', '', $rawSearch);
@@ -85,8 +85,8 @@ class RequestController extends Controller
 
     public function track(Request $request)
     {
-        // For a basic track page, we might just return the view.
-        // If a tracking ID is provided, we could redirect or fetch here.
+        
+        
         return view('client.requests.track');
     }
 
@@ -132,7 +132,7 @@ class RequestController extends Controller
                 $user->update(['contact_number' => $validated['contact_number']]);
             }
 
-            // Remove contact_number from $validated since ServiceRequest doesn't use it
+            
             unset($validated['contact_number']);
 
             $attachmentPath = null;
@@ -276,3 +276,4 @@ class RequestController extends Controller
         }
     }
 }
+

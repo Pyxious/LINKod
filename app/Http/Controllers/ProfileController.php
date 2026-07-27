@@ -38,6 +38,14 @@ class ProfileController extends Controller
     {
         $user = auth()->user();
         
+        $request->validate([
+            'contact_number' => 'nullable|string|regex:/^09\d{9}$/',
+        ]);
+
+        if ($request->has('contact_number')) {
+            $user->update(['contact_number' => $request->contact_number]);
+        }
+
         if ($user->isClient()) {
             $validated = $request->validate([
                 'office' => 'nullable|string|max:255',

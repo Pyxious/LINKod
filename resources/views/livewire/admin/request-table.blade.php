@@ -37,6 +37,7 @@
                     <th class="text-[#1a3c8f] text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300">Requisition No.</th>
                     <th class="text-[#1a3c8f] text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300">Requestor ↑</th>
                     <th class="text-[#1a3c8f] text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300">Office/Unit</th>
+                    <th class="text-[#1a3c8f] text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300">Assigned Personnel</th>
                     <th class="text-[#1a3c8f] text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300">Priority</th>
                     <th class="text-[#1a3c8f] text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300">Status</th>
                     <th class="text-[#1a3c8f] text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300">Date Requested</th>
@@ -70,6 +71,26 @@
                     <td class="py-4 border-y border-gray-200">
                         <div class="text-[#1a3c8f] font-bold text-[13px]">{{ strtok($r->location, ' ') ?? 'BU COA' }}</div>
                         <div class="text-gray-500 text-[11px] mt-0.5 max-w-[120px] truncate">{{ $r->location ?? '--' }}</div>
+                    </td>
+                    <!-- Assigned Personnel Column -->
+                    <td class="py-4 border-y border-gray-200">
+                        @php
+                            $assignedWorkers = $r->project?->workers ?? collect();
+                        @endphp
+                        @if($assignedWorkers->isNotEmpty())
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                @foreach($assignedWorkers as $w)
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-[#0038A8] border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800">
+                                        <span class="w-4 h-4 rounded-full bg-[#0038A8] text-white flex items-center justify-center text-[9px] font-bold shrink-0">
+                                            {{ strtoupper(substr($w->staff->user->first_name ?? 'W', 0, 1)) }}
+                                        </span>
+                                        <span>{{ $w->staff->user->first_name ?? 'Worker' }} {{ $w->staff->user->last_name ?? '' }}</span>
+                                    </span>
+                                @endforeach
+                            </div>
+                        @else
+                            <span class="text-xs text-gray-400 italic">Not Assigned</span>
+                        @endif
                     </td>
                     <td class="py-4 border-y border-gray-200">
                         @php 

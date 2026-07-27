@@ -96,6 +96,46 @@
         @endif
     </div>
 
+    <!-- Assigned Personnel & Maintenance Unit Card (Displayed when request is approved and has assigned workers) -->
+    @if($serviceRequest->project && $serviceRequest->project->workers->isNotEmpty())
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-2xs">
+            <h2 class="text-base font-bold text-[#042B74] dark:text-blue-400 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-[#0038A8] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                Assigned Maintenance Personnel & Unit
+            </h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                @foreach($serviceRequest->project->workers as $assignedWorker)
+                    @php
+                        $workerUser = $assignedWorker->staff->user ?? null;
+                        $workerTeam = $assignedWorker->team->team_name ?? 'Maintenance Unit';
+                        $isLeader = ($assignedWorker->team && $assignedWorker->team->teamLeader && $assignedWorker->team->teamLeader->staff_id === $assignedWorker->staff_id);
+                    @endphp
+                    <div class="bg-blue-50/50 dark:bg-zinc-800/60 border border-blue-100 dark:border-zinc-700 rounded-xl p-4 flex items-center gap-3.5 shadow-2xs">
+                        <div class="w-10 h-10 rounded-full bg-[#0038A8] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
+                            {{ strtoupper(substr($workerUser->first_name ?? 'W', 0, 1)) }}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-bold text-gray-900 dark:text-white text-xs flex items-center gap-1.5">
+                                <span class="truncate">{{ $workerUser->first_name ?? 'Worker' }} {{ $workerUser->last_name ?? '' }}</span>
+                                @if($isLeader)
+                                    <span class="text-[10px] font-bold text-[#0038A8] dark:text-blue-300 bg-blue-100 dark:bg-blue-950/80 px-1.5 py-0.2 rounded border border-blue-200 shrink-0">
+                                        Leader
+                                    </span>
+                                @endif
+                            </div>
+                            <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                                {{ $workerTeam }}
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <!-- Action Forms Section -->
     @if(in_array($serviceRequest->current_status, ['Submitted', 'Pending']))
         <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
