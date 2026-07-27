@@ -189,6 +189,11 @@
                 </script>
             @endif
         </div>
+
+        <!-- Per-Request Messaging Channel -->
+        @if($project->request)
+            @include('partials.request-messages', ['serviceRequest' => $project->request])
+        @endif
     </div>
 
     <!-- Sidebar Details (Right) -->

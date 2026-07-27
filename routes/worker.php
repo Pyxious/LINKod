@@ -12,6 +12,7 @@ Route::middleware(['auth', '2fa', 'role:worker'])->prefix('worker')->name('worke
 
     Route::get('/job-orders',       [JobOrderController::class, 'index'])->name('job-orders.index');
     Route::get('/job-orders/{id}',  [JobOrderController::class, 'show'])->name('job-orders.show');
+    Route::post('/job-orders/{id}/messages', [\App\Http\Controllers\RequestMessageController::class, 'store'])->name('job-orders.messages.store')->middleware('throttle:15,1');
 
     Route::post('/job-orders/{id}/bom',   [\App\Http\Controllers\Worker\BomController::class, 'store'])->name('bom.store')->middleware('throttle:10,1');
 

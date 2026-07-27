@@ -278,6 +278,9 @@
             </p>
         </div>
     @endif
+
+    <!-- Per-Request Messaging Channel -->
+    @include('partials.request-messages', ['serviceRequest' => $serviceRequest])
 </div>
 
 @push('scripts')

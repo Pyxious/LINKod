@@ -188,6 +188,9 @@
                     @endif
                 </div>
 
+                <!-- Per-Request Messaging Channel -->
+                @include('partials.request-messages', ['serviceRequest' => $request])
+
             </div>
 
             <!-- Right Column: Status Timeline Stepper -->

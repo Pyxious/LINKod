@@ -50,6 +50,18 @@ class ServiceRequest extends Model
                     ->latestOfMany('updated_at');
     }
 
+    public function messages()
+    {
+        return $this->hasMany(RequestMessage::class, 'request_id', 'request_id')->oldest();
+    }
+
+    public function isResolved(): bool
+    {
+        $status = strtolower($this->current_status);
+        $projStatus = strtolower($this->project?->current_status ?? '');
+        return in_array($status, ['completed', 'cancelled', 'rejected']) || $projStatus === 'completed';
+    }
+
     public function getCurrentStatusAttribute(): string
     {
         return $this->latestHistory?->current_status ?? 'Submitted';

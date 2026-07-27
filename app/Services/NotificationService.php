@@ -119,4 +119,24 @@ class NotificationService
             $actionUrl
         );
     }
+
+    /**
+     * Notify user about a new message on a request.
+     */
+    public function newMessagePosted(int $recipientUserId, string $senderName, string $requestTitle, int $requestId, string $role = 'client'): void
+    {
+        $actionUrl = match($role) {
+            'admin'  => route('admin.requests.show', $requestId, false),
+            'worker' => route('worker.job-orders.show', $requestId, false),
+            default  => route('client.requests.show', $requestId, false)
+        };
+
+        $this->send(
+            $recipientUserId,
+            'new_message',
+            'New Message Received',
+            "{$senderName} sent a message regarding \"{$requestTitle}\".",
+            $actionUrl
+        );
+    }
 }

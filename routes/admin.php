@@ -21,6 +21,7 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
     // Requests
     Route::get('/requests',              [RequestController::class, 'index'])->name('requests.index');
     Route::get('/requests/{id}',         [RequestController::class, 'show'])->name('requests.show');
+    Route::post('/requests/{id}/messages', [\App\Http\Controllers\RequestMessageController::class, 'store'])->name('requests.messages.store')->middleware('throttle:15,1');
     Route::get('/requests/{id}/export',  [RequestController::class, 'export'])->name('requests.export');
     Route::post('/requests/{id}/approve',[RequestController::class, 'approve'])->name('requests.approve');
     Route::post('/requests/{id}/reject', [RequestController::class, 'reject'])->name('requests.reject');
