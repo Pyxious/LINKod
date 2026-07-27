@@ -330,28 +330,23 @@
                     <!-- Line 2: Barrameda -> Caparas -->
                     <line x1="575" y1="125" x2="575" y2="145" class="line-blue" />
 
-                    <!-- Line 3: Caparas to Campus Cluster AO top -->
-                    <path d="M 575 195 H 990 V 215" class="line-blue" />
-
-                    <!-- Line 4: Caparas Bottom -> Padilla top -->
+                    <!-- Line 3: Caparas Bottom -> Padilla top -->
                     <line x1="575" y1="195" x2="575" y2="215" class="line-blue" />
 
-                    <!-- Line 5: Padilla Right side -> Campus AO left side -->
+                    <!-- Line 4: Padilla Right side -> Campus AO left side -->
                     <line x1="700" y1="237.5" x2="880" y2="237.5" class="line-blue" />
 
-                    <!-- Line 6: Main Horizontal Bus Line from Padilla bottom across Cols 1, 2, 3 -->
+                    <!-- Line 5: Padilla bottom -> Main Horizontal Bus Line across all 4 columns -->
                     <line x1="575" y1="260" x2="575" y2="270" class="line-blue" />
-                    <line x1="125" y1="270" x2="705" y2="270" class="line-blue" />
+                    <line x1="125" y1="270" x2="990" y2="270" class="line-blue" />
                     
-                    <!-- Line 7: Drops from Bus Line to Col 1, Col 2, Col 3 -->
+                    <!-- Line 6: Drops from Bus Line into Col 1, Col 2, Col 3, Col 4 -->
                     <line x1="125" y1="270" x2="125" y2="280" class="line-blue" />
                     <line x1="415" y1="270" x2="415" y2="280" class="line-blue" />
                     <line x1="705" y1="270" x2="705" y2="280" class="line-blue" />
+                    <line x1="990" y1="270" x2="990" y2="280" class="line-blue" />
 
-                    <!-- Line 8: Campus Cluster AO bottom -> Support Staff top -->
-                    <line x1="990" y1="260" x2="990" y2="280" class="line-blue" />
-
-                    <!-- Line 9: Facilities Maintenance -> 4 Sub Pairs Trunk -->
+                    <!-- Line 7: Facilities Maintenance -> 4 Sub Pairs Trunk -->
                     <line x1="125" y1="330" x2="125" y2="549" class="line-blue" />
 
                     <line x1="125" y1="369" x2="140" y2="369" class="line-blue" />
@@ -366,7 +361,7 @@
                     <line x1="125" y1="549" x2="140" y2="549" class="line-blue" />
                     <line x1="370" y1="549" x2="390" y2="549" class="line-blue" />
 
-                    <!-- Line 10: Support Staff -> Utility Personnel -->
+                    <!-- Line 8: Support Staff -> Utility Personnel -->
                     <line x1="990" y1="330" x2="990" y2="355" class="line-blue" />
 
 
