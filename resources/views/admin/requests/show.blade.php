@@ -1,0 +1,283 @@
+@extends('layouts.admin')
+
+@section('page-title', 'Review & Action Request')
+
+@section('content')
+<div class="w-full max-w-6xl mx-auto space-y-6 font-sans">
+    
+    <!-- Top Header Banner -->
+    <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#2563eb] rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-3 mb-2 flex-wrap">
+                <span class="px-3 py-1 bg-[#0033a0] text-white text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-sm">
+                    Requisition #{{ str_pad($serviceRequest->request_id, 4, '0', STR_PAD_LEFT) }}
+                </span>
+                <span class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border 
+                    {{ match(strtolower($serviceRequest->priority ?? 'low')) {
+                        'high' => 'bg-red-100 text-red-700 border-red-300',
+                        'medium' => 'bg-amber-100 text-amber-700 border-amber-300',
+                        default => 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                    } }}">
+                    {{ strtoupper($serviceRequest->priority ?? 'Low') }} Priority
+                </span>
+                <span class="px-3 py-1 bg-blue-100 text-blue-800 text-[11px] font-bold rounded-full">
+                    {{ $serviceRequest->current_status }}
+                </span>
+            </div>
+
+            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                {{ $serviceRequest->title }}
+            </h1>
+
+            <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 font-medium">
+                Submitted by <span class="font-bold text-slate-800 dark:text-gray-200">{{ $serviceRequest->client->user->first_name ?? 'N/A' }} {{ $serviceRequest->client->user->last_name ?? '' }}</span> 
+                ({{ $serviceRequest->client->user->email_account ?? '' }})
+                • {{ \Carbon\Carbon::parse($serviceRequest->submitted_at)->format('M d, Y h:i A') }}
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3 shrink-0">
+            <a href="{{ route('admin.requests.export', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-full transition shadow-md inline-flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                Print PDF / Requisition
+            </a>
+        </div>
+    </div>
+
+    <!-- Request Details Card -->
+    <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
+        <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Request Details & Specification
+        </h2>
+
+        <!-- Description Box -->
+        <div class="mb-6">
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Description / Issue Summary</div>
+            <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl text-slate-800 dark:text-gray-200 text-sm leading-relaxed border border-gray-100 dark:border-zinc-700">
+                {{ $serviceRequest->description ?: 'No additional description provided.' }}
+            </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Service Category</div>
+                <div class="text-sm font-bold text-slate-900 dark:text-white">{{ $serviceRequest->category->category_name ?? 'Unclassified' }}</div>
+            </div>
+
+            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Campus</div>
+                <div class="text-sm font-bold text-slate-900 dark:text-white">{{ $serviceRequest->campus ?? 'BU Main' }}</div>
+            </div>
+
+            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Office / Location</div>
+                <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ $serviceRequest->location }}</div>
+            </div>
+        </div>
+
+        <!-- Supporting Attachment (if any) -->
+        @if($serviceRequest->attachment)
+            <div class="mt-6 border-t border-gray-100 dark:border-zinc-800 pt-5">
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Attachment / Photo Evidence</div>
+                <a href="{{ Storage::url($serviceRequest->attachment) }}" target="_blank" class="inline-flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl hover:border-[#0033a0] transition group">
+                    @if(Str::endsWith(strtolower($serviceRequest->attachment), ['.jpg', '.jpeg', '.png', '.webp']))
+                        <img src="{{ Storage::url($serviceRequest->attachment) }}" alt="Attachment" class="w-16 h-16 object-cover rounded-lg border border-gray-200">
+                    @else
+                        <div class="w-12 h-12 bg-blue-100 text-[#0033a0] rounded-lg flex items-center justify-center font-bold text-xs">PDF</div>
+                    @endif
+                    <div>
+                        <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-[#0033a0] transition">View Full Attachment ↗</div>
+                        <div class="text-[11px] text-gray-400">Click to open original file</div>
+                    </div>
+                </a>
+            </div>
+        @endif
+    </div>
+
+    <!-- Action Forms Section -->
+    @if(in_array($serviceRequest->current_status, ['Submitted', 'Pending']))
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                <svg class="w-5 h-5 text-[#0033a0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Action Required: Review & Process Request
+            </h2>
+            
+            <div class="flex flex-col lg:flex-row gap-6 items-stretch">
+                <!-- Approve Form -->
+                <form action="{{ route('admin.requests.approve', $serviceRequest->request_id) }}" method="POST" class="flex-1 bg-[#f0f6ff] dark:bg-zinc-800/50 p-6 rounded-2xl border border-blue-200 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+                    @csrf
+                    
+                    <div>
+                        <div class="flex items-center gap-2 text-[#0033a0] dark:text-blue-400 font-bold text-sm mb-4">
+                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-extrabold">1</span>
+                            Approve Request & Assign Project
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">Verify Category</label>
+                                <select name="category_id" id="categorySelect" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]" required>
+                                    <option value="">Select Category</option>
+                                    @foreach($categories as $category)
+                                        <option value="{{ $category->category_id }}" data-name="{{ strtolower($category->category_name) }}" {{ $serviceRequest->category_id == $category->category_id ? 'selected' : '' }}>
+                                            {{ $category->category_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">Set Project Priority</label>
+                                <select name="priority" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]" required>
+                                    <option value="Low" {{ $serviceRequest->priority === 'Low' ? 'selected' : '' }}>Low Priority</option>
+                                    <option value="Medium" {{ $serviceRequest->priority === 'Medium' ? 'selected' : '' }}>Medium Priority</option>
+                                    <option value="High" {{ $serviceRequest->priority === 'High' ? 'selected' : '' }}>High Priority</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-2">Assign Maintenance Workers</label>
+                            <div class="space-y-1.5 max-h-48 overflow-y-auto p-2.5 border border-blue-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900">
+                                @foreach($workers as $worker)
+                                    @php
+                                        $teamName = strtolower($worker->team->team_name ?? '');
+                                        $categoryName = strtolower($serviceRequest->category->category_name ?? '');
+                                        $isRecommended = false;
+                                        if ($teamName && $categoryName) {
+                                            preg_match_all('/\w+/', $categoryName, $catWords);
+                                            foreach ($catWords[0] as $word) {
+                                                if (strlen($word) > 3 && str_contains($teamName, $word)) {
+                                                    $isRecommended = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    @endphp
+                                    <label class="worker-option flex items-center gap-3 cursor-pointer p-2.5 hover:bg-blue-50 dark:hover:bg-zinc-800 rounded-lg border border-transparent {{ $isRecommended ? 'bg-blue-50/80 dark:bg-blue-950/30 border-blue-200' : '' }} transition-colors" data-team="{{ strtolower($worker->team->team_name ?? '') }}">
+                                        <input type="checkbox" name="worker_ids[]" value="{{ $worker->worker_id }}" {{ $isRecommended ? 'checked' : '' }} class="worker-checkbox rounded text-[#0033a0] focus:ring-[#0033a0] w-4 h-4">
+                                        <div class="flex-1 flex items-center justify-between">
+                                            <div>
+                                                <span class="text-xs font-bold text-slate-900 dark:text-gray-200">{{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}</span>
+                                                <span class="text-[11px] text-gray-500 ml-1">({{ $worker->team->team_name ?? 'No Unit' }})</span>
+                                            </div>
+                                            <span class="recommended-badge text-[10px] bg-[#0033a0] text-white px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide {{ $isRecommended ? '' : 'hidden' }}">Recommended</span>
+                                        </div>
+                                    </label>
+                                @endforeach
+                                @if($workers->isEmpty())
+                                    <p class="text-xs text-gray-400 p-2 italic">No active workers found in database.</p>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-[#0033a0] hover:bg-[#002480] text-white font-bold py-3 px-4 rounded-xl transition shadow-md flex justify-center items-center gap-2 text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        Approve & Launch Project
+                    </button>
+                </form>
+
+                <!-- Reject Form -->
+                <form action="{{ route('admin.requests.reject', $serviceRequest->request_id) }}" method="POST" class="w-full lg:w-80 bg-red-50/60 dark:bg-red-950/20 p-6 rounded-2xl border border-red-200 dark:border-red-900/50 shadow-sm flex flex-col justify-between">
+                    @csrf
+                    <div>
+                        <div class="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold text-sm mb-4">
+                            <span class="w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center font-extrabold">2</span>
+                            Reject Request
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">Reason for Rejection <span class="text-red-500">*</span></label>
+                            <textarea name="feedback" rows="5" placeholder="State why this request cannot be processed..." class="w-full p-3 bg-white dark:bg-zinc-900 border border-red-200 dark:border-zinc-700 rounded-xl text-xs text-slate-800 dark:text-gray-200 focus:outline-none focus:border-red-500" required></textarea>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition flex justify-center items-center gap-2 text-sm shadow-md">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                        Reject Request
+                    </button>
+                </form>
+            </div>
+        </div>
+    @elseif($serviceRequest->project && $serviceRequest->project->current_status === 'Pending Verification')
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
+            <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Worker Completed Job — Pending Final Admin Verification
+            </h2>
+
+            <div class="bg-blue-50/60 dark:bg-zinc-800/50 p-6 rounded-2xl border border-blue-200 dark:border-zinc-700 flex flex-col items-center text-center max-w-xl mx-auto">
+                @php
+                    $pendingHistory = $serviceRequest->project->histories->where('current_status', 'Pending Verification')->last();
+                @endphp
+                
+                @if($pendingHistory && $pendingHistory->proof_attachment)
+                    <div class="mb-5">
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Worker Uploaded Proof of Completion</p>
+                        <a href="{{ Storage::url($pendingHistory->proof_attachment) }}" target="_blank" class="inline-block p-1 bg-white border border-blue-300 rounded-xl shadow-sm hover:opacity-90 transition">
+                            <img src="{{ Storage::url($pendingHistory->proof_attachment) }}" alt="Proof" class="max-w-[240px] rounded-lg object-cover">
+                        </a>
+                    </div>
+                @endif
+                
+                <form action="{{ route('admin.requests.verify', $serviceRequest->request_id) }}" method="POST" class="w-full">
+                    @csrf
+                    <button type="submit" class="w-full bg-[#0033a0] hover:bg-[#002480] text-white font-bold py-3 px-6 rounded-xl transition shadow-md flex justify-center items-center gap-2 text-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Verify Completion & Close Request
+                    </button>
+                </form>
+            </div>
+        </div>
+    @else
+        <div class="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-5 rounded-2xl flex items-center gap-3">
+            <svg class="w-6 h-6 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p class="text-emerald-800 dark:text-emerald-300 text-sm font-semibold">
+                This service request is currently: <span class="font-black uppercase tracking-wide">{{ $serviceRequest->current_status }}</span>.
+            </p>
+        </div>
+    @endif
+</div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categorySelect = document.getElementById('categorySelect');
+    if (!categorySelect) return;
+
+    function updateRecommendations() {
+        const selectedOpt = categorySelect.options[categorySelect.selectedIndex];
+        const catName = selectedOpt ? (selectedOpt.getAttribute('data-name') || '') : '';
+        const words = (catName.match(/\w+/g) || []).filter(w => w.length > 3);
+
+        document.querySelectorAll('.worker-option').forEach(option => {
+            const teamName = option.getAttribute('data-team') || '';
+            const checkbox = option.querySelector('.worker-checkbox');
+            const badge = option.querySelector('.recommended-badge');
+
+            let isRec = false;
+            for (const word of words) {
+                if (teamName.includes(word)) {
+                    isRec = true;
+                    break;
+                }
+            }
+
+            if (isRec) {
+                option.classList.add('bg-blue-50/80', 'border-blue-200');
+                badge.classList.remove('hidden');
+                checkbox.checked = true;
+            } else {
+                option.classList.remove('bg-blue-50/80', 'border-blue-200');
+                badge.classList.add('hidden');
+                checkbox.checked = false;
+            }
+        });
+    }
+
+    categorySelect.addEventListener('change', updateRecommendations);
+});
+</script>
+@endpush
+@endsection
