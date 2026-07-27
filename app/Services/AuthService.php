@@ -60,6 +60,26 @@ class AuthService
             ]);
         }
 
+        // Ensure Staff & Worker records exist if user has worker role
+        if ($user->role === 'worker') {
+            $staff = Staff::firstOrCreate([
+                'user_id' => $user->user_id,
+            ], [
+                'role'       => 'Maintenance Personnel',
+                'date_hired' => now()->toDateString(),
+            ]);
+
+            if (!$staff->worker) {
+                $defaultTeam = \App\Models\Team::first();
+                \App\Models\Worker::create([
+                    'staff_id'     => $staff->staff_id,
+                    'team_id'      => $defaultTeam?->team_id,
+                    'date_hired'   => now()->toDateString(),
+                    'is_available' => true,
+                ]);
+            }
+        }
+
         // Log the login event
         UserLog::create([
             'user_id'    => $user->user_id,

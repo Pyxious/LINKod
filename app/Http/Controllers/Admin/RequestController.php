@@ -51,7 +51,8 @@ class RequestController extends Controller
             'client.user', 'category', 'histories.updatedBy', 'evaluation', 'project.histories'
         )->findOrFail($id);
 
-        $workers = \App\Models\Worker::with('user', 'team')->where('is_available', true)->get();
+        $workers = \App\Models\Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))
+            ->with('user', 'team')->where('is_available', true)->get();
         $categories = \App\Models\Category::all();
 
         return view('admin.requests.show', compact('serviceRequest', 'workers', 'categories'));

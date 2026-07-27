@@ -16,8 +16,8 @@ class DashboardController extends Controller
         $totalRequests    = ServiceRequest::count();
         $requestsToday    = ServiceRequest::whereDate('submitted_at', today())->count();
 
-        $totalWorkers     = Worker::count();
-        $availableWorkers = Worker::where('is_available', true)->count();
+        $totalWorkers     = Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))->count();
+        $availableWorkers = Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))->where('is_available', true)->count();
         $availablePct     = $totalWorkers > 0 ? round(($availableWorkers / $totalWorkers) * 100) : 0;
 
         // Task status breakdown from project_history

@@ -17,16 +17,17 @@ class WorkforceController extends Controller
 
     public function index()
     {
-        $workers = Worker::with([
-            'staff.user', 
-            'team',
-            'projects' => function($q) {
-                $q->with('request.category', 'latestHistory')
-                  ->whereHas('latestHistory', function($lh) {
-                      $lh->where('current_status', '!=', 'Completed');
-                  });
-            }
-        ])->get();
+        $workers = Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))
+            ->with([
+                'staff.user', 
+                'team',
+                'projects' => function($q) {
+                    $q->with('request.category', 'latestHistory')
+                      ->whereHas('latestHistory', function($lh) {
+                          $lh->where('current_status', '!=', 'Completed');
+                      });
+                }
+            ])->get();
         $projects = Project::with('request', 'latestHistory')
             ->whereHas('latestHistory', fn($q) => $q->where('current_status', 'Pending'))
             ->get();

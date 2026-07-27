@@ -79,6 +79,13 @@ class UserController extends Controller
 
         $user->update(['role' => $newRole]);
 
+        // If user was previously a worker and role is changed to non-worker, remove worker record
+        if ($oldRole === 'worker' && $newRole !== 'worker') {
+            if ($user->staff?->worker) {
+                $user->staff->worker->delete();
+            }
+        }
+
         // Ensure corresponding role record exists
         if ($newRole === 'client' && !$user->client) {
             Client::create(['user_id' => $user->user_id]);

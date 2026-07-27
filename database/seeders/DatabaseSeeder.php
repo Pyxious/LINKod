@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             CategorySeeder::class,
             MaterialsSeeder::class,
             TeamSeeder::class,
+            AdminSeeder::class,
         ]);
     }
 }
