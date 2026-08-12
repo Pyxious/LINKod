@@ -25,4 +25,10 @@ Route::middleware(['auth', '2fa', 'role:worker'])->prefix('worker')->name('worke
     Route::get('/notifications', [\App\Http\Controllers\Worker\NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/{id}/read', [\App\Http\Controllers\Worker\NotificationController::class, 'readNotification'])->name('notifications.read');
     Route::post('/notifications/mark-all-read', [\App\Http\Controllers\Worker\NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
+
+    // Dedicated Messages Portal
+    Route::get('/messages/{requestId?}', [\App\Http\Controllers\MessagePortalController::class, 'index'])->name('messages.index');
+
+    // Dedicated Worker Profile
+    Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'index'])->name('profile.index');
 });

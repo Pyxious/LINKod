@@ -4,9 +4,9 @@
 @section('content')
 
 <!-- Header -->
-<div class="bg-[#fefce8] border border-[#1a3c8f] rounded-xl px-8 py-6 mb-8 shadow-sm">
-    <h1 class="text-[#1a3c8f] text-2xl font-bold mb-1">Units / Sections</h1>
-    <p class="text-[#1a3c8f] text-sm opacity-90">Your assigned unit and team information</p>
+<div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 mb-6 shadow-sm">
+    <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl font-bold mb-1">Units / Sections</h1>
+    <p class="text-[#0033a0]/80 dark:text-gray-300 text-sm font-medium">Your assigned unit and team information</p>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

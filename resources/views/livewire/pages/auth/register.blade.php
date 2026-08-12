@@ -21,18 +21,52 @@ new #[Layout('layouts.guest')] class extends Component
     public function register(): void
     {
         $validated = $this->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'name'     => ['required', 'string', 'max:255'],
+            'email'    => ['required', 'string', 'lowercase', 'email', 'max:255'],
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $validated['password'] = Hash::make($validated['password']);
+        $email = strtolower(trim($validated['email']));
+        $emailHash = hash('sha256', $email);
 
-        event(new Registered($user = User::create($validated)));
+        $user = User::where('email_hash', $emailHash)->first();
+
+        if ($user) {
+            $nameParts = explode(' ', $validated['name'], 2);
+            $user->update([
+                'first_name' => $nameParts[0] ?? $validated['name'],
+                'last_name'  => $nameParts[1] ?? ($user->last_name ?: ''),
+                'password'   => Hash::make($validated['password']),
+            ]);
+        } else {
+            $nameParts = explode(' ', $validated['name'], 2);
+            $baseUsername = preg_replace('/[^a-z0-9_]/', '_', strtolower(explode('@', $email)[0]));
+            $username = $baseUsername;
+            $counter = 1;
+            while (User::where('username', $username)->exists()) {
+                $username = $baseUsername . $counter++;
+            }
+
+            $user = User::create([
+                'username'      => $username,
+                'first_name'    => $nameParts[0] ?? $validated['name'],
+                'last_name'     => $nameParts[1] ?? '',
+                'email_account' => $email,
+                'email_hash'    => $emailHash,
+                'role'          => 'client',
+                'password'      => Hash::make($validated['password']),
+            ]);
+        }
+
+        if (!$user->client && $user->role === 'client') {
+            \App\Models\Client::create(['user_id' => $user->user_id]);
+        }
+
+        event(new Registered($user));
 
         Auth::login($user);
 
-        $this->redirect(route('dashboard', absolute: false), navigate: true);
+        $this->redirect(route('client.dashboard', absolute: false), navigate: true);
     }
 }; ?>
 

@@ -5,12 +5,12 @@
 @section('content')
 <div class="w-full flex flex-col font-sans min-h-[calc(100vh-64px)] bg-slate-50/50 dark:bg-[#111111]">
     
-    <!-- Top Hero Section (Pale yellow full-width banner) -->
-    <div class="bg-[#FFFDE6] dark:bg-[#18181b] border-b border-amber-100/60 dark:border-zinc-800 py-8 px-6 md:px-12">
+    <!-- Top Hero Section (Wide Rectangle Banner) -->
+    <div class="bg-[#fffde7] dark:bg-[#18181b] py-8 px-6 md:px-12">
         <div class="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-                <h1 class="text-[#042B74] dark:text-blue-400 text-3xl font-bold tracking-tight">Notifications</h1>
-                <p class="text-[#47658F] dark:text-gray-400 text-sm font-medium mt-1">Stay updated on your service job request status, updates, and announcements</p>
+                <h1 class="text-[#0033a0] dark:text-blue-400 text-3xl font-bold tracking-tight">Notifications</h1>
+                <p class="text-[#0033a0]/80 dark:text-gray-400 text-sm font-medium mt-1">Stay updated on your service job request status, updates, and announcements</p>
             </div>
             
             <div class="flex items-center gap-3">

@@ -4,13 +4,13 @@
 @section('content')
 
 <!-- Page Banner Header -->
-<div class="bg-[#fefce8] dark:bg-[#1c1c1e] border border-[#1a3c8f] rounded-xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm">
+<div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm">
     <div>
-        <h1 class="text-[#1a3c8f] dark:text-blue-400 text-2xl font-bold mb-1">Service Requests</h1>
-        <p class="text-[#1a3c8f] dark:text-gray-300 text-sm opacity-90">Track, monitor, and manage university maintenance requisitions.</p>
+        <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl font-bold mb-1">Service Requests</h1>
+        <p class="text-[#0033a0]/80 dark:text-gray-300 text-sm font-medium">Track, monitor, and manage university maintenance requisitions.</p>
     </div>
     <div class="flex gap-3">
-        <a href="{{ route('client.requests.create') }}" class="bg-[#1a3c8f] hover:bg-[#152e6e] text-white px-5 py-2.5 rounded-md text-sm font-medium transition shadow-sm inline-flex items-center gap-1.5">
+        <a href="{{ route('admin.requests.create') }}" class="bg-[#1a3c8f] hover:bg-[#152e6e] text-white px-5 py-2.5 rounded-md text-sm font-medium transition shadow-sm inline-flex items-center gap-1.5">
             + New Request
         </a>
     </div>

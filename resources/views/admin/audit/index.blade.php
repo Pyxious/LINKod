@@ -6,10 +6,10 @@
 <div class="w-full max-w-7xl mx-auto space-y-6 font-sans">
     
     <!-- Page Banner Header -->
-    <div class="bg-[#fefce8] dark:bg-[#1c1c1e] border border-[#1a3c8f] dark:border-zinc-800 rounded-xl px-8 py-6 flex justify-between items-center shadow-sm">
+    <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 flex justify-between items-center shadow-sm">
         <div>
-            <h1 class="text-[#1a3c8f] dark:text-blue-400 text-2xl font-bold mb-1">Audit Logs</h1>
-            <p class="text-[#1a3c8f] dark:text-gray-300 text-sm opacity-90">View system-wide user activity, security events, logins, and report generations.</p>
+            <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl font-bold mb-1">Audit Logs</h1>
+            <p class="text-[#0033a0]/80 dark:text-gray-300 text-sm font-medium">View system-wide user activity, security events, logins, and report generations.</p>
         </div>
     </div>
 

@@ -1,29 +1,64 @@
-@extends('layouts.client')
+@php
+    $userRole = auth()->user()->role ?? 'client';
+    $layoutName = match($userRole) {
+        'admin'  => 'layouts.admin',
+        'worker' => 'layouts.worker',
+        default  => 'layouts.client'
+    };
+@endphp
+@extends($layoutName)
 
-@section('fullwidth', true)
+@if($userRole === 'client')
+    @section('fullwidth', true)
+@endif
 
 @section('content')
-<div class="w-full flex flex-col font-sans min-h-[calc(100vh-64px)] bg-slate-50/50 dark:bg-[#111111]">
-    
-    <!-- Top Hero Section (Pale yellow full-width banner) -->
-    <div class="bg-[#FFFDE6] dark:bg-[#18181b] border-b border-amber-100/60 dark:border-zinc-800 py-8 px-6 md:px-12">
-        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-[#042B74] dark:text-blue-400 text-3xl font-bold tracking-tight">Profile Settings</h1>
-                <p class="text-[#47658F] dark:text-gray-400 text-sm font-medium mt-1">Manage your account information, contact details, and security preferences</p>
-            </div>
-            
-            <!-- User Role Badge -->
-            <div>
-                <span class="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-[#0038A8]/10 text-[#0038A8] dark:bg-blue-900/40 dark:text-blue-300 uppercase tracking-wider">
-                    {{ $user->role }} Account
-                </span>
-            </div>
+@if($userRole === 'admin')
+    <!-- Admin Standardized Header Banner -->
+    <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm font-sans">
+        <div>
+            <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl font-bold mb-1">Profile Settings</h1>
+            <p class="text-[#0033a0]/80 dark:text-gray-300 text-sm font-medium">Manage your administrator account credentials, details, and security preferences.</p>
+        </div>
+        <div>
+            <a href="{{ route('admin.dashboard') }}" class="bg-[#0033a0] hover:bg-[#002480] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5">
+                &larr; Back to Dashboard
+            </a>
         </div>
     </div>
-
-    <!-- Main Content Area -->
-    <main class="max-w-6xl w-full mx-auto px-6 md:px-8 py-8 flex-1">
+    <div class="w-full max-w-7xl mx-auto font-sans">
+@elseif($userRole === 'worker')
+    <!-- Worker Standardized Header Banner -->
+    <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm font-sans">
+        <div>
+            <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl font-bold mb-1">Profile Settings</h1>
+            <p class="text-[#0033a0]/80 dark:text-gray-300 text-sm font-medium">Manage your worker account credentials and security settings.</p>
+        </div>
+        <div>
+            <a href="{{ route('worker.dashboard') }}" class="bg-[#0033a0] hover:bg-[#002480] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5">
+                &larr; Back to Dashboard
+            </a>
+        </div>
+    </div>
+    <div class="w-full max-w-7xl mx-auto font-sans">
+@else
+    <div class="w-full flex flex-col font-sans min-h-[calc(100vh-64px)] bg-slate-50/50 dark:bg-[#111111]">
+        <!-- Top Hero Section (Wide Rectangle Banner) -->
+        <div class="bg-[#fffde7] dark:bg-[#18181b] py-8 px-6 md:px-12">
+            <div class="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-[#0033a0] dark:text-blue-400 text-3xl font-bold tracking-tight">Profile Settings</h1>
+                    <p class="text-[#0033a0]/80 dark:text-gray-400 text-sm font-medium mt-1">Manage your account information, contact details, and security preferences</p>
+                </div>
+                <div>
+                    <span class="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-[#0038A8]/10 text-[#0038A8] dark:bg-blue-900/40 dark:text-blue-300 uppercase tracking-wider">
+                        Client Account
+                    </span>
+                </div>
+            </div>
+        </div>
+        <main class="max-w-6xl w-full mx-auto px-6 md:px-8 py-8 flex-1">
+@endif
         
         <!-- Alerts -->
         @if(session('success'))
@@ -324,8 +359,12 @@
 
         </div>
 
+@if($userRole === 'client')
     </main>
 </div>
+@else
+</div>
+@endif
 
 <script>
     function switchTab(tabId) {

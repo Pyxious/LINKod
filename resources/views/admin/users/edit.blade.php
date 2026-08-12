@@ -5,10 +5,10 @@
 <div class="w-full max-w-2xl mx-auto space-y-6 font-sans">
     
     <!-- Top Banner -->
-    <div class="bg-[#FFFDE6] dark:bg-[#18181b] border border-amber-200/80 dark:border-zinc-800 rounded-2xl px-8 py-6 flex justify-between items-center shadow-2xs">
+    <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 flex justify-between items-center shadow-sm">
         <div>
-            <h1 class="text-[#042B74] dark:text-blue-400 text-2xl font-bold mb-1">Edit User Role</h1>
-            <p class="text-[#47658F] dark:text-gray-400 text-sm">Update system access privileges for {{ $user->first_name }} {{ $user->last_name }}</p>
+            <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl font-bold mb-1">Edit User Role</h1>
+            <p class="text-[#0033a0]/80 dark:text-gray-400 text-sm font-medium">Update system access privileges for {{ $user->first_name }} {{ $user->last_name }}</p>
         </div>
         <a href="{{ route('admin.users.index') }}" class="bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-zinc-700 px-4 py-2 rounded-lg text-xs font-semibold hover:bg-gray-50 transition shadow-2xs">
             ← Back to Users

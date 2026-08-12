@@ -85,16 +85,16 @@
         @else
         <div class="hidden md:flex items-center gap-8 h-full"
              x-data="{ 
-                 activeTab: '{{ request()->routeIs('client.requests.*') ? 'track' : 'home' }}',
+                 activeTab: 'home',
                  init() {
-                     if (window.location.hash === '#services') this.activeTab = 'services';
-                     else if (window.location.hash === '#about') this.activeTab = 'about';
-                     
-                     window.addEventListener('hashchange', () => {
+                     const updateTab = () => {
                          if (window.location.hash === '#services') this.activeTab = 'services';
+                         else if (window.location.hash === '#track') this.activeTab = 'track';
                          else if (window.location.hash === '#about') this.activeTab = 'about';
                          else if (window.location.pathname === '/') this.activeTab = 'home';
-                     });
+                     };
+                     updateTab();
+                     window.addEventListener('hashchange', updateTab);
                  }
              }">
             <!-- HOME -->
@@ -114,7 +114,7 @@
             </a>
 
             <!-- TRACK -->
-            <a href="{{ route('client.requests.index') }}" 
+            <a href="{{ route('home') }}#track" 
                @click="activeTab = 'track'"
                :class="activeTab === 'track' ? 'text-[#0033a0] dark:text-blue-400 font-bold border-b-2 border-[#0033a0] dark:border-blue-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-semibold'"
                class="h-full flex items-center px-2 text-xs uppercase tracking-wider transition">
@@ -140,8 +140,8 @@
             </button>
             @auth
             <div class="relative" x-data="{ open: false }">
-                <button @click="open = !open" class="flex items-center gap-1.5 cursor-pointer p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 transition">
-                    <div class="w-9 h-9 bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-white rounded-full flex items-center justify-center font-bold text-[14px] border border-gray-300 dark:border-zinc-600 relative">
+                <button @click="open = !open" class="flex items-center gap-1.5 cursor-pointer p-1 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 transition">
+                    <div class="w-9 h-9 bg-[#0033a0] text-white rounded-md flex items-center justify-center font-bold text-sm shadow-sm relative">
                         {{ strtoupper(substr(auth()->user()->first_name ?? 'U', 0, 1)) }}
                         @if(isset($unreadCount) && $unreadCount > 0)
                             <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center border border-white">
@@ -150,7 +150,7 @@
                         @endif
                     </div>
                     <!-- Chevron -->
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    <svg class="w-4 h-4 text-gray-400 dark:text-gray-300 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
 
                 <!-- Dropdown Menu -->
@@ -163,30 +163,67 @@
                      x-transition:leave-start="opacity-100 scale-100"
                      x-transition:leave-end="opacity-0 scale-95"
                      x-cloak
-                     class="absolute right-0 top-[calc(100%+8px)] bg-white dark:bg-[#1a1a1a] rounded-xl shadow-2xl min-w-[200px] overflow-hidden z-50 border border-gray-100 dark:border-gray-800">
-                    <div class="px-4 pt-3 pb-2 text-[13px] text-gray-500 dark:text-gray-400 truncate">
-                        {{ auth()->user()->email_account }}
+                     class="absolute right-0 top-[calc(100%+8px)] bg-white dark:bg-[#18181b] rounded-lg shadow-xl min-w-[240px] overflow-hidden z-50 border border-gray-200 dark:border-zinc-800 font-sans">
+                    
+                    <!-- Header Section: Avatar + Name + Role/Client Type -->
+                    <div class="p-4 flex items-center gap-3">
+                        <div class="w-11 h-11 bg-[#0033a0] text-white rounded-md flex items-center justify-center font-bold text-lg shrink-0 shadow-sm">
+                            {{ strtoupper(substr(auth()->user()->first_name ?? 'U', 0, 1)) }}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-bold text-sm text-slate-900 dark:text-white truncate leading-tight">
+                                {{ auth()->user()->first_name }} {{ auth()->user()->last_name }}
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 font-medium truncate mt-0.5">
+                                {{ ucfirst(auth()->user()->client?->client_type ?? auth()->user()->role) }}
+                            </div>
+                        </div>
                     </div>
-                    <hr class="border-gray-100 dark:border-gray-700">
-                    @if(auth()->user()->role === 'worker')
-                    <a href="{{ route('portal.select') }}" class="block w-full px-4 py-2.5 text-left text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-800 transition border-b border-gray-100 dark:border-gray-700">
-                        Switch Portal / Services
-                    </a>
-                    @endif
-                    <a href="{{ route('profile.index') }}" class="block w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                        My Profile Settings
-                    </a>
-                    <hr class="border-gray-100 dark:border-gray-700">
-                    <a href="{{ route('client.notifications.index') }}" class="block w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                        Notifications
-                    </a>
-                    <hr class="border-gray-100">
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit" class="block w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 font-medium transition">
-                            Sign Out
-                        </button>
-                    </form>
+
+                    <div class="border-t border-gray-100 dark:border-zinc-800"></div>
+
+                    <!-- Items List -->
+                    <div class="py-1">
+                        @if(auth()->user()->role === 'worker')
+                        <a href="{{ route('portal.select') }}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[#0033a0] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-zinc-800 transition">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                            <span>SWITCH PORTAL</span>
+                        </a>
+                        @endif
+
+                        <a href="{{ route('client.requests.index') }}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 022 2h2a2 2 0 022-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                            <span>MY REQUESTS</span>
+                        </a>
+
+                        <a href="{{ route('client.messages.index') }}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                            <span>MESSAGES</span>
+                        </a>
+
+                        <a href="{{ route('profile.index') }}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                            <span>PROFILE SETTINGS</span>
+                        </a>
+
+                        <a href="{{ route('client.notifications.index') }}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                            <span>NOTIFICATIONS</span>
+                        </a>
+                    </div>
+
+                    <div class="border-t border-gray-100 dark:border-zinc-800"></div>
+
+                    <!-- Sign Out Section -->
+                    <div class="py-1">
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition text-left cursor-pointer">
+                                <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                                <span>SIGN OUT</span>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
             @else

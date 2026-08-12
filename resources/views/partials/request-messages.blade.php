@@ -96,9 +96,6 @@
     <!-- Input Form / Resolved Lock Banner -->
     @if($isResolved)
         <div class="p-4 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-center gap-3">
-            <svg class="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-            </svg>
             <div>
                 <div class="text-xs font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider">Requisition Resolved</div>
                 <div class="text-xs text-amber-700 dark:text-amber-400 font-medium">This service request is completed or closed. Messaging is marked as resolved and locked for new replies.</div>

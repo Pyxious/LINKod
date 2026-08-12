@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\Client;
+use App\Models\Staff;
+use App\Models\Worker;
+use App\Models\Team;
 use App\Models\UserLog;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 
@@ -58,6 +61,24 @@ class AuthService
             Client::create([
                 'user_id' => $user->user_id,
             ]);
+        } else {
+            // If user exists (e.g., created via walk-in request), ensure client model exists
+            if (!$user->client && $user->role === 'client') {
+                Client::create([
+                    'user_id' => $user->user_id,
+                ]);
+            }
+
+            // Update placeholder names if they were set as walk-in defaults
+            $nameParts = explode(' ', $googleUser->getName(), 3);
+            $firstName = $nameParts[0] ?? '';
+            $lastName  = $nameParts[1] ?? '';
+            if ($firstName && (empty($user->first_name) || strtolower($user->first_name) === 'walk-in')) {
+                $user->update([
+                    'first_name' => $firstName,
+                    'last_name'  => $lastName ?: $user->last_name,
+                ]);
+            }
         }
 
         // Ensure Staff & Worker records exist if user has worker role
@@ -70,8 +91,8 @@ class AuthService
             ]);
 
             if (!$staff->worker) {
-                $defaultTeam = \App\Models\Team::first();
-                \App\Models\Worker::create([
+                $defaultTeam = Team::first();
+                Worker::create([
                     'staff_id'     => $staff->staff_id,
                     'team_id'      => $defaultTeam?->team_id,
                     'date_hired'   => now()->toDateString(),

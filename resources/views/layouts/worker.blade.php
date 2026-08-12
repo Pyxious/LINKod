@@ -66,6 +66,13 @@
                 My Unit
             </a>
 
+            <!-- Messages -->
+            <a href="{{ route('worker.messages.index') }}" 
+               class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('worker.messages.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+                <img src="{{ asset('images/MESSAGES LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Messages">
+                Messages
+            </a>
+
             <!-- Notifications -->
             <a href="{{ route('worker.notifications.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('worker.notifications.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
@@ -96,19 +103,55 @@
                      @click.outside="open = false" 
                      x-transition 
                      x-cloak
-                     class="absolute bottom-full left-0 mb-2 w-full bg-white dark:bg-[#222222] border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50">
-                    <a href="{{ route('portal.select') }}" class="block w-full text-left px-4 py-3 text-sm text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-50 dark:hover:bg-gray-800 transition border-b border-gray-100 dark:border-gray-700">
-                        Switch Portal / Services
-                    </a>
-                    <a href="{{ route('profile.index') }}" class="block w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition border-b border-gray-100 dark:border-gray-700">
-                        My Profile Settings
-                    </a>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit" class="w-full text-left px-4 py-3 text-sm text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-900/30 transition">
-                            Sign Out
-                        </button>
-                    </form>
+                     class="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden z-50 font-sans">
+                    
+                    <!-- Header Section: Avatar + Name + Role -->
+                    <div class="p-4 flex items-center gap-3">
+                        <div class="w-11 h-11 bg-[#0033a0] text-white rounded-md flex items-center justify-center font-bold text-lg shrink-0 shadow-sm">
+                            {{ strtoupper(substr(auth()->user()->first_name ?? 'W', 0, 1)) }}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-bold text-sm text-slate-900 dark:text-white truncate leading-tight">
+                                {{ auth()->user()->first_name }} {{ auth()->user()->last_name }}
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 font-medium truncate mt-0.5">
+                                GSO Maintenance Worker
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-100 dark:border-zinc-800"></div>
+
+                    <!-- Items List -->
+                    <div class="py-1">
+                        <a href="{{ route('portal.select') }}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[#0033a0] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-zinc-800 transition">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                            <span>SWITCH PORTAL</span>
+                        </a>
+
+                        <a href="{{ route('worker.job-orders.index') }}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 022 2h2a2 2 0 022-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                            <span>JOB ORDERS</span>
+                        </a>
+
+                        <a href="{{ route('worker.profile.index') }}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                            <span>PROFILE SETTINGS</span>
+                        </a>
+                    </div>
+
+                    <div class="border-t border-gray-100 dark:border-zinc-800"></div>
+
+                    <!-- Sign Out Section -->
+                    <div class="py-1">
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition text-left cursor-pointer">
+                                <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                                <span>SIGN OUT</span>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>

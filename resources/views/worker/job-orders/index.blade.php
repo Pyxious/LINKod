@@ -4,10 +4,10 @@
 @section('content')
 
 <!-- Page Banner -->
-<div class="bg-[#FFFDE6] dark:bg-[#18181b] border border-amber-200/80 dark:border-zinc-800 rounded-2xl px-8 py-6 flex justify-between items-center mb-6 shadow-2xs">
+<div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm">
     <div>
-        <h1 class="text-[#042B74] dark:text-blue-400 text-2xl font-bold mb-1">Job Orders & Assignments</h1>
-        <p class="text-[#47658F] dark:text-gray-400 text-sm font-medium">View and manage your assigned maintenance tasks.</p>
+        <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl font-bold mb-1">Job Orders & Assignments</h1>
+        <p class="text-[#0033a0]/80 dark:text-gray-400 text-sm font-medium">View and manage your assigned maintenance tasks.</p>
     </div>
 </div>
 

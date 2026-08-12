@@ -20,9 +20,12 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
 
     // Requests
     Route::get('/requests',              [RequestController::class, 'index'])->name('requests.index');
+    Route::get('/requests/create',       [RequestController::class, 'create'])->name('requests.create');
+    Route::post('/requests',             [RequestController::class, 'store'])->name('requests.store')->middleware('throttle:10,1');
     Route::get('/requests/{id}',         [RequestController::class, 'show'])->name('requests.show');
     Route::post('/requests/{id}/messages', [\App\Http\Controllers\RequestMessageController::class, 'store'])->name('requests.messages.store')->middleware('throttle:15,1');
     Route::get('/requests/{id}/export',  [RequestController::class, 'export'])->name('requests.export');
+    Route::get('/requests/{id}/satisfaction', [RequestController::class, 'printSatisfaction'])->name('requests.satisfaction');
     Route::post('/requests/{id}/approve',[RequestController::class, 'approve'])->name('requests.approve');
     Route::post('/requests/{id}/reject', [RequestController::class, 'reject'])->name('requests.reject');
     Route::post('/requests/{id}/verify', [RequestController::class, 'verifyCompletion'])->name('requests.verify');
@@ -57,4 +60,10 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
 
     // Audit Logs
     Route::get('/audit', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])->name('audit.index');
+
+    // Dedicated Messages Portal
+    Route::get('/messages/{requestId?}', [\App\Http\Controllers\MessagePortalController::class, 'index'])->name('messages.index');
+
+    // Dedicated Admin Profile
+    Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'index'])->name('profile.index');
 });

@@ -8,7 +8,7 @@
     <div class="w-full max-w-4xl space-y-6">
         
         <!-- Header Banner Card -->
-        <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#2563eb] rounded-2xl p-7 shadow-sm">
+        <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 shadow-sm">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#e5e1b0] dark:border-zinc-800 pb-5 mb-5">
                 <div>
                     <h1 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">

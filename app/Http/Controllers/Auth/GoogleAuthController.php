@@ -30,7 +30,7 @@ class GoogleAuthController extends Controller
     }
 
     /**
-     * Redirect to Google OAuth (Admin legacy alias).
+     * Redirect to Google OAuth (Admin).
      */
     public function redirectAdmin(Request $request): RedirectResponse
     {
@@ -38,7 +38,7 @@ class GoogleAuthController extends Controller
     }
 
     /**
-     * Redirect to Google OAuth (Staff legacy alias).
+     * Redirect to Google OAuth (Staff).
      */
     public function redirectStaff(Request $request): RedirectResponse
     {

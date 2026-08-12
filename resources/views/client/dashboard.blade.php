@@ -304,191 +304,189 @@
     <!-- Organizational Structure Section (FOURTH - WITH SCROLL OFFSET) -->
     <section id="org-structure" class="w-full bg-white dark:bg-[#111111] border-t border-gray-100 dark:border-zinc-800 font-sans scroll-mt-16">
         <!-- Section Header Banner with Light Blue Background -->
-        <div class="w-full bg-[#edf4fb] dark:bg-[#18181b] py-10 px-4 sm:px-6 lg:px-8 border-b border-gray-200 dark:border-zinc-800 text-center">
-            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight">
+        <div class="w-full bg-[#edf4fb] dark:bg-[#18181b] py-6 px-4 sm:px-6 lg:px-8 border-b border-gray-200 dark:border-zinc-800 text-center">
+            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
                 <span class="text-[#0033a0] dark:text-blue-400">Organizational</span> <span class="text-slate-900 dark:text-white">Structure</span>
             </h2>
         </div>
 
         <!-- Graph Content Area with Pure White Background -->
-        <div class="max-w-7xl mx-auto text-center py-16 px-4 sm:px-6 lg:px-8">
-            <div class="w-full overflow-x-auto pb-6">
-                <svg viewBox="0 0 1200 950" class="w-full min-w-[1150px] max-w-[1200px] mx-auto h-auto font-sans" xmlns="http://www.w3.org/2000/svg">
+        <div class="max-w-7xl mx-auto text-center py-6 px-2 sm:px-4 lg:px-6 flex justify-center items-center">
+            <div class="w-full overflow-x-auto">
+                <svg viewBox="0 0 1150 590" class="w-full max-w-[1150px] mx-auto h-auto max-h-[80vh] font-sans" xmlns="http://www.w3.org/2000/svg">
                     <style>
-                        .box-bg { fill: #ffffff !important; stroke: #94a3b8 !important; stroke-width: 1.5; stroke-dasharray: 4,4; rx: 12px; }
+                        .box-bg { fill: #ffffff !important; stroke: #94a3b8 !important; stroke-width: 1.5; stroke-dasharray: 4,4; rx: 10px; }
                         .line-blue { stroke: #2563eb !important; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
                         .title-orange { fill: #c2410c !important; font-weight: 800; font-size: 10px; text-anchor: middle; letter-spacing: 0.3px; }
                         .name-bold { fill: #0f172a !important; font-weight: 800; font-size: 11px; text-anchor: middle; }
                         .sub-gray { fill: #64748b !important; font-weight: 500; font-size: 10px; text-anchor: middle; }
                     </style>
 
-                    <!-- CONNECTING LINES (Rendered below boxes) -->
+                    <!-- CONNECTING LINES (Rendered cleanly below boxes) -->
                     
                     <!-- Line 1: Nebres -> Barrameda -->
-                    <line x1="600" y1="95" x2="600" y2="130" class="line-blue" />
+                    <line x1="575" y1="60" x2="575" y2="80" class="line-blue" />
                     
                     <!-- Line 2: Barrameda -> Caparas -->
-                    <line x1="600" y1="195" x2="600" y2="230" class="line-blue" />
+                    <line x1="575" y1="125" x2="575" y2="145" class="line-blue" />
 
-                    <!-- Line 3: Caparas Right side -> Campus AO top -->
-                    <path d="M 730 265 H 1035 V 340" class="line-blue" />
+                    <!-- Line 3: Caparas Bottom -> Padilla top & branch right to Campus Cluster AO top -->
+                    <line x1="575" y1="195" x2="575" y2="215" class="line-blue" />
+                    <path d="M 575 195 H 990 V 215" class="line-blue" />
 
-                    <!-- Line 4: Caparas Bottom -> Padilla top -->
-                    <line x1="600" y1="300" x2="600" y2="340" class="line-blue" />
+                    <!-- Line 4: Padilla Right side -> Campus Cluster AO left side -->
+                    <line x1="700" y1="237.5" x2="880" y2="237.5" class="line-blue" />
 
-                    <!-- Line 5: Padilla Right side -> Campus AO left side -->
-                    <line x1="730" y1="372.5" x2="920" y2="372.5" class="line-blue" />
+                    <!-- Line 5: Campus Cluster AO bottom -> Support Staff top-center (X=990) -->
+                    <line x1="990" y1="260" x2="990" y2="280" class="line-blue" />
 
-                    <!-- Line 6: Campus AO bottom -> Campus Support Staff top center -->
-                    <line x1="1035" y1="405" x2="1035" y2="465" class="line-blue" />
-
-                    <!-- Line 7: Padilla bottom -> Bus line to Col 1, Col 2, Col 3, and Col 4 top-left (X=980) -->
-                    <line x1="600" y1="405" x2="600" y2="435" class="line-blue" />
-                    <line x1="130" y1="435" x2="980" y2="435" class="line-blue" />
+                    <!-- Line 6: Padilla bottom -> Main Horizontal Bus Line extending to Col 4 top-left (X=930) -->
+                    <line x1="575" y1="260" x2="575" y2="270" class="line-blue" />
+                    <line x1="125" y1="270" x2="930" y2="270" class="line-blue" />
                     
-                    <line x1="130" y1="435" x2="130" y2="465" class="line-blue" />
-                    <line x1="440" y1="435" x2="440" y2="465" class="line-blue" />
-                    <line x1="750" y1="435" x2="750" y2="465" class="line-blue" />
-                    <!-- Padilla bus line drops at X=980 directly into the top edge of Campus Support Staff box -->
-                    <line x1="980" y1="435" x2="980" y2="465" class="line-blue" />
+                    <!-- Line 7: Drops from Bus Line into Col 1, Col 2, Col 3, and Col 4 top-left (X=930) -->
+                    <line x1="125" y1="270" x2="125" y2="280" class="line-blue" />
+                    <line x1="415" y1="270" x2="415" y2="280" class="line-blue" />
+                    <line x1="705" y1="270" x2="705" y2="280" class="line-blue" />
+                    <line x1="930" y1="270" x2="930" y2="280" class="line-blue" />
 
                     <!-- Line 8: Facilities Maintenance -> 4 Sub Pairs Trunk -->
-                    <line x1="130" y1="535" x2="130" y2="887.5" class="line-blue" />
+                    <line x1="125" y1="330" x2="125" y2="549" class="line-blue" />
 
-                    <line x1="130" y1="602.5" x2="150" y2="602.5" class="line-blue" />
-                    <line x1="385" y1="602.5" x2="405" y2="602.5" class="line-blue" />
+                    <line x1="125" y1="369" x2="140" y2="369" class="line-blue" />
+                    <line x1="370" y1="369" x2="390" y2="369" class="line-blue" />
 
-                    <line x1="130" y1="697.5" x2="150" y2="697.5" class="line-blue" />
-                    <line x1="385" y1="697.5" x2="405" y2="697.5" class="line-blue" />
+                    <line x1="125" y1="429" x2="140" y2="429" class="line-blue" />
+                    <line x1="370" y1="429" x2="390" y2="429" class="line-blue" />
 
-                    <line x1="130" y1="792.5" x2="150" y2="792.5" class="line-blue" />
-                    <line x1="385" y1="792.5" x2="405" y2="792.5" class="line-blue" />
+                    <line x1="125" y1="489" x2="140" y2="489" class="line-blue" />
+                    <line x1="370" y1="489" x2="390" y2="489" class="line-blue" />
 
-                    <line x1="130" y1="887.5" x2="150" y2="887.5" class="line-blue" />
-                    <line x1="385" y1="887.5" x2="405" y2="887.5" class="line-blue" />
+                    <line x1="125" y1="549" x2="140" y2="549" class="line-blue" />
+                    <line x1="370" y1="549" x2="390" y2="549" class="line-blue" />
 
                     <!-- Line 9: Support Staff -> Utility Personnel -->
-                    <line x1="1035" y1="535" x2="1035" y2="580" class="line-blue" />
+                    <line x1="990" y1="330" x2="990" y2="355" class="line-blue" />
 
 
                     <!-- BOXES & TEXT CONTENT -->
 
                     <!-- 1. DR. BABY BOY BENJAMIN D. NEBRES III -->
                     <g>
-                        <rect x="470" y="30" width="260" height="65" class="box-bg" />
-                        <text x="600" y="57" class="name-bold">DR. BABY BOY BENJAMIN D. NEBRES III</text>
-                        <text x="600" y="74" class="sub-gray">SUC President IV</text>
+                        <rect x="450" y="15" width="250" height="45" class="box-bg" />
+                        <text x="575" y="34" class="name-bold">DR. BABY BOY BENJAMIN D. NEBRES III</text>
+                        <text x="575" y="48" class="sub-gray">SUC President IV</text>
                     </g>
 
                     <!-- 2. CYRUS A. BARRAMEDA -->
                     <g>
-                        <rect x="470" y="130" width="260" height="65" class="box-bg" />
-                        <text x="600" y="157" class="name-bold">CYRUS A. BARRAMEDA</text>
-                        <text x="600" y="174" class="sub-gray">Vice President for Admission &amp; Finance</text>
+                        <rect x="450" y="80" width="250" height="45" class="box-bg" />
+                        <text x="575" y="99" class="name-bold">CYRUS A. BARRAMEDA</text>
+                        <text x="575" y="113" class="sub-gray">Vice President for Admission &amp; Finance</text>
                     </g>
 
                     <!-- 3. MA. MYRA A. CAPARAS -->
                     <g>
-                        <rect x="470" y="230" width="260" height="70" class="box-bg" />
-                        <text x="600" y="253" class="name-bold">MA. MYRA A. CAPARAS</text>
-                        <text x="600" y="270" class="sub-gray">Acting Chief Administrative Officer for</text>
-                        <text x="600" y="284" class="sub-gray">Administrative Services Division</text>
+                        <rect x="450" y="145" width="250" height="50" class="box-bg" />
+                        <text x="575" y="164" class="name-bold">MA. MYRA A. CAPARAS</text>
+                        <text x="575" y="177" class="sub-gray">Acting Chief Administrative Officer for</text>
+                        <text x="575" y="188" class="sub-gray">Administrative Services Division</text>
                     </g>
 
-                    <!-- CAMPUS/CLUSTER AO (ON PAR HORIZONTALLY WITH SIR REY PADILLA AT Y=340) -->
+                    <!-- CAMPUS/CLUSTER AO (PAR HORIZONTAL WITH SIR REY PADILLA AT Y=215) -->
                     <g>
-                        <rect x="920" y="340" width="230" height="65" class="box-bg" />
-                        <text x="1035" y="377" class="name-bold">CAMPUS/CLUSTER AO</text>
+                        <rect x="880" y="215" width="220" height="45" class="box-bg" />
+                        <text x="990" y="242" class="name-bold">CAMPUS/CLUSTER AO</text>
                     </g>
 
-                    <!-- 4. REY A. PADILLA (ON PAR HORIZONTALLY WITH CAMPUS/CLUSTER AO AT Y=340) -->
+                    <!-- 4. REY A. PADILLA -->
                     <g>
-                        <rect x="470" y="340" width="260" height="65" class="box-bg" />
-                        <text x="600" y="367" class="name-bold">REY A. PADILLA</text>
-                        <text x="600" y="384" class="sub-gray">Head, General Services Office</text>
+                        <rect x="450" y="215" width="250" height="45" class="box-bg" />
+                        <text x="575" y="234" class="name-bold">REY A. PADILLA</text>
+                        <text x="575" y="248" class="sub-gray">Head, General Services Office</text>
                     </g>
 
                     <!-- COLUMN 1: FACILITIES MAINTENANCE SECTION -->
                     <g>
-                        <rect x="15" y="465" width="230" height="70" class="box-bg" />
-                        <text x="130" y="487" class="title-orange">FACILITIES MAINTENANCE SECTION</text>
-                        <text x="130" y="505" class="name-bold">DIOGENES L. LONDONIO</text>
-                        <text x="130" y="520" class="sub-gray">PERSON-IN-CHARGE</text>
+                        <rect x="10" y="280" width="230" height="50" class="box-bg" />
+                        <text x="125" y="297" class="title-orange">FACILITIES MAINTENANCE SECTION</text>
+                        <text x="125" y="311" class="name-bold">DIOGENES L. LONDONIO</text>
+                        <text x="125" y="322" class="sub-gray">PERSON-IN-CHARGE</text>
                     </g>
 
                     <!-- COLUMN 2: MA. KYLA NICOLE N. BERNALES -->
                     <g>
-                        <rect x="325" y="465" width="230" height="70" class="box-bg" />
-                        <text x="440" y="497" class="name-bold">MA. KYLA NICOLE N. BERNALES</text>
-                        <text x="440" y="514" class="sub-gray">Clerical Staff</text>
+                        <rect x="300" y="280" width="230" height="50" class="box-bg" />
+                        <text x="415" y="304" class="name-bold">MA. KYLA NICOLE N. BERNALES</text>
+                        <text x="415" y="318" class="sub-gray">Clerical Staff</text>
                     </g>
 
                     <!-- COLUMN 3: JANITORIAL SERVICES SECTION -->
                     <g>
-                        <rect x="635" y="465" width="230" height="70" class="box-bg" />
-                        <text x="750" y="487" class="title-orange">JANITORIAL SERVICES SECTION</text>
-                        <text x="750" y="505" class="name-bold">ERNIE B. DIMAANO</text>
-                        <text x="750" y="520" class="sub-gray">PERSON-IN-CHARGE</text>
+                        <rect x="590" y="280" width="230" height="50" class="box-bg" />
+                        <text x="705" y="297" class="title-orange">JANITORIAL SERVICES SECTION</text>
+                        <text x="705" y="311" class="name-bold">ERNIE B. DIMAANO</text>
+                        <text x="705" y="322" class="sub-gray">PERSON-IN-CHARGE</text>
                     </g>
 
                     <!-- COLUMN 4: CAMPUS/UNIT GSO SUPPORT STAFF -->
                     <g>
-                        <rect x="920" y="465" width="230" height="70" class="box-bg" />
-                        <text x="1035" y="505" class="name-bold">CAMPUS/UNIT GSO SUPPORT STAFF</text>
+                        <rect x="880" y="280" width="220" height="50" class="box-bg" />
+                        <text x="990" y="310" class="name-bold">CAMPUS/UNIT GSO SUPPORT STAFF</text>
                     </g>
 
                     <!-- CAMPUS/UNIT UTILITY PERSONNEL -->
                     <g>
-                        <rect x="920" y="580" width="230" height="65" class="box-bg" />
-                        <text x="1035" y="617" class="name-bold">CAMPUS/UNIT UTILITY PERSONNEL</text>
+                        <rect x="880" y="355" width="220" height="45" class="box-bg" />
+                        <text x="990" y="382" class="name-bold">CAMPUS/UNIT UTILITY PERSONNEL</text>
                     </g>
 
                     <!-- SUB PAIR 1: CARPENTRY -->
                     <g>
-                        <rect x="150" y="570" width="235" height="65" class="box-bg" />
-                        <text x="267" y="589" class="title-orange">CARPENTRY / MASONRY / ELEC. SERVICES</text>
-                        <text x="267" y="607" class="name-bold">DIOGENES L. LONDONIO</text>
-                        <text x="267" y="621" class="sub-gray">Team Leader</text>
+                        <rect x="140" y="345" width="230" height="48" class="box-bg" />
+                        <text x="255" y="360" class="title-orange">CARPENTRY / MASONRY / ELEC. SERVICES</text>
+                        <text x="255" y="373" class="name-bold">DIOGENES L. LONDONIO</text>
+                        <text x="255" y="384" class="sub-gray">Team Leader</text>
 
-                        <rect x="405" y="570" width="210" height="65" class="box-bg" />
-                        <text x="510" y="600" class="name-bold">REYNANTE MADRONA</text>
-                        <text x="510" y="616" class="sub-gray">(SKILLED WORKER)</text>
+                        <rect x="390" y="345" width="190" height="48" class="box-bg" />
+                        <text x="485" y="368" class="name-bold">REYNANTE MADRONA</text>
+                        <text x="485" y="381" class="sub-gray">(SKILLED WORKER)</text>
                     </g>
 
                     <!-- SUB PAIR 2: PLUMBING -->
                     <g>
-                        <rect x="150" y="665" width="235" height="65" class="box-bg" />
-                        <text x="267" y="684" class="title-orange">PLUMBING SERVICES</text>
-                        <text x="267" y="702" class="name-bold">SONNY B. MARAYA</text>
-                        <text x="267" y="716" class="sub-gray">Team Leader</text>
+                        <rect x="140" y="405" width="230" height="48" class="box-bg" />
+                        <text x="255" y="420" class="title-orange">PLUMBING SERVICES</text>
+                        <text x="255" y="433" class="name-bold">SONNY B. MARAYA</text>
+                        <text x="255" y="444" class="sub-gray">Team Leader</text>
 
-                        <rect x="405" y="665" width="210" height="65" class="box-bg" />
-                        <text x="510" y="695" class="name-bold">FIDEL LANETA</text>
-                        <text x="510" y="711" class="sub-gray">(SKILLED WORKER)</text>
+                        <rect x="390" y="405" width="190" height="48" class="box-bg" />
+                        <text x="485" y="428" class="name-bold">FIDEL LANETA</text>
+                        <text x="485" y="441" class="sub-gray">(SKILLED WORKER)</text>
                     </g>
 
                     <!-- SUB PAIR 3: PAINTING -->
                     <g>
-                        <rect x="150" y="760" width="235" height="65" class="box-bg" />
-                        <text x="267" y="779" class="title-orange">PAINTING SERVICES</text>
-                        <text x="267" y="797" class="name-bold">JACOB JUAN N. BAÑARES</text>
-                        <text x="267" y="811" class="sub-gray">Team Leader</text>
+                        <rect x="140" y="465" width="230" height="48" class="box-bg" />
+                        <text x="255" y="480" class="title-orange">PAINTING SERVICES</text>
+                        <text x="255" y="493" class="name-bold">JACOB JUAN N. BAÑARES</text>
+                        <text x="255" y="504" class="sub-gray">Team Leader</text>
 
-                        <rect x="405" y="760" width="210" height="65" class="box-bg" />
-                        <text x="510" y="790" class="name-bold">GEORGE BORJE</text>
-                        <text x="510" y="806" class="sub-gray">(SKILLED WORKER)</text>
+                        <rect x="390" y="465" width="190" height="48" class="box-bg" />
+                        <text x="485" y="488" class="name-bold">GEORGE BORJE</text>
+                        <text x="485" y="501" class="sub-gray">(SKILLED WORKER)</text>
                     </g>
 
                     <!-- SUB PAIR 4: LANDSCAPING -->
                     <g>
-                        <rect x="150" y="855" width="235" height="65" class="box-bg" />
-                        <text x="267" y="874" class="title-orange">LANDSCAPING SERVICES</text>
-                        <text x="267" y="892" class="name-bold">SAMUEL C. BONAOBRA</text>
-                        <text x="267" y="906" class="sub-gray">Team Leader</text>
+                        <rect x="140" y="525" width="230" height="48" class="box-bg" />
+                        <text x="255" y="540" class="title-orange">LANDSCAPING SERVICES</text>
+                        <text x="255" y="553" class="name-bold">SAMUEL C. BONAOBRA</text>
+                        <text x="255" y="564" class="sub-gray">Team Leader</text>
 
-                        <rect x="405" y="855" width="210" height="65" class="box-bg" />
-                        <text x="510" y="885" class="name-bold">WILFREDO BUMALAY</text>
-                        <text x="510" y="901" class="sub-gray">(SKILLED WORKER)</text>
+                        <rect x="390" y="525" width="190" height="48" class="box-bg" />
+                        <text x="485" y="548" class="name-bold">WILFREDO BUMALAY</text>
+                        <text x="485" y="561" class="sub-gray">(SKILLED WORKER)</text>
                     </g>
 
                 </svg>

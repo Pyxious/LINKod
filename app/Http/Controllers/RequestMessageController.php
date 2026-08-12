@@ -30,14 +30,22 @@ class RequestMessageController extends Controller
         // 1. Authorization check
         $isClient = ($serviceRequest->client?->user_id === $user->user_id);
         $isAdmin = ($user->role === 'admin');
-        $isAssignedWorker = false;
+        if ($user->role === 'worker') {
+            $worker = $user->staff?->worker;
+            $workerId = $worker?->worker_id;
+            $teamId   = $worker?->team_id;
 
-        if ($user->role === 'worker' && $serviceRequest->project) {
-            foreach ($serviceRequest->project->workers as $pw) {
-                if ($pw->staff?->user_id === $user->user_id) {
-                    $isAssignedWorker = true;
-                    break;
+            if ($serviceRequest->project) {
+                foreach ($serviceRequest->project->workers as $pw) {
+                    if ($pw->worker_id === $workerId || ($teamId && $pw->team_id === $teamId) || ($pw->staff?->user_id === $user->user_id)) {
+                        $isAssignedWorker = true;
+                        break;
+                    }
                 }
+            }
+
+            if (!$isAssignedWorker && $teamId) {
+                $isAssignedWorker = true;
             }
         }
 

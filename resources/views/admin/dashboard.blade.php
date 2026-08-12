@@ -8,10 +8,10 @@
 @section('content')
 
 <!-- Dash Banner -->
-<div class="bg-[#fefce8] dark:bg-[#1c1c1e] border border-[#1a3c8f] rounded-xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm font-sans" x-data="{ openNotifs: false }">
+<div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm font-sans" x-data="{ openNotifs: false }">
     <div>
-        <h1 class="text-[#1a3c8f] dark:text-blue-400 text-2xl font-bold mb-1">Dashboard</h1>
-        <p class="text-[#1a3c8f] dark:text-gray-300 text-sm opacity-90">Welcome back, admin!</p>
+        <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl font-bold mb-1">Dashboard</h1>
+        <p class="text-[#0033a0]/80 dark:text-gray-300 text-sm font-medium">Welcome back, admin!</p>
     </div>
     
     <div class="flex items-center gap-6">

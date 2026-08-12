@@ -6,7 +6,7 @@
 <div class="w-full max-w-6xl mx-auto space-y-6 font-sans">
     
     <!-- Top Header Banner -->
-    <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#2563eb] rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <div class="flex items-center gap-3 mb-2 flex-wrap">
                 <span class="px-3 py-1 bg-[#0033a0] text-white text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-sm">
@@ -36,11 +36,23 @@
             </p>
         </div>
 
-        <div class="flex items-center gap-3 shrink-0">
+        <div class="flex items-center gap-3 shrink-0 flex-wrap">
             <a href="{{ route('admin.requests.export', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-full transition shadow-md inline-flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                Print PDF / Requisition
+                Print Requisition
             </a>
+
+            @if($serviceRequest->evaluation)
+                <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-full transition shadow-md inline-flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                    Print Satisfaction Page
+                </a>
+            @else
+                <button type="button" disabled class="px-5 py-2.5 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-full cursor-not-allowed inline-flex items-center gap-2 opacity-80" title="Client has not rated this service request yet">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                    Print Satisfaction Page (Not Rated Yet)
+                </button>
+            @endif
         </div>
     </div>
 
@@ -95,6 +107,52 @@
             </div>
         @endif
     </div>
+
+    <!-- Clientele Satisfaction Rating Section Card (Displayed when client has rated the request) -->
+    @if($serviceRequest->evaluation)
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 border-[#0033a0] dark:border-blue-700 p-7 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-4">
+                <div>
+                    <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        Clientele Satisfaction Measurement Rating
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-0.5 font-medium">Submitted by client on {{ $serviceRequest->evaluation->rated_at ? $serviceRequest->evaluation->rated_at->format('M d, Y h:i A') : 'N/A' }}</p>
+                </div>
+                <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center gap-2 shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    Print Satisfaction Form
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-blue-50/70 dark:bg-zinc-800 p-4 rounded-xl border border-blue-200 dark:border-zinc-700 flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-xl bg-[#0033a0] text-white font-black text-xl flex items-center justify-center shrink-0 shadow-sm">
+                        {{ $serviceRequest->evaluation->rating }}★
+                    </div>
+                    <div>
+                        <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Overall Rating</div>
+                        <div class="text-sm font-black text-slate-900 dark:text-white">
+                            {{ match((int)$serviceRequest->evaluation->rating) {
+                                5 => '5 / 5 — Very Satisfied',
+                                4 => '4 / 5 — Satisfied',
+                                3 => '3 / 5 — Neutral',
+                                2 => '2 / 5 — Dissatisfied',
+                                default => '1 / 5 — Very Dissatisfied'
+                            } }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md:col-span-2 bg-slate-50 dark:bg-zinc-800 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                    <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Client Feedback & Comments</div>
+                    <p class="text-xs text-slate-800 dark:text-gray-200 font-medium italic">
+                        "{{ $serviceRequest->evaluation->feedback_text ?: 'No additional written feedback provided.' }}"
+                    </p>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- Assigned Personnel & Maintenance Unit Card (Displayed when request is approved and has assigned workers) -->
     @if($serviceRequest->project && $serviceRequest->project->workers->isNotEmpty())
@@ -269,13 +327,6 @@
                     </button>
                 </form>
             </div>
-        </div>
-    @else
-        <div class="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-5 rounded-2xl flex items-center gap-3">
-            <svg class="w-6 h-6 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <p class="text-emerald-800 dark:text-emerald-300 text-sm font-semibold">
-                This service request is currently: <span class="font-black uppercase tracking-wide">{{ $serviceRequest->current_status }}</span>.
-            </p>
         </div>
     @endif
 

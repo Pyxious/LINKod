@@ -92,6 +92,18 @@ class RequestController extends Controller
 
     public function create(Request $request)
     {
+        $user = auth()->user();
+        $client = $user?->client;
+        $unratedCompletedRequest = null;
+
+        if ($client) {
+            $unratedCompletedRequest = $client->requests()
+                ->whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))
+                ->doesntHave('evaluation')
+                ->latest('submitted_at')
+                ->first();
+        }
+
         $categories = Category::orderBy('category_name')->get();
         $preselectedCatId = null;
 
@@ -106,12 +118,28 @@ class RequestController extends Controller
             }
         }
 
-        return view('client.requests.create', compact('categories', 'preselectedCatId'));
+        return view('client.requests.create', compact('categories', 'preselectedCatId', 'unratedCompletedRequest'));
     }
 
     public function store(Request $request)
     {
         try {
+            $user = auth()->user();
+            $client = $user->client;
+
+            if ($client) {
+                $unratedCompletedRequest = $client->requests()
+                    ->whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))
+                    ->doesntHave('evaluation')
+                    ->latest('submitted_at')
+                    ->first();
+
+                if ($unratedCompletedRequest) {
+                    return redirect()->route('client.evaluations.create', $unratedCompletedRequest->request_id)
+                        ->with('error', 'Request creation is locked because you have not evaluated your last completed request.');
+                }
+            }
+
             $validated = $request->validate([
                 'category_id'    => 'required|exists:category,category_id',
                 'title'          => 'required|string|max:150',
@@ -123,9 +151,6 @@ class RequestController extends Controller
                 'attachment'     => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
                 'contact_number' => 'required|string|regex:/^09\d{9}$/',
             ]);
-
-            $user = auth()->user();
-            $client = $user->client;
 
             // Update user's contact number if it has changed
             if ($user->contact_number !== $validated['contact_number']) {
