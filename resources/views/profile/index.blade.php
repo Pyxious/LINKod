@@ -1,6 +1,10 @@
 @php
-    $userRole = auth()->user()->role ?? 'client';
-    $layoutName = match($userRole) {
+    $activePortal = match(true) {
+        request()->routeIs('admin.*') || request()->is('admin/*') => 'admin',
+        request()->routeIs('worker.*') || request()->is('worker/*') => 'worker',
+        default => 'client'
+    };
+    $layoutName = match($activePortal) {
         'admin'  => 'layouts.admin',
         'worker' => 'layouts.worker',
         default  => 'layouts.client'
@@ -8,12 +12,13 @@
 @endphp
 @extends($layoutName)
 
-@if($userRole === 'client')
+@if($activePortal === 'client')
     @section('fullwidth', true)
 @endif
+@section('hide_alerts', true)
 
 @section('content')
-@if($userRole === 'admin')
+@if($activePortal === 'admin')
     <!-- Admin Standardized Header Banner -->
     <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm font-sans">
         <div>
@@ -27,7 +32,7 @@
         </div>
     </div>
     <div class="w-full max-w-7xl mx-auto font-sans">
-@elseif($userRole === 'worker')
+@elseif($activePortal === 'worker')
     <!-- Worker Standardized Header Banner -->
     <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm font-sans">
         <div>
@@ -359,7 +364,7 @@
 
         </div>
 
-@if($userRole === 'client')
+@if($activePortal === 'client')
     </main>
 </div>
 @else

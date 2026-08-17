@@ -8,92 +8,15 @@
 @section('content')
 
 <!-- Dash Banner -->
-<div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm font-sans" x-data="{ openNotifs: false }">
+<div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-6 sm:px-8 py-5 flex justify-between items-center mb-6 shadow-sm font-sans">
     <div>
-        <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl font-bold mb-1">Dashboard</h1>
-        <p class="text-[#0033a0]/80 dark:text-gray-300 text-sm font-medium">Welcome back, admin!</p>
+        <h1 class="text-[#0033a0] dark:text-blue-400 text-xl sm:text-2xl font-bold mb-1">Dashboard</h1>
+        <p class="text-[#0033a0]/80 dark:text-gray-300 text-xs sm:text-sm font-medium">Welcome back, admin!</p>
     </div>
     
-    <div class="flex items-center gap-6">
-        <!-- Interactive Notification Bell & Dropdown Tab -->
-        <div class="relative">
-            <button @click="openNotifs = !openNotifs" 
-                    type="button" 
-                    class="relative bg-[#1a3c8f] hover:bg-[#152e6e] text-white w-11 h-11 rounded-full flex items-center justify-center transition shadow-md focus:outline-none">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                </svg>
-                @if(($unreadCount ?? 0) > 0)
-                    <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full border-2 border-[#fefce8] animate-pulse">
-                        {{ $unreadCount }}
-                    </span>
-                @endif
-            </button>
-
-            <!-- Notifications Dropdown Popover Tab -->
-            <div x-show="openNotifs" 
-                 @click.outside="openNotifs = false" 
-                 x-transition 
-                 x-cloak 
-                 class="absolute right-0 mt-3 w-80 sm:w-96 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-50">
-                
-                <!-- Popover Header -->
-                <div class="px-5 py-4 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-[#f8faff] dark:bg-zinc-800/50">
-                    <div class="flex items-center gap-2">
-                        <span class="font-extrabold text-sm text-[#0033a0] dark:text-blue-400 uppercase tracking-wider">Notifications</span>
-                        @if(($unreadCount ?? 0) > 0)
-                            <span class="px-2 py-0.5 text-[10px] font-black bg-red-100 text-red-700 rounded-full">
-                                {{ $unreadCount }} New
-                            </span>
-                        @endif
-                    </div>
-
-                    @if(($unreadCount ?? 0) > 0)
-                        <form method="POST" action="{{ route('admin.notifications.mark-all-read') }}">
-                            @csrf
-                            <button type="submit" class="text-[11px] font-bold text-[#0033a0] dark:text-blue-400 hover:underline">
-                                Mark all as read
-                            </button>
-                        </form>
-                    @endif
-                </div>
-
-                <!-- Notifications List -->
-                <div class="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800">
-                    @forelse($notifications ?? [] as $notif)
-                        <a href="{{ route('admin.notifications.read', $notif->notification_id) }}" 
-                           class="block px-5 py-3.5 hover:bg-blue-50/60 dark:hover:bg-zinc-800/60 transition {{ !$notif->is_read ? 'bg-blue-50/40 dark:bg-zinc-800/30' : '' }}">
-                            <div class="flex items-start gap-3">
-                                <div class="w-2 h-2 mt-1.5 rounded-full shrink-0 {{ !$notif->is_read ? 'bg-[#0033a0]' : 'bg-gray-300' }}"></div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex justify-between items-baseline gap-2 mb-0.5">
-                                        <h4 class="text-xs font-bold text-slate-900 dark:text-white truncate">
-                                            {{ $notif->title }}
-                                        </h4>
-                                        <span class="text-[10px] text-gray-400 shrink-0">
-                                            {{ \Carbon\Carbon::parse($notif->sent_at)->diffForHumans() }}
-                                        </span>
-                                    </div>
-                                    <p class="text-xs text-gray-600 dark:text-gray-300 leading-snug line-clamp-2">
-                                        {{ $notif->message }}
-                                    </p>
-                                </div>
-                            </div>
-                        </a>
-                    @empty
-                        <div class="py-10 text-center text-gray-400 text-xs italic">
-                            No notifications yet.
-                        </div>
-                    @endforelse
-                </div>
-
-            </div>
-        </div>
-
-        <div class="border-l-2 border-[#1a3c8f] pl-6">
-            <div class="text-[#1a3c8f] dark:text-blue-400 font-bold text-[15px]">{{ now()->format('F j, Y') }}</div>
-            <div class="text-[#1a3c8f] dark:text-gray-300 text-[13px] opacity-90">{{ now()->format('l, h:i A') }}</div>
-        </div>
+    <div class="border-l-2 border-[#1a3c8f] dark:border-blue-500 pl-4 sm:pl-6 text-right">
+        <div class="text-[#1a3c8f] dark:text-blue-400 font-bold text-xs sm:text-[15px]">{{ now()->format('F j, Y') }}</div>
+        <div class="text-[#1a3c8f] dark:text-gray-300 text-[11px] sm:text-[13px] opacity-90">{{ now()->format('l, h:i A') }}</div>
     </div>
 </div>
 

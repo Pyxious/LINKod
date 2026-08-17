@@ -41,13 +41,18 @@
         @if(request()->routeIs('portal.select'))
         <div class="hidden md:flex items-center gap-8 h-full"
              x-data="{ 
-                 activeTab: 'home',
+                 activeTab: '{{ request()->routeIs('portal.select') ? 'home' : '' }}',
                  init() {
-                     if (window.location.hash === '#about') this.activeTab = 'about';
-                     window.addEventListener('hashchange', () => {
-                         if (window.location.hash === '#about') this.activeTab = 'about';
-                         else this.activeTab = 'home';
-                     });
+                     const updateTab = () => {
+                         const path = window.location.pathname;
+                         if (path === '/portal-select') this.activeTab = 'home';
+                         else if (path === '/client/dashboard') this.activeTab = 'client';
+                         else if (path === '/worker/dashboard') this.activeTab = 'worker';
+                         else if (path === '/faq') this.activeTab = 'faq';
+                         else this.activeTab = '';
+                     };
+                     updateTab();
+                     window.addEventListener('hashchange', updateTab);
                  }
              }">
             <!-- HOME (Selection) -->
@@ -74,24 +79,33 @@
                 WORKER PORTAL
             </a>
 
-            <!-- ABOUT -->
-            <a href="#about" 
-               @click="activeTab = 'about'"
-               :class="activeTab === 'about' ? 'text-[#0033a0] dark:text-blue-400 font-bold border-b-2 border-[#0033a0] dark:border-blue-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-semibold'"
+            <!-- FAQ -->
+            <a href="{{ route('faq') }}" 
+               @click="activeTab = 'faq'"
+               :class="activeTab === 'faq' ? 'text-[#0033a0] dark:text-blue-400 font-bold border-b-2 border-[#0033a0] dark:border-blue-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-semibold'"
                class="h-full flex items-center px-2 text-xs uppercase tracking-wider transition">
-                ABOUT
+                FAQ
             </a>
         </div>
         @else
         <div class="hidden md:flex items-center gap-8 h-full"
              x-data="{ 
-                 activeTab: 'home',
+                 activeTab: '{{ request()->routeIs('home') ? 'home' : (request()->routeIs('faq') ? 'faq' : '') }}',
                  init() {
                      const updateTab = () => {
-                         if (window.location.hash === '#services') this.activeTab = 'services';
-                         else if (window.location.hash === '#track') this.activeTab = 'track';
-                         else if (window.location.hash === '#about') this.activeTab = 'about';
-                         else if (window.location.pathname === '/') this.activeTab = 'home';
+                         const path = window.location.pathname;
+                         const hash = window.location.hash;
+
+                         if (path === '/faq') {
+                             this.activeTab = 'faq';
+                         } else if (path === '/') {
+                             if (hash === '#services') this.activeTab = 'services';
+                             else if (hash === '#track') this.activeTab = 'track';
+                             else if (hash === '#faq') this.activeTab = 'faq';
+                             else this.activeTab = 'home';
+                         } else {
+                             this.activeTab = '';
+                         }
                      };
                      updateTab();
                      window.addEventListener('hashchange', updateTab);
@@ -121,33 +135,104 @@
                 TRACK
             </a>
 
-            <!-- ABOUT -->
-            <a href="{{ route('home') }}#about" 
-               @click="activeTab = 'about'"
-               :class="activeTab === 'about' ? 'text-[#0033a0] dark:text-blue-400 font-bold border-b-2 border-[#0033a0] dark:border-blue-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-semibold'"
+            <!-- FAQ -->
+            <a href="{{ route('faq') }}" 
+               @click="activeTab = 'faq'"
+               :class="activeTab === 'faq' ? 'text-[#0033a0] dark:text-blue-400 font-bold border-b-2 border-[#0033a0] dark:border-blue-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-semibold'"
                class="h-full flex items-center px-2 text-xs uppercase tracking-wider transition">
-                ABOUT
+                FAQ
             </a>
         </div>
         @endif
 
-        <!-- Right: Avatar + Dropdown -->
-        <div class="flex items-center gap-3">
+        @php
+            $navNotifications = auth()->check() ? auth()->user()->notifications()->latest('sent_at')->take(5)->get() : collect();
+            $navUnreadCount = auth()->check() ? auth()->user()->notifications()->where('is_read', false)->count() : 0;
+        @endphp
+
+        <!-- Right: Notification Bell + Theme Toggle + Avatar -->
+        <div class="flex items-center gap-2">
             <!-- Theme Toggle -->
-            <button onclick="toggleTheme()" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition mr-1">
+            <button onclick="toggleTheme()" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition">
                 <svg id="theme-toggle-dark-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                 <svg id="theme-toggle-light-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path></svg>
             </button>
+
             @auth
+            <!-- Notification Bell (Client Navbar) -->
+            <div class="relative" x-data="{ openNotifs: false }">
+                <button @click="openNotifs = !openNotifs" 
+                        type="button" 
+                        title="Notifications"
+                        class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition relative focus:outline-none">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    @if(($navUnreadCount ?? 0) > 0)
+                        <span class="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-white dark:border-zinc-900 animate-pulse">
+                            {{ $navUnreadCount }}
+                        </span>
+                    @endif
+                </button>
+
+                <!-- Notifications Dropdown Popover (Client Navbar) -->
+                <div x-show="openNotifs" 
+                     @click.outside="openNotifs = false" 
+                     x-transition 
+                     x-cloak 
+                     class="fixed left-4 right-4 sm:absolute sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-80 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-50 text-left">
+                    <div class="px-4 py-3 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-[#f8faff] dark:bg-zinc-800/50">
+                        <div class="flex items-center gap-2">
+                            <span class="font-extrabold text-xs text-[#0033a0] dark:text-blue-400 uppercase tracking-wider">Notifications</span>
+                            @if(($navUnreadCount ?? 0) > 0)
+                                <span class="px-2 py-0.5 text-[10px] font-black bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-full">
+                                    {{ $navUnreadCount }} New
+                                </span>
+                            @endif
+                        </div>
+                        @if(($navUnreadCount ?? 0) > 0)
+                            <form method="POST" action="{{ route('client.notifications.mark-all-read') }}">
+                                @csrf
+                                <button type="submit" class="text-[11px] font-bold text-[#0033a0] dark:text-blue-400 hover:underline">
+                                    Mark read
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+                    <div class="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800">
+                        @forelse($navNotifications ?? [] as $notif)
+                            <a href="{{ route('client.notifications.read', $notif->notification_id) }}" 
+                               class="block px-4 py-3 hover:bg-blue-50/60 dark:hover:bg-zinc-800/60 transition {{ !$notif->is_read ? 'bg-blue-50/40 dark:bg-zinc-800/30' : '' }}">
+                                <div class="flex items-start gap-2.5">
+                                    <div class="w-2 h-2 mt-1.5 rounded-full shrink-0 {{ !$notif->is_read ? 'bg-[#0033a0] dark:bg-blue-400' : 'bg-gray-300 dark:bg-zinc-700' }}"></div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex justify-between items-baseline gap-2 mb-0.5">
+                                            <h4 class="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                                {{ $notif->title ?? 'Notification' }}
+                                            </h4>
+                                            <span class="text-[10px] text-gray-400 shrink-0">
+                                                {{ \Carbon\Carbon::parse($notif->sent_at)->diffForHumans() }}
+                                            </span>
+                                        </div>
+                                        <p class="text-[11px] text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
+                                            {{ $notif->message }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </a>
+                        @empty
+                            <div class="p-6 text-center text-xs text-gray-400 dark:text-gray-500">
+                                No notifications yet.
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+
             <div class="relative" x-data="{ open: false }">
                 <button @click="open = !open" class="flex items-center gap-1.5 cursor-pointer p-1 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 transition">
                     <div class="w-9 h-9 bg-[#0033a0] text-white rounded-md flex items-center justify-center font-bold text-sm shadow-sm relative">
                         {{ strtoupper(substr(auth()->user()->first_name ?? 'U', 0, 1)) }}
-                        @if(isset($unreadCount) && $unreadCount > 0)
-                            <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center border border-white">
-                                {{ $unreadCount }}
-                            </span>
-                        @endif
                     </div>
                     <!-- Chevron -->
                     <svg class="w-4 h-4 text-gray-400 dark:text-gray-300 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -257,16 +342,18 @@
 
     <!-- Main Content -->
     <main class="flex-1 @hasSection('fullwidth') @else flex flex-col items-center justify-center @endif min-h-[calc(100vh-56px)]">
-        @if(session('success'))
-            <div class="max-w-2xl mx-auto mt-4 bg-green-100 border border-green-300 text-green-800 px-4 py-2.5 rounded-lg text-sm text-center shadow-sm">
-                {{ session('success') }}
-            </div>
-        @endif
-        @if(session('error'))
-            <div class="max-w-2xl mx-auto mt-4 bg-red-100 border border-red-300 text-red-800 px-4 py-2.5 rounded-lg text-sm text-center shadow-sm">
-                {{ session('error') }}
-            </div>
-        @endif
+        @unless(View::hasSection('hide_alerts'))
+            @if(session('success'))
+                <div class="max-w-2xl mx-auto mt-4 bg-green-100 border border-green-300 text-green-800 px-4 py-2.5 rounded-lg text-sm text-center shadow-sm">
+                    {{ session('success') }}
+                </div>
+            @endif
+            @if(session('error'))
+                <div class="max-w-2xl mx-auto mt-4 bg-red-100 border border-red-300 text-red-800 px-4 py-2.5 rounded-lg text-sm text-center shadow-sm">
+                    {{ session('error') }}
+                </div>
+            @endif
+        @endunless
 
         @yield('content')
     </main>
@@ -321,7 +408,7 @@
                 <ul class="space-y-2 text-gray-300 text-[11px]">
                     <li><a href="#" class="hover:text-white transition">Privacy Policy</a></li>
                     <li><a href="#" class="hover:text-white transition">Technical Support</a></li>
-                    <li><a href="#" class="hover:text-white transition">FAQs</a></li>
+                    <li><a href="{{ route('faq') }}" class="hover:text-white transition">FAQs</a></li>
                 </ul>
             </div>
         </div>

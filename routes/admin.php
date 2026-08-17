@@ -36,6 +36,7 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
     Route::post('/workforce/{worker_id}/make-leader', [WorkforceController::class, 'makeTeamLeader'])->name('workforce.make-leader');
     Route::post('/workforce/{worker_id}/assign-team', [WorkforceController::class, 'assignTeam'])->name('workforce.assign-team');
 
+
     // Bill of Materials
     Route::get('/bom',                    [BomController::class, 'index'])->name('bom.index');
     Route::get('/bom/{projectId}/create', [BomController::class, 'create'])->name('bom.create');

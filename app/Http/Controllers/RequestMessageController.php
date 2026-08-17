@@ -28,8 +28,9 @@ class RequestMessageController extends Controller
         $user = auth()->user();
 
         // 1. Authorization check
-        $isClient = ($serviceRequest->client?->user_id === $user->user_id);
-        $isAdmin = ($user->role === 'admin');
+        $isClient         = ($serviceRequest->client?->user_id === $user->user_id);
+        $isAdmin          = ($user->role === 'admin');
+        $isAssignedWorker = false;
         if ($user->role === 'worker') {
             $worker = $user->staff?->worker;
             $workerId = $worker?->worker_id;
@@ -117,6 +118,30 @@ class RequestMessageController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', 'Message sent successfully.');
+        if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            $message->load('sender');
+            return response()->json([
+                'success' => true,
+                'message' => [
+                    'message_id'   => $message->message_id,
+                    'message'      => $message->message,
+                    'attachment'   => $message->attachment ? Storage::url($message->attachment) : null,
+                    'sender_name'  => $user->first_name . ' ' . $user->last_name,
+                    'sender_role'  => ucfirst($user->role ?? 'User'),
+                    'created_at'   => $message->created_at->diffForHumans(),
+                    'created_time' => $message->created_at->format('h:i A'),
+                    'is_self'      => true,
+                ]
+            ]);
+        }
+
+        $prevUrl = url()->previous();
+        if (str_contains($prevUrl, '/messages')) {
+            return redirect()->back();
+        }
+
+        $targetUrl = str_contains($prevUrl, '#messages-section') ? $prevUrl : ($prevUrl . '#messages-section');
+
+        return redirect()->to($targetUrl);
     }
 }

@@ -229,16 +229,16 @@
                             <div>
                                 <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">Set Project Priority</label>
                                 <select name="priority" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]" required>
-                                    <option value="Low" {{ $serviceRequest->priority === 'Low' ? 'selected' : '' }}>Low Priority</option>
-                                    <option value="Medium" {{ $serviceRequest->priority === 'Medium' ? 'selected' : '' }}>Medium Priority</option>
-                                    <option value="High" {{ $serviceRequest->priority === 'High' ? 'selected' : '' }}>High Priority</option>
+                                    <option value="Low" {{ strtolower($serviceRequest->priority ?? 'low') === 'low' ? 'selected' : '' }}>Low Priority</option>
+                                    <option value="Medium" {{ strtolower($serviceRequest->priority ?? 'low') === 'medium' ? 'selected' : '' }}>Medium Priority</option>
+                                    <option value="High" {{ strtolower($serviceRequest->priority ?? 'low') === 'high' ? 'selected' : '' }}>High Priority</option>
                                 </select>
                             </div>
                         </div>
 
                         <div class="mb-6">
                             <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-2">Assign Maintenance Workers</label>
-                            <div class="space-y-1.5 max-h-48 overflow-y-auto p-2.5 border border-blue-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto p-2.5 border border-blue-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900">
                                 @foreach($workers as $worker)
                                     @php
                                         $teamName = strtolower($worker->team->team_name ?? '');
@@ -254,19 +254,23 @@
                                             }
                                         }
                                     @endphp
-                                    <label class="worker-option flex items-center gap-3 cursor-pointer p-2.5 hover:bg-blue-50 dark:hover:bg-zinc-800 rounded-lg border border-transparent {{ $isRecommended ? 'bg-blue-50/80 dark:bg-blue-950/30 border-blue-200' : '' }} transition-colors" data-team="{{ strtolower($worker->team->team_name ?? '') }}">
-                                        <input type="checkbox" name="worker_ids[]" value="{{ $worker->worker_id }}" {{ $isRecommended ? 'checked' : '' }} class="worker-checkbox rounded text-[#0033a0] focus:ring-[#0033a0] w-4 h-4">
-                                        <div class="flex-1 flex items-center justify-between">
-                                            <div>
-                                                <span class="text-xs font-bold text-slate-900 dark:text-gray-200">{{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}</span>
-                                                <span class="text-[11px] text-gray-500 ml-1">({{ $worker->team->team_name ?? 'No Unit' }})</span>
+                                    <label class="worker-option flex items-center gap-2.5 cursor-pointer p-2.5 hover:bg-blue-50 dark:hover:bg-zinc-800 rounded-xl border border-gray-100 dark:border-zinc-800 {{ $isRecommended ? 'bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : '' }} transition-colors min-w-0" data-team="{{ strtolower($worker->team->team_name ?? '') }}">
+                                        <input type="checkbox" name="worker_ids[]" value="{{ $worker->worker_id }}" {{ $isRecommended ? 'checked' : '' }} class="worker-checkbox rounded text-[#0033a0] focus:ring-[#0033a0] w-4 h-4 shrink-0">
+                                        <div class="flex-1 min-w-0 flex items-center justify-between gap-1.5">
+                                            <div class="min-w-0">
+                                                <div class="text-xs font-bold text-slate-900 dark:text-gray-200 truncate" title="{{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}">
+                                                    {{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}
+                                                </div>
+                                                <div class="text-[11px] text-gray-500 truncate" title="{{ $worker->team->team_name ?? 'No Unit' }}">
+                                                    {{ $worker->team->team_name ?? 'No Unit' }}
+                                                </div>
                                             </div>
-                                            <span class="recommended-badge text-[10px] bg-[#0033a0] text-white px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide {{ $isRecommended ? '' : 'hidden' }}">Recommended</span>
+                                            <span class="recommended-badge text-[9px] bg-[#0033a0] text-white px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide shrink-0 {{ $isRecommended ? '' : 'hidden' }}">Recommended</span>
                                         </div>
                                     </label>
                                 @endforeach
                                 @if($workers->isEmpty())
-                                    <p class="text-xs text-gray-400 p-2 italic">No active workers found in database.</p>
+                                    <p class="text-xs text-gray-400 p-2 italic col-span-2">No active workers found in database.</p>
                                 @endif
                             </div>
                         </div>

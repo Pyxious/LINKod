@@ -13,8 +13,8 @@
         </p>
     </div>
 
-    <!-- Quick Report Selection Cards (8 Cards Grid - 2 rows x 4 cols) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Quick Report Selection Cards (8 Cards Grid - 2 per row on mobile, 4 cols on desktop) -->
+    <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         @php
             $reportCards = [
                 ['id' => 'request-summary', 'name' => 'Request Summary', 'type' => 'Request Summary', 'icon' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
@@ -30,15 +30,15 @@
 
         @foreach($reportCards as $card)
             <div onclick="selectQuickReport('{{ $card['type'] }}')" 
-                 class="quick-report-card bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4 hover:border-[#0033a0] dark:hover:border-blue-500 transition shadow-xs flex items-center gap-3.5 cursor-pointer group"
+                 class="quick-report-card bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-3 sm:p-4 hover:border-[#0033a0] dark:hover:border-blue-500 transition shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-3.5 cursor-pointer group"
                  data-report-type="{{ $card['type'] }}">
-                <div class="w-10 h-10 rounded-lg bg-gray-200 dark:bg-zinc-800 flex items-center justify-center text-gray-500 group-hover:bg-[#0033a0] group-hover:text-white transition shrink-0">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-gray-500 group-hover:bg-[#0033a0] group-hover:text-white transition shrink-0">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $card['icon'] }}"/>
                     </svg>
                 </div>
                 <div class="min-w-0">
-                    <h3 class="text-xs font-bold text-slate-800 dark:text-gray-200 group-hover:text-[#0033a0] dark:group-hover:text-blue-400 transition leading-tight truncate">
+                    <h3 class="text-xs font-bold text-slate-800 dark:text-gray-200 group-hover:text-[#0033a0] dark:group-hover:text-blue-400 transition leading-snug sm:leading-tight">
                         {{ $card['name'] }}
                     </h3>
                 </div>

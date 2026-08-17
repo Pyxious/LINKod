@@ -4,40 +4,40 @@
 @section('content')
 
 <!-- Page Banner -->
-<div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 flex justify-between items-center mb-6 shadow-sm">
+<div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-5 sm:px-8 py-5 sm:py-6 flex justify-between items-center mb-6 shadow-sm">
     <div>
-        <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl font-bold mb-1">Job Orders & Assignments</h1>
-        <p class="text-[#0033a0]/80 dark:text-gray-400 text-sm font-medium">View and manage your assigned maintenance tasks.</p>
+        <h1 class="text-[#0033a0] dark:text-blue-400 text-xl sm:text-2xl font-bold mb-1">Job Orders & Assignments</h1>
+        <p class="text-[#0033a0]/80 dark:text-gray-400 text-xs sm:text-sm font-medium">View and manage your assigned maintenance tasks.</p>
     </div>
 </div>
 
 <!-- Admin-Style Filtering Control Bar -->
-<form method="GET" action="{{ route('worker.job-orders.index') }}" class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 font-sans">
+<form method="GET" action="{{ route('worker.job-orders.index') }}" class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-6 font-sans">
     <!-- Priority Toggle Buttons -->
-    <div class="flex bg-gray-100 dark:bg-zinc-800/80 p-1 rounded-xl gap-1 w-full sm:w-auto shadow-2xs">
+    <div class="flex bg-gray-100 dark:bg-zinc-800/80 p-1 rounded-xl gap-1 w-full md:w-auto shadow-2xs overflow-x-auto">
         <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => ''])) }}"
-           class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition {{ empty($priorityFilter) ? 'bg-white dark:bg-zinc-900 text-[#0038A8] dark:text-blue-400 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
+           class="flex-1 md:flex-initial text-center px-3 py-1.5 text-xs font-bold rounded-lg transition whitespace-nowrap {{ empty($priorityFilter) ? 'bg-white dark:bg-zinc-900 text-[#0038A8] dark:text-blue-400 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
             All Priorities
         </a>
         <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => 'High'])) }}"
-           class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition {{ $priorityFilter === 'High' ? 'bg-red-50 text-red-600 border border-red-200 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
+           class="flex-1 md:flex-initial text-center px-3 py-1.5 text-xs font-bold rounded-lg transition whitespace-nowrap {{ $priorityFilter === 'High' ? 'bg-red-50 text-red-600 border border-red-200 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
             High
         </a>
         <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => 'Medium'])) }}"
-           class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition {{ $priorityFilter === 'Medium' ? 'bg-amber-50 text-amber-700 border border-amber-300 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
+           class="flex-1 md:flex-initial text-center px-3 py-1.5 text-xs font-bold rounded-lg transition whitespace-nowrap {{ $priorityFilter === 'Medium' ? 'bg-amber-50 text-amber-700 border border-amber-300 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
             Medium
         </a>
         <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => 'Low'])) }}"
-           class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition {{ $priorityFilter === 'Low' ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
+           class="flex-1 md:flex-initial text-center px-3 py-1.5 text-xs font-bold rounded-lg transition whitespace-nowrap {{ $priorityFilter === 'Low' ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
             Low
         </a>
     </div>
 
     <!-- Status Filter Dropdown & Search Input -->
-    <div class="flex items-center gap-3 w-full sm:w-auto">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
         <input type="hidden" name="priority" value="{{ $priorityFilter }}">
 
-        <select name="status" onchange="this.form.submit()" class="px-3.5 py-2 rounded-xl border border-[#0038A8]/30 dark:border-zinc-700 text-[#0038A8] dark:text-blue-400 bg-white dark:bg-zinc-900 text-xs font-bold outline-none cursor-pointer shadow-2xs">
+        <select name="status" onchange="this.form.submit()" class="px-3.5 py-2 rounded-xl border border-[#0038A8]/30 dark:border-zinc-700 text-[#0038A8] dark:text-blue-400 bg-white dark:bg-zinc-900 text-xs font-bold outline-none cursor-pointer shadow-2xs w-full sm:w-auto">
             <option value="" {{ empty($statusFilter) || $statusFilter === 'active' ? 'selected' : '' }}>Active Tasks Only</option>
             <option value="Completed" {{ $statusFilter === 'Completed' ? 'selected' : '' }}>Completed Tasks</option>
             <option value="In Progress" {{ $statusFilter === 'In Progress' ? 'selected' : '' }}>In Progress</option>
@@ -56,22 +56,109 @@
     </div>
 </form>
 
-<!-- Table Container -->
+<!-- Tasks Container -->
 <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xs overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/40 flex justify-between items-center">
-        <h3 class="text-[#042B74] dark:text-blue-400 font-bold text-base">Your Assignments</h3>
+    <div class="px-5 sm:px-6 py-4 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/40 flex justify-between items-center">
+        <h3 class="text-[#042B74] dark:text-blue-400 font-bold text-sm sm:text-base">Your Assignments</h3>
         @if(empty($statusFilter) || $statusFilter === 'active')
-            <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800">
-                Showing Active Tasks 
+            <span class="text-[11px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800">
+                Active Tasks
             </span>
         @elseif($statusFilter === 'Completed')
-            <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-800">
-                Showing Completed Tasks
+            <span class="text-[11px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-800">
+                Completed Tasks
             </span>
         @endif
     </div>
+
+    <!-- Mobile Card View (visible only on mobile < md screens) -->
+    <div class="block md:hidden divide-y divide-gray-100 dark:divide-zinc-800/80">
+        @forelse($assignments as $a)
+            @php
+                $reqId = $a->project?->request_id;
+                $catName = strtolower($a->project?->request?->category?->category_name ?? '');
+                $prefix = match(true) {
+                    str_contains($catName, 'landscaping') => 'LS',
+                    str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                    str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+                    str_contains($catName, 'plumbing') => 'PS',
+                    default => 'REQ'
+                };
+                $reqCode = $reqId ? ($prefix . '-' . str_pad($reqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($a->project_id, 3, '0', STR_PAD_LEFT));
+                $prio = ucfirst(strtolower($a->project?->request?->priority ?? 'Low'));
+                $prioClass = match($prio) {
+                    'High' => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+                    'Medium' => 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+                    default => 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                };
+            @endphp
+
+            <div class="p-4 space-y-3">
+                <!-- Top Line: Code & Priority badge -->
+                <div class="flex items-center justify-between gap-2">
+                    <span class="bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 font-mono font-extrabold px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800 text-xs">
+                        {{ $reqCode }}
+                    </span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border {{ $prioClass }}">
+                        {{ $prio }} Priority
+                    </span>
+                </div>
+
+                <!-- Title & Location -->
+                <div>
+                    <h4 class="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                        {{ $a->project->request->title ?? 'Untitled Job Order' }}
+                    </h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span>{{ $a->project->request->location ?? 'Location N/A' }}</span>
+                    </p>
+                </div>
+
+                <!-- Bottom Line: Status, Date & Open Button -->
+                <div class="border-t border-gray-100 dark:border-zinc-800/60 pt-3 flex items-center justify-between gap-2">
+                    <div>
+                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold 
+                            @if($a->project->current_status === 'Pending') bg-red-50 text-red-700 border border-red-200
+                            @elseif($a->project->current_status === 'In Progress') bg-amber-50 text-amber-700 border border-amber-200
+                            @elseif($a->project->current_status === 'Completed') bg-emerald-50 text-emerald-700 border border-emerald-200
+                            @else bg-blue-50 text-blue-700 border border-blue-200 @endif">
+                            {{ $a->project->current_status }}
+                        </span>
+                        <div class="text-[10px] text-gray-400 font-medium mt-1">
+                            Assigned: {{ \Carbon\Carbon::parse($a->date_assigned)->format('M d, Y') }}
+                        </div>
+                    </div>
+
+                    <a href="{{ route('worker.job-orders.show', $a->project_id) }}" 
+                       class="px-4 py-2.5 bg-[#0038A8] hover:bg-[#002480] text-white rounded-xl text-xs font-bold shadow-sm transition inline-flex items-center gap-1 shrink-0">
+                        <span>Open Task</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </a>
+                </div>
+            </div>
+        @empty
+            <div class="px-6 py-10 text-center">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-zinc-800 mb-3 text-gray-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <h3 class="text-xs font-bold text-gray-900 dark:text-white mb-1">No Job Orders Found</h3>
+                <p class="text-xs text-gray-400">
+                    @if($statusFilter === 'Completed')
+                        You have no completed job orders recorded.
+                    @else
+                        No active task assignments match your search or filter criteria.
+                    @endif
+                </p>
+            </div>
+        @endforelse
+    </div>
     
-    <div class="overflow-x-auto">
+    <!-- Desktop Table View (hidden on mobile < md, visible on desktop >= md) -->
+    <div class="hidden md:block overflow-x-auto">
         <table class="w-full text-left border-collapse">
             <thead>
                 <tr class="bg-gray-50/80 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 text-[#042B74] dark:text-blue-400 text-xs uppercase tracking-wider font-bold">

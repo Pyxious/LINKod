@@ -253,7 +253,28 @@ class RequestController extends Controller
         )->findOrFail($id);
 
         $workers = \App\Models\Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))
-            ->with('user', 'team')->where('is_available', true)->get();
+            ->with('user', 'team')
+            ->where('is_available', true)
+            ->get()
+            ->sortBy(function($worker) use ($serviceRequest) {
+                $teamName = strtolower($worker->team->team_name ?? '');
+                $categoryName = strtolower($serviceRequest->category->category_name ?? '');
+                $isRecommended = false;
+                if ($teamName && $categoryName) {
+                    preg_match_all('/\w+/', $categoryName, $catWords);
+                    foreach ($catWords[0] as $word) {
+                        if (strlen($word) > 3 && str_contains($teamName, $word)) {
+                            $isRecommended = true;
+                            break;
+                        }
+                    }
+                }
+                $recKey = $isRecommended ? 0 : 1;
+                $teamKey = $worker->team_id ?? 999999;
+                return sprintf('%d-%06d-%06d', $recKey, $teamKey, $worker->worker_id);
+            })
+            ->values();
+
         $categories = \App\Models\Category::all();
 
         return view('admin.requests.show', compact('serviceRequest', 'workers', 'categories'));
@@ -264,7 +285,7 @@ class RequestController extends Controller
         try {
             $request->validate([
                 'category_id' => 'required|exists:category,category_id',
-                'priority'    => 'required|in:High,Medium,Low',
+                'priority'    => 'required|in:High,Medium,Low,high,medium,low',
             ]);
 
             $serviceRequest = ServiceRequest::findOrFail($id);

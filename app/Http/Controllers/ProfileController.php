@@ -58,12 +58,12 @@ class ProfileController extends Controller
             );
         }
         
-        return redirect()->route('profile.index')->with('success', 'Profile updated successfully.');
+        return redirect()->back()->with('success', 'Profile updated successfully.');
     }
 
     public function initiate2fa()
     {
-        return redirect()->route('profile.index')->with('show_2fa_setup', true);
+        return redirect()->back()->with('show_2fa_setup', true);
     }
 
     public function enable2fa(Request $request)
@@ -75,7 +75,7 @@ class ProfileController extends Controller
         $secret = session('2fa_setup_secret');
 
         if (!$secret) {
-            return redirect()->route('profile.index')->with('error', 'Session expired. Please try again.');
+            return redirect()->back()->with('error', 'Session expired. Please try again.');
         }
 
         $valid = $google2fa->verifyKey($secret, $request->one_time_password);
@@ -85,10 +85,10 @@ class ProfileController extends Controller
             session()->forget('2fa_setup_secret');
             session(['2fa_verified' => true]);
             
-            return redirect()->route('profile.index')->with('success', 'Two-Factor Authentication enabled successfully!');
+            return redirect()->back()->with('success', 'Two-Factor Authentication enabled successfully!');
         }
 
-        return redirect()->route('profile.index')
+        return redirect()->back()
             ->with('show_2fa_setup', true)
             ->with('error', 'Invalid verification code. Please try again.');
     }
@@ -100,6 +100,6 @@ class ProfileController extends Controller
         $user->update(['totp_secret' => null]);
         session()->forget('2fa_verified');
 
-        return redirect()->route('profile.index')->with('success', 'Two-Factor Authentication disabled.');
+        return redirect()->back()->with('success', 'Two-Factor Authentication disabled.');
     }
 }

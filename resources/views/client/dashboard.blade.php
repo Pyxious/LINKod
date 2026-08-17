@@ -50,94 +50,94 @@
                 </h2>
             </div>
 
-            <!-- 6 Services Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- 6 Services Grid (2 per row on mobile, 3 cols on desktop) -->
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-6">
                 <!-- Card 1: Carpentry -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[170px]">
+                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
                     <div>
-                        <h3 class="font-bold text-slate-900 dark:text-white text-sm sm:text-[15px] mb-2 leading-snug">
+                        <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
                             Carpentry, Masonry, and Electrical Services
                         </h3>
-                        <p class="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-4">
+                        <p class="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs leading-relaxed mb-3 sm:mb-4">
                             Repairs and maintenance of facilities and infrastructure.
                         </p>
                     </div>
-                    <a href="{{ route('client.requests.create', ['category' => 'Carpentry/Masonry/Electrical']) }}" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-lg shadow-sm transition inline-block">
+                    <a href="{{ route('client.requests.create', ['category' => 'Carpentry/Masonry/Electrical']) }}" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-sm transition inline-block">
                         Request now
                     </a>
                 </div>
 
                 <!-- Card 2: Plumbing -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[170px]">
+                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
                     <div>
-                        <h3 class="font-bold text-slate-900 dark:text-white text-sm sm:text-[15px] mb-2 leading-snug">
+                        <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
                             Plumbing Services
                         </h3>
-                        <p class="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-4">
+                        <p class="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs leading-relaxed mb-3 sm:mb-4">
                             Plumbing repairs, installations, and maintenance.
                         </p>
                     </div>
-                    <a href="{{ route('client.requests.create', ['category' => 'Plumbing']) }}" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-lg shadow-sm transition inline-block">
+                    <a href="{{ route('client.requests.create', ['category' => 'Plumbing']) }}" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-sm transition inline-block">
                         Request now
                     </a>
                 </div>
 
                 <!-- Card 3: Painting -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[170px]">
+                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
                     <div>
-                        <h3 class="font-bold text-slate-900 dark:text-white text-sm sm:text-[15px] mb-2 leading-snug">
+                        <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
                             Painting Services
                         </h3>
-                        <p class="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-4">
+                        <p class="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs leading-relaxed mb-3 sm:mb-4">
                             Painting of buildings, rooms, and other facilities.
                         </p>
                     </div>
-                    <a href="{{ route('client.requests.create', ['category' => 'Painting']) }}" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-lg shadow-sm transition inline-block">
+                    <a href="{{ route('client.requests.create', ['category' => 'Painting']) }}" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-sm transition inline-block">
                         Request now
                     </a>
                 </div>
 
                 <!-- Card 4: Landscaping -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[170px]">
+                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
                     <div>
-                        <h3 class="font-bold text-slate-900 dark:text-white text-sm sm:text-[15px] mb-2 leading-snug">
+                        <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
                             Landscaping Services
                         </h3>
-                        <p class="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-4">
+                        <p class="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs leading-relaxed mb-3 sm:mb-4">
                             Grounds maintenance, gardening, and landscaping.
                         </p>
                     </div>
-                    <a href="{{ route('client.requests.create', ['category' => 'Landscaping']) }}" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-lg shadow-sm transition inline-block">
+                    <a href="{{ route('client.requests.create', ['category' => 'Landscaping']) }}" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-sm transition inline-block">
                         Request now
                     </a>
                 </div>
 
                 <!-- Card 5: Manpower -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[170px]">
+                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
                     <div>
-                        <h3 class="font-bold text-slate-900 dark:text-white text-sm sm:text-[15px] mb-2 leading-snug">
+                        <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
                             Manpower Services
                         </h3>
-                        <p class="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-4">
+                        <p class="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs leading-relaxed mb-3 sm:mb-4">
                             Assistance for events, activities, and other manpower needs.
                         </p>
                     </div>
-                    <a href="{{ route('client.requests.create', ['category' => 'Manpower']) }}" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-lg shadow-sm transition inline-block">
+                    <a href="{{ route('client.requests.create', ['category' => 'Manpower']) }}" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-sm transition inline-block">
                         Request now
                     </a>
                 </div>
 
                 <!-- Card 6: Janitorial -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[170px]">
+                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
                     <div>
-                        <h3 class="font-bold text-slate-900 dark:text-white text-sm sm:text-[15px] mb-2 leading-snug">
+                        <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
                             Janitorial Services
                         </h3>
-                        <p class="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-4">
+                        <p class="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs leading-relaxed mb-3 sm:mb-4">
                             Cleaning and janitorial support services.
                         </p>
                     </div>
-                    <a href="{{ route('client.requests.create', ['category' => 'Janitorial']) }}" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-lg shadow-sm transition inline-block">
+                    <a href="{{ route('client.requests.create', ['category' => 'Janitorial']) }}" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-sm transition inline-block">
                         Request now
                     </a>
                 </div>
@@ -214,7 +214,7 @@
                             LINKod is the official web-based Service Request System of the Bicol University General Services Office (BUGSO). It enables authorized university personnel to submit job requisitions online.
                         </p>
                     </div>
-                    <a href="#" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
+                    <a href="{{ route('faq') }}" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
                 </div>
 
                 <!-- FAQ 2 -->
@@ -230,7 +230,7 @@
                             LINKod is intended for authorized Bicol University faculty, staff, offices, and/or personnel using their official BU Google account (@bicol-u.edu.ph).
                         </p>
                     </div>
-                    <a href="#" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
+                    <a href="{{ route('faq') }}" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
                 </div>
 
                 <!-- FAQ 3 -->
@@ -246,7 +246,7 @@
                             You may submit requests for: Carpentry / Masonry / Electrical Services, Plumbing Services, Painting Services, Landscaping Services, Janitorial Services, and Manpower Assistance.
                         </p>
                     </div>
-                    <a href="#" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
+                    <a href="{{ route('faq') }}" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
                 </div>
 
                 <!-- FAQ 4 -->
@@ -262,7 +262,7 @@
                             Yes. You may attach images or other supporting documents to help GSO personnel assess your request before inspection and worker deployment.
                         </p>
                     </div>
-                    <a href="#" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
+                    <a href="{{ route('faq') }}" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
                 </div>
 
                 <!-- FAQ 5 -->
@@ -278,7 +278,7 @@
                             You can monitor your request through the Track Request page. LINKod also sends status updates whenever your request status changes.
                         </p>
                     </div>
-                    <a href="#" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
+                    <a href="{{ route('faq') }}" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
                 </div>
 
                 <!-- FAQ 6 -->
@@ -294,9 +294,17 @@
                             Ensure that you are using your official Bicol University Google account. If the problem persists, contact the ICTO Helpdesk for account assistance.
                         </p>
                     </div>
-                    <a href="#" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
+                    <a href="{{ route('faq') }}" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline">Read more &gt;</a>
                 </div>
 
+            </div>
+
+            <!-- View All FAQs Button -->
+            <div class="text-center mt-10">
+                <a href="{{ route('faq') }}" class="inline-flex items-center gap-2 px-7 py-3 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-full shadow-md shadow-blue-900/10 transition transform hover:-translate-y-0.5">
+                    <span>View all FAQs</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </a>
             </div>
         </div>
     </section>

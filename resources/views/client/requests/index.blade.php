@@ -24,69 +24,69 @@
     <!-- Main Content Area -->
     <main class="max-w-6xl w-full mx-auto px-6 md:px-8 py-8 flex-1">
         
-        <!-- Summary Cards Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 mb-8">
+        <!-- Summary Cards Grid (2 per row on mobile, 4 cols on desktop) -->
+        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 md:gap-5 mb-8">
             <!-- Total Requests -->
-            <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-6 shadow-2xs">
-                <span class="text-[#254378] dark:text-blue-300 text-sm font-semibold block mb-2">Total Requests</span>
-                <span class="text-[#042B74] dark:text-white text-3xl font-bold block leading-none">{{ $totalRequests }}</span>
+            <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-4 sm:p-6 shadow-2xs">
+                <span class="text-[#254378] dark:text-blue-300 text-xs sm:text-sm font-semibold block mb-1.5 sm:mb-2">Total Requests</span>
+                <span class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $totalRequests }}</span>
             </div>
 
             <!-- Pending -->
-            <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-6 shadow-2xs">
-                <span class="text-[#254378] dark:text-blue-300 text-sm font-semibold block mb-2">Pending</span>
-                <span class="text-[#042B74] dark:text-white text-3xl font-bold block leading-none">{{ $pendingCount }}</span>
+            <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-4 sm:p-6 shadow-2xs">
+                <span class="text-[#254378] dark:text-blue-300 text-xs sm:text-sm font-semibold block mb-1.5 sm:mb-2">Pending</span>
+                <span class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $pendingCount }}</span>
             </div>
 
             <!-- In Progress -->
-            <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-6 shadow-2xs">
-                <span class="text-[#254378] dark:text-blue-300 text-sm font-semibold block mb-2">In Progress</span>
-                <span class="text-[#042B74] dark:text-white text-3xl font-bold block leading-none">{{ $inProgressCount }}</span>
+            <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-4 sm:p-6 shadow-2xs">
+                <span class="text-[#254378] dark:text-blue-300 text-xs sm:text-sm font-semibold block mb-1.5 sm:mb-2">In Progress</span>
+                <span class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $inProgressCount }}</span>
             </div>
 
             <!-- Completed -->
-            <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-6 shadow-2xs">
-                <span class="text-[#254378] dark:text-blue-300 text-sm font-semibold block mb-2">Completed</span>
-                <span class="text-[#042B74] dark:text-white text-3xl font-bold block leading-none">{{ $completedCount }}</span>
+            <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-4 sm:p-6 shadow-2xs">
+                <span class="text-[#254378] dark:text-blue-300 text-xs sm:text-sm font-semibold block mb-1.5 sm:mb-2">Completed</span>
+                <span class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $completedCount }}</span>
             </div>
         </div>
 
         <!-- Main Outer Box (Soft Blue Container with Border) -->
-        <div class="bg-[#EBF3FE] dark:bg-[#151d2a] border border-[#7DAAF4] dark:border-blue-800 rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-2xs">
+        <div class="bg-[#EBF3FE] dark:bg-[#151d2a] border border-[#7DAAF4] dark:border-blue-800 rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xs">
             
             <!-- Filter Bar & Search Form -->
             <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 mb-6">
                 
-                <!-- Status Filter Pills -->
+                <!-- Status Filter Pills (Horizontally scrollable on mobile) -->
                 @php $currentStatus = request('status', 'all'); @endphp
-                <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 scrollbar-none shrink-0 max-w-full">
                     <a href="{{ route('client.requests.index', array_filter(['status' => 'all', 'search' => request('search')])) }}" 
-                       class="px-5 py-2 rounded-full text-sm font-semibold transition shadow-2xs {{ $currentStatus === 'all' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
+                       class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'all' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         All
                     </a>
 
                     <a href="{{ route('client.requests.index', array_filter(['status' => 'pending', 'search' => request('search')])) }}" 
-                       class="px-5 py-2 rounded-full text-sm font-semibold transition shadow-2xs {{ $currentStatus === 'pending' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
+                       class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'pending' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         Pending
                     </a>
 
                     <a href="{{ route('client.requests.index', array_filter(['status' => 'in_progress', 'search' => request('search')])) }}" 
-                       class="px-5 py-2 rounded-full text-sm font-semibold transition shadow-2xs {{ $currentStatus === 'in_progress' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
+                       class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'in_progress' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         In Progress
                     </a>
 
                     <a href="{{ route('client.requests.index', array_filter(['status' => 'completed', 'search' => request('search')])) }}" 
-                       class="px-5 py-2 rounded-full text-sm font-semibold transition shadow-2xs {{ $currentStatus === 'completed' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
+                       class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'completed' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         Completed
                     </a>
 
                     <a href="{{ route('client.requests.index', array_filter(['status' => 'follow_up', 'search' => request('search')])) }}" 
-                       class="px-5 py-2 rounded-full text-sm font-semibold transition shadow-2xs {{ $currentStatus === 'follow_up' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
+                       class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'follow_up' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         Follow Up
                     </a>
 
                     <a href="{{ route('client.requests.index', array_filter(['status' => 'cancelled', 'search' => request('search')])) }}" 
-                       class="px-5 py-2 rounded-full text-sm font-semibold transition shadow-2xs {{ $currentStatus === 'cancelled' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
+                       class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'cancelled' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         Cancelled
                     </a>
                 </div>
@@ -101,7 +101,7 @@
                                name="search" 
                                value="{{ request('search') }}" 
                                placeholder="Search requests..." 
-                               class="w-full px-4 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:border-[#0038A8] shadow-2xs">
+                               class="w-full px-4 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs sm:text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:border-[#0038A8] shadow-2xs">
                         @if(request('search'))
                             <a href="{{ route('client.requests.index', array_filter(['status' => request('status')])) }}" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold">✕</a>
                         @endif
@@ -110,7 +110,7 @@
             </div>
 
             <!-- Request Cards List -->
-            <div class="space-y-4">
+            <div class="space-y-3.5">
                 @forelse($requests as $r)
                     @php
                         $catName = strtolower($r->category->category_name ?? '');
@@ -124,47 +124,47 @@
                         $displayStatus = ucfirst($r->current_status ?? 'Pending');
                     @endphp
                     
-                    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl md:rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs hover:shadow-xs transition">
+                    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl md:rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 shadow-2xs hover:shadow-xs transition">
                         
-                        <div class="flex flex-col gap-1 flex-1">
-                            <!-- Code / ID -->
-                            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
-                                {{ $prefix }}-{{ str_pad($r->request_id, 3, '0', STR_PAD_LEFT) }}
-                            </span>
-                            
-                            <!-- Title & Status with Arrow -->
-                            <div class="flex items-center gap-4 flex-wrap mt-0.5">
-                                <h3 class="text-gray-900 dark:text-white font-bold text-base md:text-lg">
-                                    {{ $r->title ?? ($r->category->category_name ?? 'Service Request') }}
-                                </h3>
+                        <div class="flex flex-col gap-1 flex-1 min-w-0">
+                            <!-- Top Line: Code & Status Pill -->
+                            <div class="flex items-center justify-between gap-2 flex-wrap mb-1">
+                                <span class="bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 font-mono font-extrabold px-2.5 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 text-[11px] sm:text-xs">
+                                    {{ $prefix }}-{{ str_pad($r->request_id, 3, '0', STR_PAD_LEFT) }}
+                                </span>
 
-                                <span class="inline-flex items-center gap-1.5 text-sm font-bold text-[#0038A8] dark:text-blue-400">
+                                <span class="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#0038A8] dark:text-blue-400">
                                     <span>{{ $displayStatus }}</span>
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                                    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                                 </span>
                             </div>
                             
+                            <!-- Title -->
+                            <h3 class="text-gray-900 dark:text-white font-bold text-sm sm:text-base md:text-lg leading-snug">
+                                {{ $r->title ?? ($r->category->category_name ?? 'Service Request') }}
+                            </h3>
+                            
                             <!-- Department / Location -->
-                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-2">
+                            <p class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mt-1">
                                 {{ $r->campus ?? 'BU Main' }} {{ $r->location ? '— ' . $r->location : '' }}
                             </p>
                             
                             <!-- Submission Date & Time -->
-                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                                {{ \Carbon\Carbon::parse($r->submitted_at)->format('F d, Y h:i A') }}
+                            <p class="text-[11px] sm:text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                Submitted: {{ \Carbon\Carbon::parse($r->submitted_at)->format('F d, Y h:i A') }}
                             </p>
                         </div>
 
                         <!-- Action Button -->
-                        <div class="flex-shrink-0 pt-2 md:pt-0">
-                            <a href="{{ route('client.requests.show', $r->request_id) }}" class="inline-flex items-center justify-center px-6 py-2.5 bg-[#0038A8] hover:bg-[#002B82] text-white rounded-lg font-semibold text-sm transition shadow-xs whitespace-nowrap">
+                        <div class="flex-shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-zinc-800/80">
+                            <a href="{{ route('client.requests.show', $r->request_id) }}" class="w-full md:w-auto inline-flex items-center justify-center px-5 py-2 sm:py-2.5 bg-[#0038A8] hover:bg-[#002B82] text-white rounded-lg font-bold text-xs sm:text-sm transition shadow-xs whitespace-nowrap">
                                 View Details
                             </a>
                         </div>
                         
                     </div>
                 @empty
-                    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-12 text-center">
+                    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-8 sm:p-12 text-center">
                         <div class="text-gray-300 dark:text-zinc-600 mb-3">
                             <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
                         </div>

@@ -567,7 +567,7 @@ class="w-full max-w-6xl mx-auto px-6 py-8 flex flex-col font-sans">
                                 Cancel
                             </button>
                             <button type="button" @click="captureCameraPhoto()" class="px-6 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition inline-flex items-center gap-2 shadow-md">
-                                📷 Snap Photo
+                                Snap Photo
                             </button>
                         </div>
                     </div>
