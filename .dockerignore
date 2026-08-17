@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+vendor
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+tests
+storage/*.key
+npm-debug.log
+yarn-error.log
+.vscode
+.agents
