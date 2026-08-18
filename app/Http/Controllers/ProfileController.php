@@ -40,10 +40,19 @@ class ProfileController extends Controller
         
         $request->validate([
             'contact_number' => 'nullable|string|regex:/^09\d{9}$/',
+            'date_of_birth'  => 'nullable|date|before:today',
         ]);
 
+        $updateData = [];
         if ($request->has('contact_number')) {
-            $user->update(['contact_number' => $request->contact_number]);
+            $updateData['contact_number'] = $request->contact_number;
+        }
+        if ($request->has('date_of_birth')) {
+            $updateData['date_of_birth'] = $request->date_of_birth ?: null;
+        }
+
+        if (!empty($updateData)) {
+            $user->update($updateData);
         }
 
         if ($user->isClient()) {

@@ -143,11 +143,12 @@
                     <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 truncate max-w-[180px] hidden"></span>
                 </div>
 
-                <button type="submit" class="w-full sm:w-auto ml-auto bg-[#0038A8] hover:bg-[#002B82] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs inline-flex items-center justify-center gap-2 shrink-0">
-                    <span>Send Message</span>
-                    <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                <button type="submit" id="requestMessageSubmitBtn" class="w-full sm:w-auto ml-auto bg-[#0038A8] hover:bg-[#002B82] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs inline-flex items-center justify-center gap-2 shrink-0 disabled:opacity-60">
+                    <span id="requestMessageSubmitText">Send Message</span>
+                    <svg id="requestMessageSubmitIcon" class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
                         <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                     </svg>
+                    <svg id="requestMessageSubmitSpinner" class="w-4 h-4 animate-spin text-white shrink-0 hidden" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 </button>
             </div>
         </form>
@@ -262,9 +263,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const textarea = form.querySelector('textarea[name="message"]');
             if (!textarea || !textarea.value.trim()) return;
 
-            const formData = new FormData(form);
-            const submitBtn = form.querySelector('button[type="submit"]');
+            const submitBtn = document.getElementById('requestMessageSubmitBtn');
+            const submitText = document.getElementById('requestMessageSubmitText');
+            const submitIcon = document.getElementById('requestMessageSubmitIcon');
+            const submitSpinner = document.getElementById('requestMessageSubmitSpinner');
+
             if (submitBtn) submitBtn.disabled = true;
+            if (submitText) submitText.textContent = 'Sending...';
+            if (submitIcon) submitIcon.classList.add('hidden');
+            if (submitSpinner) submitSpinner.classList.remove('hidden');
 
             fetch(form.action, {
                 method: 'POST',
@@ -293,6 +300,9 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .finally(() => {
                 if (submitBtn) submitBtn.disabled = false;
+                if (submitText) submitText.textContent = 'Send Message';
+                if (submitIcon) submitIcon.classList.remove('hidden');
+                if (submitSpinner) submitSpinner.classList.add('hidden');
             });
         });
     }

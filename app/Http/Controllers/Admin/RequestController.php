@@ -423,18 +423,20 @@ class RequestController extends Controller
             }
 
             $previous = $serviceRequest->current_status;
+            $remarks = $request->input('feedback') ?: $request->input('remarks');
 
             RequestHistory::create([
                 'request_id'      => $serviceRequest->request_id,
                 'previous_status' => $previous,
                 'current_status'  => 'Rejected',
+                'remarks'         => $remarks,
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
 
             \App\Models\UserLog::create([
                 'user_id'    => auth()->id(),
-                'action'     => "Admin rejected request #{$serviceRequest->request_id}",
+                'action'     => "Admin rejected request #{$serviceRequest->request_id}" . ($remarks ? ": {$remarks}" : ""),
                 'ip_address' => request()->ip(),
                 'created_at' => now(),
             ]);

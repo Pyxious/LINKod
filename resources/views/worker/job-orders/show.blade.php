@@ -86,7 +86,7 @@
         <!-- 2nd Box: Update Task Status -->
         <div class="bg-[#f0f6ff] dark:bg-blue-950/20 border border-[#1a3c8f] dark:border-blue-700 rounded-xl shadow-xs p-7">
             <h3 class="text-[#1a3c8f] dark:text-blue-400 font-bold text-lg mb-4">Update Task Progress</h3>
-            <form action="{{ route('worker.task-progress.update', $project->project_id) }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+            <form action="{{ route('worker.task-progress.update', $project->project_id) }}" method="POST" enctype="multipart/form-data" class="space-y-4" x-data="{ saving: false }" @submit="saving = true">
                 @csrf
                 @method('PUT')
                 <div class="flex flex-col sm:flex-row sm:items-end gap-4">
@@ -97,8 +97,9 @@
                             <option value="Completed" {{ $project->current_status === 'Completed' ? 'selected' : '' }}>Completed (Job Finished)</option>
                         </select>
                     </div>
-                    <button type="submit" class="bg-[#1a3c8f] hover:bg-[#152e6e] text-white px-8 py-3 rounded-lg text-sm font-semibold transition shadow-sm shrink-0">
-                        Save Update
+                    <button type="submit" :disabled="saving" class="bg-[#1a3c8f] hover:bg-[#152e6e] text-white px-8 py-3 rounded-lg text-sm font-semibold transition shadow-sm shrink-0 inline-flex items-center justify-center gap-2 disabled:opacity-60">
+                        <svg x-show="saving" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span x-text="saving ? 'Saving...' : 'Save Update'">Save Update</span>
                     </button>
                 </div>
                 
@@ -289,7 +290,7 @@
             @endif
 
             @if($project->current_status !== 'Completed' && $project->current_status !== 'Pending Verification')
-                <form action="{{ route('worker.bom.store', $project->project_id) }}" method="POST">
+                <form action="{{ route('worker.bom.store', $project->project_id) }}" method="POST" x-data="{ submittingBOM: false }" @submit="submittingBOM = true">
                     @csrf
                     <div id="material-rows" class="space-y-3 mb-4">
                         <div class="flex gap-3 material-row">
@@ -308,8 +309,9 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                             Add Another Item
                         </button>
-                        <button type="submit" class="bg-gray-800 hover:bg-black text-white px-6 py-2 rounded-lg text-sm font-semibold transition">
-                            Submit Request
+                        <button type="submit" :disabled="submittingBOM" class="bg-gray-800 hover:bg-black text-white px-6 py-2 rounded-lg text-sm font-semibold transition inline-flex items-center gap-2 disabled:opacity-60">
+                            <svg x-show="submittingBOM" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span x-text="submittingBOM ? 'Submitting...' : 'Submit Request'">Submit Request</span>
                         </button>
                     </div>
                 </form>
