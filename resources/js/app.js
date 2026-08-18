@@ -1,7 +1,10 @@
 
 import Alpine from 'alpinejs';
+import Chart from 'chart.js/auto';
 import './echo';
 import { initRealtimeNotifications, showNotificationToast, updateNotificationBadges, updateMessagesBadge, prependNotificationToDropdown } from './supabase';
+
+window.Chart = Chart;
 
 if (!window.Alpine) {
     window.Alpine = Alpine;
