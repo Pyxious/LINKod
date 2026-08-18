@@ -36,6 +36,7 @@ class User extends Authenticatable
         'last_name'     => 'encrypted',
         'middle_name'   => 'encrypted',
         'email_account' => 'encrypted',
+        'date_of_birth' => 'date',
         'password'      => 'hashed',
     ];
 

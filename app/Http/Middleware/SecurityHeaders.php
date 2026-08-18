@@ -18,7 +18,7 @@ class SecurityHeaders
         $response = $next($request);
         
         $isLocal = app()->environment('local');
-        $csp = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; object-src 'none'; font-src 'self' data:;";
+        $csp = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: https:; object-src 'none'; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: wss: ws:;";
 
         if (method_exists($response, 'header')) {
             $response->header('X-Frame-Options', 'DENY');

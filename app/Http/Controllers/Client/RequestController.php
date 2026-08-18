@@ -271,12 +271,12 @@ class RequestController extends Controller
     public function cancel(int $id)
     {
         try {
-            $request = ServiceRequest::findOrFail($id);
+            $request = ServiceRequest::with('project.workers')->findOrFail($id);
 
             $this->authorize('update', $request);
 
-            if (!in_array($request->current_status, ['Submitted', 'Pending'])) {
-                return redirect()->back()->with('error', 'You can only cancel requests that are Submitted or Pending.');
+            if ($request->project()->exists() || !in_array($request->current_status, ['Submitted'])) {
+                return redirect()->back()->with('error', 'This request has already been approved and scheduled. Please contact the GSO Admin via Messages to request a cancellation.');
             }
 
             RequestHistory::create([
@@ -286,6 +286,20 @@ class RequestController extends Controller
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
+
+            // Release workers and cancel project if one existed
+            if ($request->project) {
+                foreach ($request->project->workers as $worker) {
+                    $worker->update(['is_available' => true]);
+                }
+                \App\Models\ProjectHistory::create([
+                    'project_id'      => $request->project->project_id,
+                    'previous_status' => $request->project->current_status,
+                    'current_status'  => 'Cancelled',
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
+            }
 
             \App\Models\UserLog::create([
                 'user_id'    => auth()->id(),

@@ -11,7 +11,7 @@ class RequestHistory extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'request_id', 'previous_status', 'current_status', 'updated_at', 'updated_by',
+        'request_id', 'previous_status', 'current_status', 'remarks', 'updated_at', 'updated_by',
     ];
 
     protected $casts = ['updated_at' => 'datetime'];

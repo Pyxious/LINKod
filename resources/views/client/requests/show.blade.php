@@ -5,7 +5,7 @@
 @section('content')
 <div class="w-full flex flex-col font-sans min-h-[calc(100vh-64px)]">
     
-    <!-- Hero Header Banner -->
+    <!-- Hero Header Banner (Full-Width Shaded Section) -->
     <section class="w-full bg-[#edf4fb] dark:bg-[#18181b] py-10 px-4 sm:px-6 lg:px-8 border-b border-gray-200 dark:border-zinc-800">
         <div class="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -22,11 +22,11 @@
                     <span class="px-3 py-1 bg-[#0033a0] text-white text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-sm">
                         Requisition #{{ str_pad($request->request_id, 4, '0', STR_PAD_LEFT) }}
                     </span>
-                    <span class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border
+                    <span id="requestStatusBadge" data-request-status-badge class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border
                         {{ match($request->current_status) {
                             'Completed' => 'bg-emerald-100 text-emerald-700 border-emerald-300',
                             'In Progress', 'Pending Verification' => 'bg-blue-100 text-blue-700 border-blue-300',
-                            'Cancelled' => 'bg-red-100 text-red-700 border-red-300',
+                            'Cancelled', 'Rejected' => 'bg-amber-100 text-amber-700 border-amber-300',
                             default => 'bg-amber-100 text-amber-700 border-amber-300'
                         } }}">
                         {{ $request->current_status }}
@@ -61,8 +61,47 @@
     </section>
 
     <!-- Main Content Container -->
-    <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
+    <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 space-y-6">
         
+        @php
+            $latestRejection = $request->histories->where('current_status', 'Rejected')->last();
+        @endphp
+
+        @if($request->current_status === 'Rejected')
+            <!-- Rejection Notice & Recommendation Banner -->
+            <div class="bg-red-50/90 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-2xl p-6 sm:p-7 shadow-xs">
+                <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/70 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0 border border-red-200 dark:border-red-800">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <div class="flex-1">
+                        <h2 class="text-base font-bold text-red-900 dark:text-red-300 uppercase tracking-tight mb-1">
+                            Service Request Disapproved / Rejected
+                        </h2>
+                        <p class="text-xs text-red-700 dark:text-red-400 mb-3">
+                            This requisition cannot be processed by General Services Office (GSO). Please review the administrator's feedback below:
+                        </p>
+                        
+                        <div class="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-red-200 dark:border-red-800/80 shadow-2xs">
+                            <div class="text-[10px] font-extrabold text-red-600 dark:text-red-400 uppercase tracking-wider mb-1">
+                                Admin Reason / Recommendation:
+                            </div>
+                            <p class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white leading-relaxed whitespace-pre-line">
+                                {{ $latestRejection && $latestRejection->remarks ? $latestRejection->remarks : 'No specific reason provided by the administrator.' }}
+                            </p>
+                        </div>
+
+                        <div class="mt-4 flex items-center gap-3">
+                            <a href="{{ route('client.requests.create') }}" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                Submit a New Requisition
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             
             <!-- Left Column: Details & BOM -->
@@ -101,7 +140,7 @@
                         </div>
                     </div>
 
-                    <!-- Photo / Document Attachment -->
+                    <!-- Supporting Attachment -->
                     @if($request->attachment)
                         <div class="mt-6 border-t border-gray-100 dark:border-zinc-800 pt-5">
                             <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Supporting Attachment</div>
@@ -188,9 +227,6 @@
                     @endif
                 </div>
 
-                <!-- Per-Request Messaging Channel -->
-                @include('partials.request-messages', ['serviceRequest' => $request])
-
             </div>
 
             <!-- Right Column: Status Timeline Stepper -->
@@ -200,39 +236,150 @@
                     Status Timeline & History
                 </h2>
 
-                <div class="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200 dark:before:bg-zinc-700">
+                <div id="requestTimelineFeed" class="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200 dark:before:bg-zinc-700">
                     @forelse($request->histories as $history)
+                        @php
+                            $isRejected = ($history->current_status === 'Rejected');
+                            $isCancelled = ($history->current_status === 'Cancelled');
+                            $isCompleted = ($history->current_status === 'Completed');
+                        @endphp
                         <div class="relative">
                             <!-- Bullet Indicator -->
-                            <div class="absolute -left-[23px] top-1 w-4 h-4 rounded-full bg-[#0033a0] dark:bg-blue-500 border-2 border-white dark:border-zinc-900 shadow-sm flex items-center justify-center text-white text-[8px] font-bold">
-                                ✓
+                            <div class="absolute -left-[23px] top-1 w-4 h-4 rounded-full {{ ($isRejected || $isCancelled) ? 'bg-red-600 dark:bg-red-500' : ($isCompleted ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-[#0033a0] dark:bg-blue-500') }} border-2 border-white dark:border-zinc-900 shadow-sm flex items-center justify-center text-white text-[8px] font-bold">
+                                {{ ($isRejected || $isCancelled) ? '✕' : '✓' }}
                             </div>
 
                             <div class="bg-slate-50 dark:bg-zinc-800/40 p-3.5 rounded-xl border border-gray-100 dark:border-zinc-800">
                                 <div class="flex items-center justify-between mb-1">
-                                    <span class="text-xs font-extrabold text-[#0033a0] dark:text-blue-400">
+                                    <span class="text-xs font-extrabold {{ $isRejected ? 'text-red-700 dark:text-red-400' : ($isCompleted ? 'text-emerald-700 dark:text-emerald-400' : 'text-[#0033a0] dark:text-blue-400') }}">
                                         {{ $history->current_status }}
                                     </span>
                                 </div>
 
-                                <div class="text-[11px] text-gray-500">
+                                <div class="text-[11px] text-gray-500 dark:text-gray-400">
                                     {{ \Carbon\Carbon::parse($history->updated_at)->format('M d, Y h:i A') }}
                                 </div>
 
                                 @if($history->updatedBy)
-                                    <div class="text-[11px] text-gray-400 mt-1">
+                                    <div class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
                                         Updated by: {{ $history->updatedBy->first_name ?? '' }} {{ $history->updatedBy->last_name ?? '' }}
                                     </div>
                                 @endif
                             </div>
                         </div>
                     @empty
-                        <p class="text-xs text-gray-400 italic">No history records found.</p>
+                        <p id="noHistoryText" class="text-xs text-gray-400 italic">No history records found.</p>
                     @endforelse
                 </div>
             </div>
 
         </div>
+
+        <!-- Per-Request Messaging Channel (Full-Width Bottom) -->
+        @include('partials.request-messages', ['serviceRequest' => $request])
+
     </main>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const requestId = "{{ $request->request_id }}";
+    if (requestId && window.supabaseClient) {
+        // 1. Listen for request status updates
+        window.supabaseClient
+            .channel(`realtime-request-status-${requestId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'request',
+                    filter: `request_id=eq.${requestId}`
+                },
+                (payload) => {
+                    const newStatus = payload.new?.current_status;
+                    if (newStatus) {
+                        const badge = document.getElementById('requestStatusBadge');
+                        if (badge) {
+                            badge.textContent = newStatus;
+                            badge.className = 'px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border transition-all duration-300 ';
+                            if (newStatus === 'Completed') {
+                                badge.className += 'bg-emerald-100 text-emerald-700 border-emerald-300';
+                            } else if (newStatus === 'In Progress' || newStatus === 'Pending Verification') {
+                                badge.className += 'bg-blue-100 text-blue-700 border-blue-300';
+                            } else if (newStatus === 'Cancelled' || newStatus === 'Rejected') {
+                                badge.className += 'bg-amber-100 text-amber-700 border-amber-300';
+                            } else {
+                                badge.className += 'bg-amber-100 text-amber-700 border-amber-300';
+                            }
+                        }
+
+                        if (window.LINKodRealtime) {
+                            window.LINKodRealtime.showNotificationToast(
+                                'Request Status Updated',
+                                `Requisition #${requestId} is now "${newStatus}"`
+                            );
+                        }
+                    }
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'request_history',
+                    filter: `request_id=eq.${requestId}`
+                },
+                (payload) => {
+                    const history = payload.new;
+                    if (history) {
+                        const timeline = document.getElementById('requestTimelineFeed');
+                        const emptyMsg = document.getElementById('noHistoryText');
+                        if (emptyMsg) emptyMsg.remove();
+
+                        if (timeline) {
+                            const dateStr = new Date().toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                            });
+
+                            const isRej = (history.current_status === 'Rejected');
+                            const isCanc = (history.current_status === 'Cancelled');
+                            const isComp = (history.current_status === 'Completed');
+                            const bulletBg = (isRej || isCanc) ? 'bg-red-600 dark:bg-red-500' : (isComp ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-[#0033a0] dark:bg-blue-500');
+                            const bulletIcon = (isRej || isCanc) ? '✕' : '✓';
+                            const statusColor = isRej ? 'text-red-700 dark:text-red-400' : (isComp ? 'text-emerald-700 dark:text-emerald-400' : 'text-[#0033a0] dark:text-blue-400');
+
+                            const item = document.createElement('div');
+                            item.className = 'relative animate-fadeIn';
+                            item.innerHTML = `
+                                <div class="absolute -left-[23px] top-1 w-4 h-4 rounded-full ${bulletBg} border-2 border-white dark:border-zinc-900 shadow-sm flex items-center justify-center text-white text-[8px] font-bold">
+                                    ${bulletIcon}
+                                </div>
+                                <div class="bg-slate-50 dark:bg-zinc-800/40 p-3.5 rounded-xl border border-gray-100 dark:border-zinc-800">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-extrabold ${statusColor}">
+                                            ${history.current_status || 'Updated'}
+                                        </span>
+                                        <span class="text-[9px] font-bold uppercase bg-blue-100 dark:bg-blue-900 text-[#0033a0] dark:text-blue-300 px-1.5 py-0.5 rounded">Just now</span>
+                                    </div>
+                                    <div class="text-[11px] text-gray-500 dark:text-gray-400">
+                                        ${dateStr}
+                                    </div>
+                                </div>
+                            `;
+                            timeline.appendChild(item);
+                        }
+                    }
+                }
+            )
+            .subscribe();
+    }
+});
+</script>
 @endsection

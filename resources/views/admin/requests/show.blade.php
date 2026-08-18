@@ -332,6 +332,37 @@
                 </form>
             </div>
         </div>
+    @elseif($serviceRequest->current_status === 'Rejected')
+        @php
+            $rejectionHistory = $serviceRequest->histories->where('current_status', 'Rejected')->last();
+        @endphp
+        <div class="bg-red-50/90 dark:bg-red-950/40 border-2 border-red-300 dark:border-red-800 rounded-2xl p-6 sm:p-7 shadow-sm">
+            <div class="flex items-start gap-4">
+                <div class="w-11 h-11 rounded-xl bg-red-100 dark:bg-red-900/70 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0 mt-0.5 border border-red-200 dark:border-red-800">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <div class="flex-1">
+                    <h2 class="text-base sm:text-lg font-black text-red-900 dark:text-red-300 uppercase tracking-tight mb-1">
+                        This Requisition Was Disapproved / Rejected
+                    </h2>
+                    <p class="text-xs text-red-700 dark:text-red-400 mb-3">
+                        Rejection logged on {{ $rejectionHistory ? \Carbon\Carbon::parse($rejectionHistory->updated_at)->format('F d, Y \a\t h:i A') : 'N/A' }} 
+                        @if($rejectionHistory && $rejectionHistory->updatedBy)
+                            by {{ $rejectionHistory->updatedBy->first_name ?? '' }} {{ $rejectionHistory->updatedBy->last_name ?? '' }}
+                        @endif
+                    </p>
+                    
+                    <div class="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-red-200 dark:border-red-800/80 shadow-2xs">
+                        <div class="text-[11px] font-extrabold text-red-600 dark:text-red-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                            <span>Logged Reason for Rejection / Recommendation:</span>
+                        </div>
+                        <p class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white leading-relaxed whitespace-pre-line">
+                            {{ $rejectionHistory && $rejectionHistory->remarks ? $rejectionHistory->remarks : 'No specific reason entered.' }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 
     <!-- Per-Request Messaging Channel -->

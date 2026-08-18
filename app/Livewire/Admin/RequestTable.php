@@ -13,12 +13,25 @@ class RequestTable extends Component
     public $search = '';
     public $priority = '';
     public $status = '';
+    public $sortField = 'submitted_at';
+    public $sortDirection = 'desc';
 
-    protected $queryString = ['search', 'priority', 'status'];
+    protected $queryString = ['search', 'priority', 'status', 'sortField', 'sortDirection'];
 
     public function setPriority($prio)
     {
         $this->priority = $this->priority === $prio ? '' : $prio;
+        $this->resetPage();
+    }
+
+    public function sortBy($field)
+    {
+        if ($this->sortField === $field) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortField = $field;
+            $this->sortDirection = in_array($field, ['request_id', 'submitted_at']) ? 'desc' : 'asc';
+        }
         $this->resetPage();
     }
 
@@ -27,26 +40,44 @@ class RequestTable extends Component
         $this->resetPage();
     }
 
+    public function updatingStatus()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingPriority()
+    {
+        $this->resetPage();
+    }
+
     public function render()
     {
-        $query = ServiceRequest::with('client.user', 'category', 'latestHistory', 'project.workers.staff.user', 'project.workers.team')
-            ->orderByRaw("FIELD(priority, 'High', 'Medium', 'Low')")
-            ->orderBy('submitted_at', 'asc');
+        $query = ServiceRequest::with('client.user', 'category', 'latestHistory', 'project.workers.staff.user', 'project.workers.team');
 
         if ($this->priority) {
             $query->where('priority', $this->priority);
         }
 
-        if ($this->status) {
+        if ($this->status === 'Completed') {
             $query->whereHas('latestHistory', function($q) {
-                if ($this->status === 'Pending') {
-                    $q->whereIn('current_status', ['Pending', 'Approved']);
-                } else {
-                    $q->where('current_status', $this->status);
-                }
+                $q->where('current_status', 'Completed');
             });
+        } elseif ($this->status === 'Pending') {
+            $query->whereHas('latestHistory', function($q) {
+                $q->whereIn('current_status', ['Pending', 'Approved', 'Submitted']);
+            });
+        } elseif ($this->status === 'On Hold') {
+            $query->whereHas('latestHistory', function($q) {
+                $q->where('current_status', 'On Hold');
+            });
+        } elseif ($this->status === 'In Progress') {
+            $query->whereHas('latestHistory', function($q) {
+                $q->whereIn('current_status', ['In Progress', 'Pending Verification']);
+            });
+        } elseif ($this->status === 'all') {
+            // No status constraint - show everything
         } else {
-            // Default: show everything EXCEPT completed/cancelled/rejected
+            // Default active requests (exclude finished/cancelled)
             $query->whereHas('latestHistory', function($q) {
                 $q->whereNotIn('current_status', ['Completed', 'Cancelled', 'Rejected']);
             });
@@ -56,6 +87,10 @@ class RequestTable extends Component
             $query->where(function($q) {
                 $q->where('request_id', 'like', "%{$this->search}%")
                   ->orWhere('title', 'like', "%{$this->search}%")
+                  ->orWhere('location', 'like', "%{$this->search}%")
+                  ->orWhereHas('category', function($qCat) {
+                      $qCat->where('category_name', 'like', "%{$this->search}%");
+                  })
                   ->orWhereHas('client.user', function($q2) {
                       $q2->where('first_name', 'like', "%{$this->search}%")
                          ->orWhere('last_name', 'like', "%{$this->search}%");
@@ -63,10 +98,41 @@ class RequestTable extends Component
             });
         }
 
+        if ($this->sortField === 'priority') {
+            $dir = strtoupper($this->sortDirection) === 'ASC' ? 'ASC' : 'DESC';
+            $query->orderByRaw("CASE priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 WHEN 'Low' THEN 3 ELSE 4 END {$dir}")
+                  ->orderBy('request_id', 'desc');
+        } elseif (in_array($this->sortField, ['request_id', 'submitted_at', 'title', 'campus', 'location'])) {
+            $query->orderBy($this->sortField, $this->sortDirection);
+        } else {
+            $query->orderBy('submitted_at', 'desc');
+        }
+
         $requests = $query->paginate(15);
 
+        // Dynamic KPI metrics calculated in real-time
+        $totalRequests = ServiceRequest::count();
+        $submitted = ServiceRequest::where(function($q) {
+            $q->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Submitted'))
+              ->orWhereDoesntHave('histories');
+        })->count();
+        $onHold = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'On Hold'))->count();
+        $inProgress = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', ['In Progress', 'Pending Verification']))->count();
+        $completed = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count();
+
         return view('livewire.admin.request-table', [
-            'requests' => $requests
+            'requests'      => $requests,
+            'totalRequests' => $totalRequests,
+            'submitted'     => $submitted,
+            'onHold'        => $onHold,
+            'inProgress'    => $inProgress,
+            'completed'     => $completed,
         ]);
+    }
+
+    #[\Livewire\Attributes\On('refreshRequests')]
+    public function refreshRequests()
+    {
+        // Triggers fresh render cycle
     }
 }

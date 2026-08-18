@@ -1,9 +1,7 @@
 @extends('layouts.admin')
 @section('page-title', 'User Management')
 
-@push('styles')
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-@endpush
+
 
 @section('content')
 <div x-data="{
@@ -63,11 +61,11 @@
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-2xs">
             <div class="flex justify-between items-start mb-5">
                 <div>
-                    <div class="text-[#042B74] dark:text-white text-lg font-bold">User Distribution</div>
+                    <div class="text-[#042B74] dark:text-blue-400 text-lg font-bold">User Distribution</div>
                     <div class="text-xs text-[#47658F] dark:text-gray-400">By Role</div>
                 </div>
             </div>
-            <div class="flex justify-center items-center h-[220px]">
+            <div class="relative flex justify-center items-center h-[220px]">
                 <canvas id="userDonut"></canvas>
             </div>
         </div>
@@ -76,18 +74,18 @@
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-2xs">
             <div class="flex justify-between items-start mb-5">
                 <div>
-                    <div class="text-[#042B74] dark:text-white text-lg font-bold">User Registration Trends</div>
+                    <div class="text-[#042B74] dark:text-blue-400 text-lg font-bold">User Registration Trends</div>
                     <div class="text-xs text-[#47658F] dark:text-gray-400">New Users</div>
                 </div>
-                <select class="bg-gray-100 dark:bg-zinc-800 border-none px-3 py-1.5 rounded-md text-xs font-semibold text-gray-700 dark:text-gray-300 outline-none cursor-pointer">
-                    <option>This Week</option>
-                    <option>This Month</option>
+                <select id="trendPeriodSelect" class="bg-gray-100 dark:bg-zinc-800 border-none px-3 py-1.5 rounded-md text-xs font-semibold text-gray-700 dark:text-gray-300 outline-none cursor-pointer">
+                    <option value="month" selected>This Month</option>
+                    <option value="week">This Week</option>
                 </select>
             </div>
-            <div class="h-[220px]">
+            <div class="relative h-[220px]">
                 <canvas id="trendBar"></canvas>
             </div>
-            <div class="text-center text-[11px] text-gray-400 mt-2 font-bold">JUNE 2026</div>
+            <div id="trendPeriodLabel" class="text-center text-[11px] text-gray-400 mt-2 font-bold">{{ strtoupper(now()->format('F Y')) }}</div>
         </div>
     </div>
 
@@ -370,61 +368,161 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-// Donut Chart
-new Chart(document.getElementById('userDonut'), {
-    type: 'doughnut',
-    data: {
-        labels: ['Client', 'Admin', 'Worker'],
-        datasets: [{
-            data: [{{ $totalClients }}, {{ $totalAdmins }}, {{ $totalWorkers }}],
-            backgroundColor: ['#93c5fd','#fcd34d','#c6e8b3'],
-            borderWidth: 0,
-        }]
-    },
-    options: {
-        cutout: '60%',
-        plugins: { 
-            legend: { 
-                position: 'right',
-                labels: { boxWidth: 12, usePointStyle: true, color: '#6b7280' }
-            } 
-        },
-        responsive: true,
-        maintainAspectRatio: false,
-    }
-});
+document.addEventListener('DOMContentLoaded', function() {
+    function initUserCharts() {
+        if (typeof Chart === 'undefined') {
+            setTimeout(initUserCharts, 100);
+            return;
+        }
 
-// Bar Chart
-new Chart(document.getElementById('trendBar'), {
-    type: 'bar',
-    data: {
-        labels: {!! json_encode(array_keys($trends)) !!},
-        datasets: [{
-            data: {!! json_encode(array_values($trends)) !!},
-            backgroundColor: '#0038A8',
-            borderRadius: 4,
-            barThickness: 28,
-        }]
-    },
-    options: {
-        plugins: { legend: { display: false } },
-        scales: {
-            y: { 
-                beginAtZero: true, 
-                ticks: { precision: 0, color: '#9ca3af', stepSize: 1 }, 
-                grid: { color: '#f3f4f6' },
-                border: { display: false }
-            },
-            x: { 
-                grid: { display: false },
-                ticks: { color: '#9ca3af', font: {size: 10} },
-                border: { display: false }
+        const isDark = document.documentElement.classList.contains('dark');
+        const textColor = isDark ? '#9ca3af' : '#6b7280';
+        const gridColor = isDark ? '#27272a' : '#f3f4f6';
+
+        // 1. User Distribution (Donut / Circle Chart)
+        const donutCanvas = document.getElementById('userDonut');
+        if (donutCanvas) {
+            new Chart(donutCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Clients', 'Administrators', 'Workers'],
+                    datasets: [{
+                        data: [{{ $totalClients }}, {{ $totalAdmins }}, {{ $totalWorkers }}],
+                        backgroundColor: ['#3b82f6', '#f59e0b', '#10b981'],
+                        hoverBackgroundColor: ['#2563eb', '#d97706', '#059669'],
+                        borderWidth: 2,
+                        borderColor: isDark ? '#1c1c1e' : '#ffffff',
+                    }]
+                },
+                options: {
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 12,
+                                boxHeight: 12,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                color: textColor,
+                                font: { size: 12, family: 'Inter', weight: 600 },
+                                padding: 16
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: isDark ? '#27272a' : '#1e293b',
+                            titleColor: '#ffffff',
+                            bodyColor: '#e2e8f0',
+                            padding: 10,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(ctx) {
+                                    const total = {{ $totalUsers > 0 ? $totalUsers : 1 }};
+                                    const val = ctx.raw || 0;
+                                    const pct = Math.round((val / total) * 100);
+                                    return ` ${ctx.label}: ${val} (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                }
+            });
+        }
+
+        // 2. User Registration Trends (Bar Chart)
+        const trendCanvas = document.getElementById('trendBar');
+        if (trendCanvas) {
+            const weeklyData = {
+                labels: {!! json_encode(array_keys($weeklyTrends ?? ['Mon'=>1,'Tue'=>2,'Wed'=>0,'Thu'=>1,'Fri'=>1,'Sat'=>0,'Sun'=>0])) !!},
+                data: {!! json_encode(array_values($weeklyTrends ?? [1,2,0,1,1,0,0])) !!}
+            };
+
+            const monthlyData = {
+                labels: {!! json_encode(array_keys($monthlyTrends ?? ['Week 1'=>2,'Week 2'=>1,'Week 3'=>1,'Week 4'=>1,'Week 5'=>0])) !!},
+                data: {!! json_encode(array_values($monthlyTrends ?? [2,1,1,1,0])) !!}
+            };
+
+            const trendChart = new Chart(trendCanvas, {
+                type: 'bar',
+                data: {
+                    labels: monthlyData.labels,
+                    datasets: [{
+                        label: 'New Users',
+                        data: monthlyData.data,
+                        backgroundColor: '#0038A8',
+                        hoverBackgroundColor: '#002B82',
+                        borderRadius: 6,
+                        barPercentage: 0.55,
+                        categoryPercentage: 0.7,
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: isDark ? '#27272a' : '#1e293b',
+                            titleColor: '#ffffff',
+                            bodyColor: '#e2e8f0',
+                            padding: 10,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ` New Users: ${ctx.raw}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0,
+                                color: textColor,
+                                stepSize: 1,
+                                font: { size: 11 }
+                            },
+                            grid: { color: gridColor },
+                            border: { display: false }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                color: textColor,
+                                font: { size: 11, family: 'Inter', weight: 500 }
+                            },
+                            border: { display: false }
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                }
+            });
+
+            // Toggle Event Listener for "This Week" / "This Month"
+            const periodSelect = document.getElementById('trendPeriodSelect');
+            const periodLabel = document.getElementById('trendPeriodLabel');
+            if (periodSelect) {
+                periodSelect.addEventListener('change', function() {
+                    if (this.value === 'week') {
+                        trendChart.data.labels = weeklyData.labels;
+                        trendChart.data.datasets[0].data = weeklyData.data;
+                        if (periodLabel) periodLabel.textContent = 'THIS WEEK';
+                    } else {
+                        trendChart.data.labels = monthlyData.labels;
+                        trendChart.data.datasets[0].data = monthlyData.data;
+                        if (periodLabel) periodLabel.textContent = '{{ strtoupper(now()->format('F Y')) }}';
+                    }
+                    trendChart.update();
+                });
             }
-        },
-        responsive: true,
-        maintainAspectRatio: false,
+        }
     }
+
+    initUserCharts();
 });
 </script>
 @endpush

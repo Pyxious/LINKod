@@ -21,32 +21,37 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // ── 1 & 2. Widen columns + drop unique — use raw SQL to bypass
-        //    MySQL strict mode which rejects the legacy 0000-00-00
-        //    date_of_birth value when Blueprint::change() re-validates rows.
-        DB::statement("SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'");
+        // ── 1 & 2. Widen columns + drop unique constraint on email_account
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE "user" ALTER COLUMN first_name TYPE TEXT');
+            DB::statement('ALTER TABLE "user" ALTER COLUMN last_name TYPE TEXT');
+            DB::statement('ALTER TABLE "user" ALTER COLUMN middle_name TYPE TEXT');
+            DB::statement('ALTER TABLE "user" ALTER COLUMN email_account TYPE TEXT');
+            DB::statement('ALTER TABLE "user" DROP CONSTRAINT IF EXISTS user_email_account_unique');
+        } else {
+            DB::statement("SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'");
 
-        // Check whether the legacy unique index on email_account still exists
-        // (it won't on a fresh schema that already uses email_hash for lookups)
-        $indexExists = collect(DB::select("SHOW INDEX FROM `user` WHERE Key_name = 'email_account'"))->isNotEmpty();
+            $indexExists = collect(DB::select("SHOW INDEX FROM `user` WHERE Key_name = 'email_account'"))->isNotEmpty();
+            $dropIndexSql = $indexExists ? ',DROP INDEX `email_account`' : '';
 
-        $dropIndexSql = $indexExists ? ',DROP INDEX `email_account`' : '';
+            DB::statement("ALTER TABLE `user`
+                MODIFY COLUMN `first_name`    TEXT         NOT NULL,
+                MODIFY COLUMN `last_name`     TEXT         NOT NULL,
+                MODIFY COLUMN `middle_name`   TEXT         NULL,
+                MODIFY COLUMN `email_account` TEXT         NOT NULL
+                {$dropIndexSql}
+            ");
 
-        DB::statement("ALTER TABLE `user`
-            MODIFY COLUMN `first_name`    TEXT         NOT NULL,
-            MODIFY COLUMN `last_name`     TEXT         NOT NULL,
-            MODIFY COLUMN `middle_name`   TEXT         NULL,
-            MODIFY COLUMN `email_account` TEXT         NOT NULL
-            {$dropIndexSql}
-        ");
-
-        DB::statement("SET SESSION sql_mode = ''"); // restore default
+            DB::statement("SET SESSION sql_mode = ''"); // restore default
+        }
 
         // ── 3. Add email_hash column for indexed lookups ─────────────────
-        Schema::table('user', function (Blueprint $table) {
-            $table->string('email_hash', 64)->nullable()->unique()->after('email_account')
-                  ->comment('SHA-256 of email_account — used for indexed lookups.');
-        });
+        if (!Schema::hasColumn('user', 'email_hash')) {
+            Schema::table('user', function (Blueprint $table) {
+                $table->string('email_hash', 64)->nullable()->unique()
+                      ->comment('SHA-256 of email_account — used for indexed lookups.');
+            });
+        }
 
         // ── 4. Re-encrypt existing rows ──────────────────────────────────
         DB::table('user')->orderBy('user_id')->each(function ($row) {
@@ -82,21 +87,30 @@ return new class extends Migration
             ]);
         });
 
-        Schema::table('user', function (Blueprint $table) {
-            $table->dropColumn('email_hash');
-        });
+        if (Schema::hasColumn('user', 'email_hash')) {
+            Schema::table('user', function (Blueprint $table) {
+                $table->dropColumn('email_hash');
+            });
+        }
 
-        DB::statement("SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE "user" ALTER COLUMN first_name TYPE VARCHAR(50)');
+            DB::statement('ALTER TABLE "user" ALTER COLUMN last_name TYPE VARCHAR(50)');
+            DB::statement('ALTER TABLE "user" ALTER COLUMN middle_name TYPE VARCHAR(50)');
+            DB::statement('ALTER TABLE "user" ALTER COLUMN email_account TYPE VARCHAR(100)');
+        } else {
+            DB::statement("SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'");
 
-        DB::statement("ALTER TABLE `user`
-            MODIFY COLUMN `first_name`    VARCHAR(50)  NOT NULL,
-            MODIFY COLUMN `last_name`     VARCHAR(50)  NOT NULL,
-            MODIFY COLUMN `middle_name`   VARCHAR(50)  NULL,
-            MODIFY COLUMN `email_account` VARCHAR(100) NOT NULL,
-            ADD UNIQUE KEY `email_account` (`email_account`)
-        ");
+            DB::statement("ALTER TABLE `user`
+                MODIFY COLUMN `first_name`    VARCHAR(50)  NOT NULL,
+                MODIFY COLUMN `last_name`     VARCHAR(50)  NOT NULL,
+                MODIFY COLUMN `middle_name`   VARCHAR(50)  NULL,
+                MODIFY COLUMN `email_account` VARCHAR(100) NOT NULL,
+                ADD UNIQUE KEY `email_account` (`email_account`)
+            ");
 
-        DB::statement("SET SESSION sql_mode = ''");
+            DB::statement("SET SESSION sql_mode = ''");
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

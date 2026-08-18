@@ -26,9 +26,9 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
     Route::post('/requests/{id}/messages', [\App\Http\Controllers\RequestMessageController::class, 'store'])->name('requests.messages.store')->middleware('throttle:15,1');
     Route::get('/requests/{id}/export',  [RequestController::class, 'export'])->name('requests.export');
     Route::get('/requests/{id}/satisfaction', [RequestController::class, 'printSatisfaction'])->name('requests.satisfaction');
-    Route::post('/requests/{id}/approve',[RequestController::class, 'approve'])->name('requests.approve');
-    Route::post('/requests/{id}/reject', [RequestController::class, 'reject'])->name('requests.reject');
-    Route::post('/requests/{id}/verify', [RequestController::class, 'verifyCompletion'])->name('requests.verify');
+    Route::post('/requests/{id}/approve',[RequestController::class, 'approve'])->name('requests.approve')->middleware('throttle:10,1');
+    Route::post('/requests/{id}/reject', [RequestController::class, 'reject'])->name('requests.reject')->middleware('throttle:10,1');
+    Route::post('/requests/{id}/verify', [RequestController::class, 'verifyCompletion'])->name('requests.verify')->middleware('throttle:10,1');
 
     // Workforce
     Route::get('/workforce',        [WorkforceController::class, 'index'])->name('workforce.index');

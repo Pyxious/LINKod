@@ -280,7 +280,7 @@
                 </template>
 
                 <!-- Empty State -->
-                <div x-show="filteredFaqs.length === 0" class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-8 text-center">
+                <div x-show="filteredFaqs.length === 0" x-cloak class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-8 text-center">
                     <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">No matching questions found.</p>
                     <button @click="searchQuery = ''; selectedCategory = 'all'" class="mt-3 text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline cursor-pointer">
                         Clear search and filters

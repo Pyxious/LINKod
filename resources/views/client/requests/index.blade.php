@@ -29,25 +29,25 @@
             <!-- Total Requests -->
             <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-4 sm:p-6 shadow-2xs">
                 <span class="text-[#254378] dark:text-blue-300 text-xs sm:text-sm font-semibold block mb-1.5 sm:mb-2">Total Requests</span>
-                <span class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $totalRequests }}</span>
+                <span id="totalRequestsCount" class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $totalRequests }}</span>
             </div>
 
             <!-- Pending -->
             <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-4 sm:p-6 shadow-2xs">
                 <span class="text-[#254378] dark:text-blue-300 text-xs sm:text-sm font-semibold block mb-1.5 sm:mb-2">Pending</span>
-                <span class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $pendingCount }}</span>
+                <span id="pendingRequestsCount" class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $pendingCount }}</span>
             </div>
 
             <!-- In Progress -->
             <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-4 sm:p-6 shadow-2xs">
                 <span class="text-[#254378] dark:text-blue-300 text-xs sm:text-sm font-semibold block mb-1.5 sm:mb-2">In Progress</span>
-                <span class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $inProgressCount }}</span>
+                <span id="inProgressRequestsCount" class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $inProgressCount }}</span>
             </div>
 
             <!-- Completed -->
             <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-4 sm:p-6 shadow-2xs">
                 <span class="text-[#254378] dark:text-blue-300 text-xs sm:text-sm font-semibold block mb-1.5 sm:mb-2">Completed</span>
-                <span class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $completedCount }}</span>
+                <span id="completedRequestsCount" class="text-[#042B74] dark:text-white text-2xl sm:text-3xl font-bold block leading-none">{{ $completedCount }}</span>
             </div>
         </div>
 
@@ -110,7 +110,7 @@
             </div>
 
             <!-- Request Cards List -->
-            <div class="space-y-3.5">
+            <div id="requestsCardsContainer" class="space-y-3.5" data-client-id="{{ auth()->user()?->client?->client_id }}">
                 @forelse($requests as $r)
                     @php
                         $catName = strtolower($r->category->category_name ?? '');
@@ -124,7 +124,7 @@
                         $displayStatus = ucfirst($r->current_status ?? 'Pending');
                     @endphp
                     
-                    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl md:rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 shadow-2xs hover:shadow-xs transition">
+                    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl md:rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 shadow-2xs hover:shadow-xs transition" data-request-card-id="{{ $r->request_id }}">
                         
                         <div class="flex flex-col gap-1 flex-1 min-w-0">
                             <!-- Top Line: Code & Status Pill -->
@@ -164,7 +164,7 @@
                         
                     </div>
                 @empty
-                    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-8 sm:p-12 text-center">
+                    <div id="noRequestsFound" class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-8 sm:p-12 text-center">
                         <div class="text-gray-300 dark:text-zinc-600 mb-3">
                             <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
                         </div>
@@ -185,4 +185,88 @@
 
     </main>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('requestsCardsContainer');
+    const clientId = container ? container.getAttribute('data-client-id') : null;
+
+    if (window.supabaseClient && clientId) {
+        window.supabaseClient
+            .channel(`client-requests-${clientId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'request',
+                    filter: `client_id=eq.${clientId}`
+                },
+                (payload) => {
+                    const req = payload.new;
+                    if (!req) return;
+
+                    // 1. Update summary counters
+                    const totalEl = document.getElementById('totalRequestsCount');
+                    if (totalEl) totalEl.textContent = (parseInt(totalEl.textContent) || 0) + 1;
+                    const pendingEl = document.getElementById('pendingRequestsCount');
+                    if (pendingEl) pendingEl.textContent = (parseInt(pendingEl.textContent) || 0) + 1;
+
+                    // 2. Remove empty state placeholder
+                    const emptyState = document.getElementById('noRequestsFound');
+                    if (emptyState) emptyState.remove();
+
+                    // 3. Prepend newly added card
+                    if (container) {
+                        const card = document.createElement('div');
+                        card.className = 'bg-white dark:bg-[#1c1c1e] border-2 border-blue-400 dark:border-blue-600 rounded-xl md:rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 shadow-lg animate-fadeIn';
+                        card.setAttribute('data-request-card-id', req.request_id);
+
+                        const paddedId = String(req.request_id).padStart(3, '0');
+                        const locationText = req.campus ? `${req.campus} ${req.location ? '— ' + req.location : ''}` : (req.location || 'BU Main');
+
+                        card.innerHTML = `
+                            <div class="flex flex-col gap-1 flex-1 min-w-0">
+                                <div class="flex items-center justify-between gap-2 flex-wrap mb-1">
+                                    <span class="bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 font-mono font-extrabold px-2.5 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 text-[11px] sm:text-xs">
+                                        REQ-${paddedId}
+                                    </span>
+                                    <span class="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#0038A8] dark:text-blue-400">
+                                        <span>Submitted</span>
+                                        <span class="px-1.5 py-0.5 text-[9px] font-extrabold bg-blue-100 dark:bg-blue-900 text-[#0038A8] dark:text-blue-300 rounded uppercase">New</span>
+                                    </span>
+                                </div>
+                                <h3 class="text-gray-900 dark:text-white font-bold text-sm sm:text-base md:text-lg leading-snug">
+                                    ${req.title || 'New Service Request'}
+                                </h3>
+                                <p class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mt-1">
+                                    ${locationText}
+                                </p>
+                                <p class="text-[11px] sm:text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                    Submitted: Just now
+                                </p>
+                            </div>
+                            <div class="flex-shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-zinc-800/80">
+                                <a href="/client/requests/${req.request_id}" class="w-full md:w-auto inline-flex items-center justify-center px-5 py-2 sm:py-2.5 bg-[#0038A8] hover:bg-[#002B82] text-white rounded-lg font-bold text-xs sm:text-sm transition shadow-xs whitespace-nowrap">
+                                    View Details
+                                </a>
+                            </div>
+                        `;
+                        container.prepend(card);
+                    }
+
+                    // 4. Toast alert
+                    if (window.LINKodRealtime) {
+                        window.LINKodRealtime.showNotificationToast(
+                            'New Request Submitted',
+                            `Requisition #${req.request_id}: "${req.title}"`,
+                            `/client/requests/${req.request_id}`
+                        );
+                    }
+                }
+            )
+            .subscribe();
+    }
+});
+</script>
 @endsection

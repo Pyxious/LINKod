@@ -47,17 +47,29 @@ class UserController extends Controller
         $totalWorkers = User::where('role', 'worker')->count();
         $totalClients = User::where('role', 'client')->count();
 
-        // Chart Data
-        $trends = [
-            '1-7'   => 2,
-            '8-14'  => 1,
-            '15-21' => 4,
-            '22-28' => 2,
-            '29-30' => 3,
+        // Chart Data (Weekly & Monthly Registration Trends)
+        $weeklyTrends = [
+            'Mon' => 1,
+            'Tue' => 2,
+            'Wed' => 0,
+            'Thu' => 1,
+            'Fri' => 1,
+            'Sat' => 0,
+            'Sun' => 0,
         ];
 
+        $monthlyTrends = [
+            'Week 1' => 2,
+            'Week 2' => 1,
+            'Week 3' => 1,
+            'Week 4' => 1,
+            'Week 5' => 0,
+        ];
+
+        $trends = $monthlyTrends;
+
         return view('admin.users.index', compact(
-            'users', 'totalUsers', 'totalAdmins', 'totalWorkers', 'totalClients', 'trends'
+            'users', 'totalUsers', 'totalAdmins', 'totalWorkers', 'totalClients', 'trends', 'weeklyTrends', 'monthlyTrends'
         ));
     }
 

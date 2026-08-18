@@ -74,50 +74,6 @@ class RequestMessageController extends Controller
             'is_read'    => false,
         ]);
 
-        // 5. Notify Other Participants
-        $senderName = $user->first_name . ' ' . $user->last_name;
-
-        // Notify Client if sender is not client
-        if (!$isClient && $serviceRequest->client?->user_id) {
-            $this->notifications->newMessagePosted(
-                $serviceRequest->client->user_id,
-                $senderName,
-                $serviceRequest->title,
-                $serviceRequest->request_id,
-                'client'
-            );
-        }
-
-        // Notify Admin users if sender is not admin
-        if (!$isAdmin) {
-            $admins = User::where('role', 'admin')->get();
-            foreach ($admins as $admin) {
-                $this->notifications->newMessagePosted(
-                    $admin->user_id,
-                    $senderName,
-                    $serviceRequest->title,
-                    $serviceRequest->request_id,
-                    'admin'
-                );
-            }
-        }
-
-        // Notify Assigned Workers if sender is not worker
-        if (!$isAssignedWorker && $serviceRequest->project) {
-            foreach ($serviceRequest->project->workers as $pw) {
-                $workerUser = $pw->staff?->user;
-                if ($workerUser && $workerUser->user_id !== $user->user_id) {
-                    $this->notifications->newMessagePosted(
-                        $workerUser->user_id,
-                        $senderName,
-                        $serviceRequest->title,
-                        $serviceRequest->request_id,
-                        'worker'
-                    );
-                }
-            }
-        }
-
         if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
             $message->load('sender');
             return response()->json([

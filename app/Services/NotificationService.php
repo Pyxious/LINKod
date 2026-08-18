@@ -26,7 +26,13 @@ class NotificationService
             'is_read'    => false,
         ]);
 
-        event(new \App\Events\NotificationSent($notification));
+        try {
+            if (config('broadcasting.default') && !in_array(config('broadcasting.default'), ['null', 'log'])) {
+                event(new \App\Events\NotificationSent($notification));
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Broadcast notification skipped: ' . $e->getMessage());
+        }
 
         return $notification;
     }

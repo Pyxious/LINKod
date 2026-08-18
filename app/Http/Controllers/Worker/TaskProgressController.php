@@ -39,6 +39,12 @@ class TaskProgressController extends Controller
 
             $actualStatus = $validated['status'] === 'Completed' ? 'Pending Verification' : $validated['status'];
 
+            // Guard against duplicate rapid clicks
+            if ($previousStatus === $actualStatus) {
+                return redirect()->route('worker.job-orders.show', $projectId)
+                    ->with('info', "Task status is already {$actualStatus}.");
+            }
+
             ProjectHistory::create([
                 'project_id'       => $project->project_id,
                 'previous_status'  => $previousStatus,

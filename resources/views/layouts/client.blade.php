@@ -7,6 +7,8 @@
     @auth
         <meta name="user-id" content="{{ auth()->id() }}">
     @endauth
+    <meta name="supabase-url" content="{{ config('services.supabase.url') }}">
+    <meta name="supabase-anon-key" content="{{ config('services.supabase.anon_key') }}">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -146,8 +148,19 @@
         @endif
 
         @php
-            $navNotifications = auth()->check() ? auth()->user()->notifications()->latest('sent_at')->take(5)->get() : collect();
-            $navUnreadCount = auth()->check() ? auth()->user()->notifications()->where('is_read', false)->count() : 0;
+            $clientUser = auth()->user();
+            $clientId = $clientUser?->client?->client_id;
+            $navNotifications = $clientUser ? $clientUser->notifications()->where('type', '!=', 'new_message')->latest('sent_at')->take(5)->get() : collect();
+            $navUnreadCount = $clientUser ? $clientUser->notifications()->where('type', '!=', 'new_message')->where('is_read', false)->count() : 0;
+            
+            $clientUnreadMessagesCount = $clientUser ? \App\Models\RequestMessage::where('is_read', false)
+                ->where('sender_id', '!=', $clientUser->user_id)
+                ->whereHas('serviceRequest', function($q) use ($clientId) {
+                    if ($clientId) {
+                        $q->where('client_id', $clientId);
+                    }
+                })
+                ->count() : 0;
         @endphp
 
         <!-- Right: Notification Bell + Theme Toggle + Avatar -->
@@ -168,11 +181,9 @@
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                     </svg>
-                    @if(($navUnreadCount ?? 0) > 0)
-                        <span class="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-white dark:border-zinc-900 animate-pulse">
-                            {{ $navUnreadCount }}
-                        </span>
-                    @endif
+                    <span data-notification-badge class="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-white dark:border-zinc-900 animate-pulse {{ ($navUnreadCount ?? 0) > 0 ? '' : 'hidden' }}">
+                        {{ $navUnreadCount ?? 0 }}
+                    </span>
                 </button>
 
                 <!-- Notifications Dropdown Popover (Client Navbar) -->
@@ -184,11 +195,9 @@
                     <div class="px-4 py-3 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-[#f8faff] dark:bg-zinc-800/50">
                         <div class="flex items-center gap-2">
                             <span class="font-extrabold text-xs text-[#0033a0] dark:text-blue-400 uppercase tracking-wider">Notifications</span>
-                            @if(($navUnreadCount ?? 0) > 0)
-                                <span class="px-2 py-0.5 text-[10px] font-black bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-full">
-                                    {{ $navUnreadCount }} New
-                                </span>
-                            @endif
+                            <span data-notification-header-count class="px-2 py-0.5 text-[10px] font-black bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-full {{ ($navUnreadCount ?? 0) > 0 ? '' : 'hidden' }}">
+                                {{ $navUnreadCount ?? 0 }} New
+                            </span>
                         </div>
                         @if(($navUnreadCount ?? 0) > 0)
                             <form method="POST" action="{{ route('client.notifications.mark-all-read') }}">
@@ -199,7 +208,7 @@
                             </form>
                         @endif
                     </div>
-                    <div class="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800">
+                    <div data-notification-list class="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800">
                         @forelse($navNotifications ?? [] as $notif)
                             <a href="{{ route('client.notifications.read', $notif->notification_id) }}" 
                                class="block px-4 py-3 hover:bg-blue-50/60 dark:hover:bg-zinc-800/60 transition {{ !$notif->is_read ? 'bg-blue-50/40 dark:bg-zinc-800/30' : '' }}">
@@ -221,7 +230,7 @@
                                 </div>
                             </a>
                         @empty
-                            <div class="p-6 text-center text-xs text-gray-400 dark:text-gray-500">
+                            <div data-notification-empty class="p-6 text-center text-xs text-gray-400 dark:text-gray-500">
                                 No notifications yet.
                             </div>
                         @endforelse
@@ -281,9 +290,14 @@
                             <span>MY REQUESTS</span>
                         </a>
 
-                        <a href="{{ route('client.messages.index') }}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
-                            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
-                            <span>MESSAGES</span>
+                        <a href="{{ route('client.messages.index') }}" class="flex items-center justify-between px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                                <span>MESSAGES</span>
+                            </div>
+                            <span data-messages-badge class="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs {{ $clientUnreadMessagesCount > 0 ? '' : 'hidden' }}">
+                                {{ $clientUnreadMessagesCount > 99 ? '99+' : $clientUnreadMessagesCount }}
+                            </span>
                         </a>
 
                         <a href="{{ route('profile.index') }}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
@@ -301,11 +315,12 @@
 
                     <!-- Sign Out Section -->
                     <div class="py-1">
-                        <form method="POST" action="{{ route('logout') }}">
+                        <form method="POST" action="{{ route('logout') }}" x-data="{ loggingOut: false }" @submit="loggingOut = true">
                             @csrf
-                            <button type="submit" class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition text-left cursor-pointer">
-                                <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                                <span>SIGN OUT</span>
+                            <button type="submit" :disabled="loggingOut" class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition text-left cursor-pointer disabled:opacity-60">
+                                <svg x-show="!loggingOut" class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                                <svg x-show="loggingOut" x-cloak class="w-4 h-4 animate-spin text-red-500 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <span x-text="loggingOut ? 'LOGGING OUT...' : 'SIGN OUT'">SIGN OUT</span>
                             </button>
                         </form>
                     </div>
@@ -420,6 +435,7 @@
     </footer>
 
     @livewireScripts
+    @stack('scripts')
     <script>
         // Set initial icon state on load
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
