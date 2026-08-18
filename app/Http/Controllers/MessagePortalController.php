@@ -131,6 +131,26 @@ class MessagePortalController extends Controller
             $selectedRequest = $requests->first();
         }
 
+        // Mark viewed conversation messages as read
+        if ($selectedRequest && $user) {
+            RequestMessage::where('request_id', $selectedRequest->request_id)
+                ->where('sender_id', '!=', $user->user_id)
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+        }
+
+        // Calculate unread counts per request for the sidebar/list
+        $unreadCounts = [];
+        if ($user && $requests->isNotEmpty()) {
+            $unreadCounts = RequestMessage::where('is_read', false)
+                ->where('sender_id', '!=', $user->user_id)
+                ->whereIn('request_id', $requests->pluck('request_id'))
+                ->groupBy('request_id')
+                ->selectRaw('request_id, count(*) as count')
+                ->pluck('count', 'request_id')
+                ->toArray();
+        }
+
         // Determine view request link for selected request
         $viewRequestUrl = null;
         if ($selectedRequest) {
@@ -145,7 +165,8 @@ class MessagePortalController extends Controller
             'requests',
             'selectedRequest',
             'viewRequestUrl',
-            'statusFilter'
+            'statusFilter',
+            'unreadCounts'
         ));
     }
 }

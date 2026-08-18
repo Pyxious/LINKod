@@ -31,4 +31,9 @@ return [
         'guzzle'        => ['verify' => false],
     ],
 
+    'supabase' => [
+        'url'      => env('VITE_SUPABASE_URL', env('SUPABASE_URL', 'https://jqybammjfhvvucmgeriv.supabase.co')),
+        'anon_key' => env('VITE_SUPABASE_ANON_KEY', env('SUPABASE_ANON_KEY', 'sb_publishable_3T8-Do-mEtls5KnFpeDbEg_Cw36IGaK')),
+    ],
+
 ];

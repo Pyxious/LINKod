@@ -8,11 +8,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('user_log', function (Blueprint $table) {
-            $table->string('action', 255)->nullable()->after('user_id')
-                  ->comment('Human-readable description of the logged action');
-            $table->string('ip_address', 45)->nullable()->after('action');
-        });
+        if (!Schema::hasColumn('user_log', 'action')) {
+            Schema::table('user_log', function (Blueprint $table) {
+                $table->string('action', 255)->nullable()
+                      ->comment('Human-readable description of the logged action');
+                $table->string('ip_address', 45)->nullable();
+            });
+        }
     }
 
     public function down(): void

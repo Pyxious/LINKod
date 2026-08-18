@@ -11,13 +11,16 @@ mkdir -p /var/www/html/storage/framework/cache/data \
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Create storage symbolic link
+# Create storage symbolic link & publish Livewire assets
 php artisan storage:link --force || true
+php artisan livewire:publish --assets --force || true
 
 # Run database migrations if DB is configured
 if [ -n "$DB_HOST" ] || [ -n "$DATABASE_URL" ]; then
     echo "Running database migrations..."
     php artisan migrate --force || true
+    echo "Running database seeders..."
+    php artisan db:seed --force || true
 fi
 
 # Optimize Laravel cache for production

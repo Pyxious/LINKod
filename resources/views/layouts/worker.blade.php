@@ -7,6 +7,8 @@
     @auth
         <meta name="user-id" content="{{ auth()->id() }}">
     @endauth
+    <meta name="supabase-url" content="{{ config('services.supabase.url') }}">
+    <meta name="supabase-anon-key" content="{{ config('services.supabase.anon_key') }}">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,8 +34,27 @@
 <body x-data="{ sidebarOpen: false }" class="bg-[#f0f4f8] dark:bg-[#111111] text-slate-800 dark:text-gray-200 antialiased flex flex-col md:flex-row min-h-screen transition-colors duration-200">
     
     @php
-        $navNotifications = auth()->check() ? auth()->user()->notifications()->latest('sent_at')->take(5)->get() : collect();
-        $navUnreadCount = auth()->check() ? auth()->user()->notifications()->where('is_read', false)->count() : 0;
+        $workerUser = auth()->user();
+        $navNotifications = $workerUser ? $workerUser->notifications()->where('type', '!=', 'new_message')->latest('sent_at')->take(5)->get() : collect();
+        $navUnreadCount = $workerUser ? $workerUser->notifications()->where('type', '!=', 'new_message')->where('is_read', false)->count() : 0;
+        
+        $workerObj = $workerUser?->staff?->worker;
+        $workerId = $workerObj?->worker_id;
+        $teamId = $workerObj?->team_id;
+
+        $workerUnreadMessagesCount = $workerUser ? \App\Models\RequestMessage::where('is_read', false)
+            ->where('sender_id', '!=', $workerUser->user_id)
+            ->whereHas('serviceRequest', function($q) use ($workerId, $teamId, $workerUser) {
+                $q->whereHas('project.workers', function($pw) use ($workerId, $teamId) {
+                    $pw->where(function($wq) use ($workerId, $teamId) {
+                        if ($workerId) $wq->where('worker.worker_id', $workerId);
+                        if ($teamId) $wq->orWhere('worker.team_id', $teamId);
+                    });
+                })->orWhereHas('messages', function($mq) use ($workerUser) {
+                    $mq->where('sender_id', $workerUser->user_id);
+                });
+            })
+            ->count() : 0;
     @endphp
 
     <!-- Mobile Top Header Bar (visible only on mobile screens < md) -->
@@ -59,11 +80,9 @@
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                     </svg>
-                    @if(($navUnreadCount ?? 0) > 0)
-                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full border border-white dark:border-zinc-900 animate-pulse">
-                            {{ $navUnreadCount }}
-                        </span>
-                    @endif
+                    <span data-notification-badge class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full border border-white dark:border-zinc-900 animate-pulse {{ ($navUnreadCount ?? 0) > 0 ? '' : 'hidden' }}">
+                        {{ $navUnreadCount ?? 0 }}
+                    </span>
                 </button>
 
                 <!-- Notifications Dropdown Popover (Mobile) -->
@@ -75,11 +94,9 @@
                     <div class="px-4 py-3 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-[#f8faff] dark:bg-zinc-800/50">
                         <div class="flex items-center gap-2">
                             <span class="font-extrabold text-xs text-[#0033a0] dark:text-blue-400 uppercase tracking-wider">Notifications</span>
-                            @if(($navUnreadCount ?? 0) > 0)
-                                <span class="px-2 py-0.5 text-[10px] font-black bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-full">
-                                    {{ $navUnreadCount }} New
-                                </span>
-                            @endif
+                            <span data-notification-header-count class="px-2 py-0.5 text-[10px] font-black bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-full {{ ($navUnreadCount ?? 0) > 0 ? '' : 'hidden' }}">
+                                {{ $navUnreadCount ?? 0 }} New
+                            </span>
                         </div>
                         @if(($navUnreadCount ?? 0) > 0)
                             <form method="POST" action="{{ route('worker.notifications.mark-all-read') }}">
@@ -90,7 +107,7 @@
                             </form>
                         @endif
                     </div>
-                    <div class="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800">
+                    <div data-notification-list class="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800">
                         @forelse($navNotifications ?? [] as $notif)
                             <a href="{{ route('worker.notifications.read', $notif->notification_id) }}" 
                                class="block px-4 py-3 hover:bg-blue-50/60 dark:hover:bg-zinc-800/60 transition {{ !$notif->is_read ? 'bg-blue-50/40 dark:bg-zinc-800/30' : '' }}">
@@ -112,7 +129,7 @@
                                 </div>
                             </a>
                         @empty
-                            <div class="p-6 text-center text-xs text-gray-400 dark:text-gray-500">
+                            <div data-notification-empty class="p-6 text-center text-xs text-gray-400 dark:text-gray-500">
                                 No notifications yet.
                             </div>
                         @endforelse
@@ -158,11 +175,9 @@
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                         </svg>
-                        @if(($navUnreadCount ?? 0) > 0)
-                            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full border border-white dark:border-zinc-900 animate-pulse">
-                                {{ $navUnreadCount }}
-                            </span>
-                        @endif
+                        <span data-notification-badge class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full border border-white dark:border-zinc-900 animate-pulse {{ ($navUnreadCount ?? 0) > 0 ? '' : 'hidden' }}">
+                            {{ $navUnreadCount ?? 0 }}
+                        </span>
                     </button>
 
                     <!-- Notifications Dropdown Popover (Desktop Sidebar) -->
@@ -170,15 +185,13 @@
                          @click.outside="openNotifs = false" 
                          x-transition 
                          x-cloak 
-                         class="absolute left-0 mt-3 w-80 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-50 text-left">
+                         class="fixed left-[236px] top-5 w-80 sm:w-96 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-[999999] text-left">
                         <div class="px-4 py-3 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-[#f8faff] dark:bg-zinc-800/50">
                             <div class="flex items-center gap-2">
                                 <span class="font-extrabold text-xs text-[#0033a0] dark:text-blue-400 uppercase tracking-wider">Notifications</span>
-                                @if(($navUnreadCount ?? 0) > 0)
-                                    <span class="px-2 py-0.5 text-[10px] font-black bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-full">
-                                        {{ $navUnreadCount }} New
-                                    </span>
-                                @endif
+                                <span data-notification-header-count class="px-2 py-0.5 text-[10px] font-black bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-full {{ ($navUnreadCount ?? 0) > 0 ? '' : 'hidden' }}">
+                                    {{ $navUnreadCount ?? 0 }} New
+                                </span>
                             </div>
                             @if(($navUnreadCount ?? 0) > 0)
                                 <form method="POST" action="{{ route('worker.notifications.mark-all-read') }}">
@@ -189,7 +202,7 @@
                                 </form>
                             @endif
                         </div>
-                        <div class="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800">
+                        <div data-notification-list class="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800">
                             @forelse($navNotifications ?? [] as $notif)
                                 <a href="{{ route('worker.notifications.read', $notif->notification_id) }}" 
                                    class="block px-4 py-3 hover:bg-blue-50/60 dark:hover:bg-zinc-800/60 transition {{ !$notif->is_read ? 'bg-blue-50/40 dark:bg-zinc-800/30' : '' }}">
@@ -211,7 +224,7 @@
                                     </div>
                                 </a>
                             @empty
-                                <div class="p-6 text-center text-xs text-gray-400 dark:text-gray-500">
+                                <div data-notification-empty class="p-6 text-center text-xs text-gray-400 dark:text-gray-500">
                                     No notifications yet.
                                 </div>
                             @endforelse
@@ -261,44 +274,43 @@
             <a href="{{ route('worker.messages.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('worker.messages.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
                 <img src="{{ asset('images/MESSAGES LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Messages">
-                Messages
+                <span>Messages</span>
+                <span data-messages-badge class="ml-auto bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs {{ $workerUnreadMessagesCount > 0 ? '' : 'hidden' }}">
+                    {{ $workerUnreadMessagesCount > 99 ? '99+' : $workerUnreadMessagesCount }}
+                </span>
             </a>
 
             <!-- Notifications -->
             <a href="{{ route('worker.notifications.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('worker.notifications.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
                 <img src="{{ asset('images/NOTIFICATIONS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Notifications">
-                Notifications
-                @php $sidebarUnreadCount = auth()->user()->notifications()->where('is_read', false)->count(); @endphp
-                @if($sidebarUnreadCount > 0)
-                    <span class="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ $sidebarUnreadCount }}</span>
+                <span>Notifications</span>
+                @if($navUnreadCount > 0)
+                    <span class="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ $navUnreadCount }}</span>
                 @endif
             </a>
-        </nav>
-
-        <!-- Footer Profile using Alpine JS for toggle -->
-        <div class="p-4 border-t border-gray-200 dark:border-gray-800" x-data="{ open: false }">
-            <div class="relative">
-                <div @click="open = !open" class="flex items-center gap-3 border-2 border-dashed border-[#1a3c8f] dark:border-gray-600 rounded-xl p-3 bg-[#f8faff] dark:bg-gray-800/50 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-800 transition">
+        </nav>        <!-- Footer Profile using Alpine JS for toggle -->
+        <div class="p-4 border-t border-gray-200 dark:border-gray-800" x-data="{ openProfile: false }">
+            <div class="relative" @click.outside="openProfile = false">
+                <button type="button" @click.stop="openProfile = !openProfile" class="w-full flex items-center gap-3 border-2 border-dashed border-[#1a3c8f] dark:border-gray-600 rounded-xl p-3 bg-[#f8faff] dark:bg-gray-800/50 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-800 transition text-left focus:outline-none">
                     <div class="w-9 h-9 shrink-0 border border-[#1a3c8f] dark:border-gray-500 bg-white dark:bg-gray-700 text-[#1a3c8f] dark:text-white rounded-full flex items-center justify-center font-bold text-[15px]">
                         {{ strtoupper(substr(auth()->user()->first_name ?? 'W', 0, 1)) }}
                     </div>
-                    <div class="min-w-0">
+                    <div class="min-w-0 flex-1">
                         <div class="text-[13px] font-bold text-[#1a3c8f] dark:text-gray-200 truncate">{{ auth()->user()->first_name ?? 'Worker' }}</div>
                         <div class="text-[11px] text-gray-500 dark:text-gray-400 truncate">{{ auth()->user()->email_account }}</div>
                     </div>
-                </div>
+                </button>
 
                 <!-- Dropdown Menu -->
-                <div x-show="open" 
-                     @click.outside="open = false" 
+                <div x-show="openProfile" 
                      x-transition 
                      x-cloak
-                     class="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden z-50 font-sans">
+                     class="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-2xl overflow-hidden z-[99999] font-sans">
                     
                     <!-- Header Section: Avatar + Name + Role -->
-                    <div class="p-4 flex items-center gap-3">
-                        <div class="w-11 h-11 bg-[#0033a0] text-white rounded-md flex items-center justify-center font-bold text-lg shrink-0 shadow-sm">
+                    <div class="p-4 flex items-center gap-3 bg-gray-50 dark:bg-zinc-800/40">
+                        <div class="w-10 h-10 bg-[#0033a0] text-white rounded-md flex items-center justify-center font-bold text-base shrink-0 shadow-sm">
                             {{ strtoupper(substr(auth()->user()->first_name ?? 'W', 0, 1)) }}
                         </div>
                         <div class="min-w-0 flex-1">
@@ -321,7 +333,7 @@
                         </a>
 
                         <a href="{{ route('worker.job-orders.index') }}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
-                            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 022 2h2a2 2 0 022-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                             <span>JOB ORDERS</span>
                         </a>
 

@@ -10,15 +10,16 @@ use App\Models\Team;
 use App\Models\Worker;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class TeamSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        Schema::disableForeignKeyConstraints();
 
-        DB::table('team')->truncate();
-        DB::table('team_leader')->truncate();
+        DB::table('team')->delete();
+        DB::table('team_leader')->delete();
 
         // Delete previous mock users/staff/workers
         $mockUserIds = DB::table('user')->where('username', 'like', 'mock_%')->pluck('user_id');
@@ -31,7 +32,7 @@ class TeamSeeder extends Seeder
             DB::table('user')->whereIn('user_id', $mockUserIds)->delete();
         }
 
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        Schema::enableForeignKeyConstraints();
 
         $teamsData = [
             [

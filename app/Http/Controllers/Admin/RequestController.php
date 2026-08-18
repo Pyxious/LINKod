@@ -289,6 +289,13 @@ class RequestController extends Controller
             ]);
 
             $serviceRequest = ServiceRequest::findOrFail($id);
+
+            // Guard against duplicate approvals / race conditions
+            if ($serviceRequest->project()->exists()) {
+                return redirect()->route('admin.requests.show', $id)
+                    ->with('info', 'This request has already been approved.');
+            }
+
             $user           = auth()->user();
             $staff          = $user->staff;
 
@@ -409,7 +416,13 @@ class RequestController extends Controller
     {
         try {
             $serviceRequest = ServiceRequest::findOrFail($id);
-            $previous       = $serviceRequest->current_status;
+
+            if ($serviceRequest->current_status === 'Rejected') {
+                return redirect()->route('admin.requests.show', $id)
+                    ->with('info', 'This request has already been rejected.');
+            }
+
+            $previous = $serviceRequest->current_status;
 
             RequestHistory::create([
                 'request_id'      => $serviceRequest->request_id,
@@ -447,6 +460,11 @@ class RequestController extends Controller
     {
         try {
             $serviceRequest = ServiceRequest::with('project')->findOrFail($id);
+
+            if ($serviceRequest->current_status === 'Completed') {
+                return redirect()->route('admin.requests.show', $id)
+                    ->with('info', 'This project completion has already been verified.');
+            }
 
             // Update Project History
             if ($serviceRequest->project) {

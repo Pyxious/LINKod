@@ -47,7 +47,7 @@ class ServiceRequest extends Model
     public function latestHistory()
     {
         return $this->hasOne(RequestHistory::class, 'request_id', 'request_id')
-                    ->latestOfMany('updated_at');
+                    ->latestOfMany('history_id');
     }
 
     public function messages()

@@ -77,9 +77,10 @@
                             default => 'REQ'
                         };
                         $reqCode = $req->requisition_no ?: ($prefix . '-' . str_pad($req->request_id, 3, '0', STR_PAD_LEFT));
+                        $unreadThisReq = (!$isSelected && isset($unreadCounts[$req->request_id])) ? $unreadCounts[$req->request_id] : 0;
                     @endphp
                     <a href="{{ route($currentRole . '.messages.index', ['requestId' => $req->request_id, 'status' => $statusFilter]) }}{{ request('search') ? '&search=' . urlencode(request('search')) : '' }}" 
-                       class="block p-3 rounded-xl border transition flex items-center gap-3 {{ $isSelected ? 'border-[#0033a0] bg-blue-50/50 dark:bg-blue-950/20 ring-1 ring-[#0033a0]' : 'border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50' }}">
+                       class="block p-3 rounded-xl border transition flex items-center gap-3 {{ $isSelected ? 'border-[#0033a0] bg-blue-50/50 dark:bg-blue-950/20 ring-1 ring-[#0033a0]' : ($unreadThisReq > 0 ? 'border-red-300 bg-red-50/30 dark:bg-red-950/20 hover:bg-red-50/60 dark:hover:bg-red-950/40' : 'border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50') }}">
                         <!-- Client Avatar Icon -->
                         <div class="w-10 h-10 rounded-full bg-[#0033a0] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-sm relative">
                             @if($clientUser && $clientUser->first_name)
@@ -87,28 +88,39 @@
                             @else
                                 <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                             @endif
+
+                            @if($unreadThisReq > 0)
+                                <span class="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm animate-pulse">
+                                    {{ $unreadThisReq > 9 ? '9+' : $unreadThisReq }}
+                                </span>
+                            @endif
                         </div>
                         
                         <!-- Details -->
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between gap-1">
                                 <div class="flex items-center gap-1.5 truncate">
-                                    <span class="font-bold text-xs text-slate-900 dark:text-white truncate">
+                                    <span class="font-bold text-xs {{ $unreadThisReq > 0 ? 'text-red-900 dark:text-red-200' : 'text-slate-900 dark:text-white' }} truncate">
                                         {{ $reqCode }}
                                     </span>
                                     <span class="px-1.5 py-0.5 text-[9px] font-extrabold rounded uppercase tracking-wider {{ strtolower($req->priority ?? 'low') === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : (strtolower($req->priority ?? 'low') === 'medium' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300') }}">
                                         {{ $req->priority ?? $req->urgency ?? 'Low' }}
                                     </span>
+                                    @if($unreadThisReq > 0)
+                                        <span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-red-500 text-white shadow-xs">
+                                            {{ $unreadThisReq }} new
+                                        </span>
+                                    @endif
                                 </div>
-                                <span class="text-[10px] text-gray-400 shrink-0">
+                                <span class="text-[10px] {{ $unreadThisReq > 0 ? 'text-red-600 font-bold' : 'text-gray-400' }} shrink-0">
                                     {{ $lastMsg ? $lastMsg->created_at->diffForHumans(null, true, true) : $req->submitted_at?->diffForHumans(null, true, true) }}
                                 </span>
                             </div>
-                            <p class="text-[11px] font-semibold text-gray-600 dark:text-gray-300 truncate mt-0.5 flex items-center gap-1">
+                            <p class="text-[11px] {{ $unreadThisReq > 0 ? 'font-bold text-slate-800 dark:text-gray-200' : 'font-semibold text-gray-600 dark:text-gray-300' }} truncate mt-0.5 flex items-center gap-1">
                                 <svg class="w-3 h-3 text-gray-400 inline shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                                 <span>{{ $clientUser ? $clientUser->first_name . ' ' . $clientUser->last_name : 'Client Requestor' }}</span>
                             </p>
-                            <p class="text-[10px] text-gray-400 truncate mt-0.5">
+                            <p class="text-[10px] {{ $unreadThisReq > 0 ? 'font-bold text-slate-900 dark:text-white' : 'text-gray-400' }} truncate mt-0.5">
                                 {{ $lastMsg ? $lastMsg->message : ($req->title ?? 'Chat room created') }}
                             </p>
                         </div>
@@ -198,7 +210,12 @@
                 </div>
 
                 <!-- Chat Feed Area -->
-                <div id="chatFeedContainer" class="flex-1 min-h-0 p-3 sm:p-6 overflow-y-auto bg-white dark:bg-zinc-950/30 flex flex-col">
+                <div id="chatFeedContainer" 
+                     data-request-id="{{ $selectedRequest->request_id }}"
+                     data-client-user-id="{{ $selectedRequest->client?->user_id }}"
+                     data-client-name="{{ $clientUser ? $clientUser->first_name . ' ' . $clientUser->last_name : 'Client Requestor' }}"
+                     data-current-user-role="{{ auth()->user()->role }}"
+                     class="flex-1 min-h-0 p-3 sm:p-6 overflow-y-auto bg-white dark:bg-zinc-950/30 flex flex-col">
                     <div id="chatMessagesInner" class="mt-auto space-y-4 flex flex-col w-full">
                         @forelse($selectedRequest->messages as $msg)
                             @php
@@ -322,6 +339,67 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     scrollToBottom();
+
+    const activeRequestId = "{{ $selectedRequest ? $selectedRequest->request_id : '' }}";
+    const currentUserId = {{ auth()->id() }};
+
+    // Supabase Realtime Listener for Instant Messages
+    function initRealtimeMessages() {
+        if (!activeRequestId || !window.supabaseClient) {
+            setTimeout(initRealtimeMessages, 200);
+            return;
+        }
+
+        const clientUserId = parseInt(feed ? feed.getAttribute('data-client-user-id') : 0);
+        const clientName = (feed ? feed.getAttribute('data-client-name') : '') || 'Client Requestor';
+        const myRole = (feed ? feed.getAttribute('data-current-user-role') : '') || 'client';
+
+        window.supabaseClient
+            .channel(`realtime-chat-${activeRequestId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'request_messages',
+                    filter: `request_id=eq.${activeRequestId}`
+                },
+                (payload) => {
+                    const newMsg = payload.new;
+                    if (newMsg && parseInt(newMsg.sender_id) !== currentUserId) {
+                        const emptyNotice = feed.querySelector('.text-center.py-12');
+                        if (emptyNotice) emptyNotice.remove();
+
+                        const isFromClient = (parseInt(newMsg.sender_id) === clientUserId);
+                        const senderName = isFromClient ? clientName : (myRole === 'client' ? 'GSO Staff / Admin' : 'Staff / Worker');
+                        const senderRole = isFromClient ? 'CLIENT' : (myRole === 'client' ? 'ADMIN' : 'STAFF');
+                        const roleClass = isFromClient ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-700';
+
+                        const escMsg = (newMsg.message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'flex flex-col items-start';
+                        wrapper.innerHTML = `
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[10px] font-extrabold text-gray-600 dark:text-gray-300">${senderName}</span>
+                                <span class="px-1.5 py-0.5 text-[9px] font-bold rounded ${roleClass}">${senderRole}</span>
+                                <span class="text-[10px] text-gray-400">Just now</span>
+                            </div>
+                            <div class="max-w-md p-4 rounded-2xl text-xs font-medium leading-relaxed shadow-xs bg-[#e5e5e5] dark:bg-zinc-800 text-slate-900 dark:text-gray-100">
+                                <p class="whitespace-pre-line">${escMsg}</p>
+                            </div>
+                            <div class="mt-1 flex items-center gap-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 justify-start pl-1">
+                                <svg class="w-3 h-3 text-blue-500 dark:text-blue-400 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                <span>Sent</span>
+                            </div>
+                        `;
+                        inner.appendChild(wrapper);
+                        scrollToBottom();
+                    }
+                }
+            )
+            .subscribe();
+    }
+    initRealtimeMessages();
 
     const form = document.getElementById('chatMessageForm');
     if (!form) return;

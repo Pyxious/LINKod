@@ -16,7 +16,7 @@ RUN npm run build
 # ==========================================
 # Stage 2: Build Application & Runtime
 # ==========================================
-FROM php:8.3-fpm-alpine
+FROM php:8.4-fpm-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -58,10 +58,14 @@ COPY . .
 # Copy built frontend assets from Stage 1
 COPY --from=frontend-builder /app/public/build ./public/build
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+# Install PHP dependencies with resilient fallback
+ENV COMPOSER_ALLOW_SUPERUSER=1
+ENV COMPOSER_PROCESS_TIMEOUT=600
+RUN composer install --no-dev --optimize-autoloader --no-interaction || \
+    composer install --no-dev --optimize-autoloader --no-interaction --prefer-source
 
 # Copy configuration files
+COPY docker/php.ini /usr/local/etc/php/conf.d/custom-php.ini
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh

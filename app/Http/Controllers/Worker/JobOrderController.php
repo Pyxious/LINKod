@@ -85,6 +85,7 @@ class JobOrderController extends Controller
         $worker  = auth()->user()->staff?->worker;
         $project = Project::with(
             'request.category',
+            'request.client.user',
             'billOfMaterials.material',
             'latestHistory',
             'workers'

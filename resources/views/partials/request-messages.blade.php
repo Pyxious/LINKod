@@ -44,30 +44,38 @@
     </div>
 
     <!-- Messages Container -->
-    <div id="requestMessagesFeed" class="max-h-96 overflow-y-auto pr-1 mb-5 scroll-smooth flex flex-col">
+    <div id="requestMessagesFeed" 
+         class="max-h-96 overflow-y-auto pr-1 mb-5 scroll-smooth flex flex-col" 
+         data-request-id="{{ $serviceRequest->request_id }}" 
+         data-current-user-id="{{ $currentUser->user_id }}"
+         data-client-user-id="{{ $serviceRequest->client?->user_id }}"
+         data-client-name="{{ $serviceRequest->client?->user ? ($serviceRequest->client->user->first_name . ' ' . $serviceRequest->client->user->last_name) : 'Client' }}">
         <div id="requestMessagesInner" class="mt-auto space-y-4 flex flex-col w-full">
             @forelse($messages as $msg)
                 @php
                     $isSelf = ($msg->sender_id === $currentUser->user_id);
-                    $senderRole = ucfirst($msg->sender->role ?? 'User');
-                    $roleBadgeClass = match(strtolower($msg->sender->role ?? '')) {
+                    $senderObj = $msg->sender;
+                    $senderRole = ucfirst($senderObj->role ?? 'User');
+                    $roleBadgeClass = match(strtolower($senderObj->role ?? '')) {
                         'admin' => 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200',
                         'worker' => 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200',
                         default => 'bg-blue-100 text-[#0038A8] dark:bg-blue-950/60 dark:text-blue-300 border-blue-200'
                     };
+                    $senderName = $isSelf ? 'You' : ($senderObj ? ($senderObj->first_name . ' ' . $senderObj->last_name) : 'User');
+                    $msgDate = $msg->created_at ? (\Carbon\Carbon::parse($msg->created_at)->diffForHumans()) : 'Just now';
                 @endphp
 
-                <div class="flex flex-col {{ $isSelf ? 'items-end' : 'items-start' }}">
+                <div class="flex flex-col {{ $isSelf ? 'items-end' : 'items-start' }}" data-message-id="{{ $msg->message_id }}">
                     <!-- Meta Info (Name, Role, Date) -->
                     <div class="flex items-center gap-2 mb-1 text-[11px] text-gray-500 dark:text-gray-400">
                         <span class="font-bold text-slate-800 dark:text-gray-200">
-                            {{ $isSelf ? 'You' : ($msg->sender->first_name . ' ' . $msg->sender->last_name) }}
+                            {{ $senderName }}
                         </span>
                         <span class="px-1.5 py-0.2 text-[10px] font-extrabold uppercase rounded border {{ $roleBadgeClass }}">
                             {{ $senderRole }}
                         </span>
                         <span>&bull;</span>
-                        <span>{{ $msg->created_at->diffForHumans() }}</span>
+                        <span>{{ $msgDate }}</span>
                     </div>
 
                     <!-- Message Bubble -->
@@ -100,15 +108,6 @@
             @endforelse
         </div>
     </div>
-
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const feed = document.getElementById('requestMessagesFeed');
-        if (feed) {
-            feed.scrollTop = feed.scrollHeight;
-        }
-    });
-    </script>
 
     <!-- Input Form / Resolved Lock Banner -->
     @if($isResolved)
@@ -144,9 +143,11 @@
                     <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 truncate max-w-[180px] hidden"></span>
                 </div>
 
-                <button type="submit" class="w-full sm:w-auto bg-[#0038A8] hover:bg-[#002B82] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs inline-flex items-center justify-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                    Send Message
+                <button type="submit" class="w-full sm:w-auto ml-auto bg-[#0038A8] hover:bg-[#002B82] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs inline-flex items-center justify-center gap-2 shrink-0">
+                    <span>Send Message</span>
+                    <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
                 </button>
             </div>
         </form>
@@ -157,102 +158,142 @@
 document.addEventListener('DOMContentLoaded', function() {
     const feed = document.getElementById('requestMessagesFeed');
     const inner = document.getElementById('requestMessagesInner') || feed;
+    const form = document.getElementById('requestMessageForm');
+    const requestId = feed ? feed.getAttribute('data-request-id') : null;
+    const currentUserId = feed ? parseInt(feed.getAttribute('data-current-user-id')) : null;
 
     function scrollToBottom() {
         if (!feed) return;
         feed.scrollTop = feed.scrollHeight;
-        requestAnimationFrame(function() {
-            feed.scrollTop = feed.scrollHeight;
-        });
-        setTimeout(function() {
-            if (feed) feed.scrollTop = feed.scrollHeight;
-        }, 50);
-        setTimeout(function() {
-            if (feed) feed.scrollTop = feed.scrollHeight;
-        }, 200);
+        requestAnimationFrame(() => { if (feed) feed.scrollTop = feed.scrollHeight; });
     }
 
     scrollToBottom();
 
-    const form = document.getElementById('requestMessageForm');
-    if (!form) return;
+    // Helper to render incoming or newly sent message in feed
+    function appendMessageToFeed(msg, isSelf) {
+        if (!feed || !inner) return;
+        if (msg.message_id && document.querySelector(`[data-message-id="${msg.message_id}"]`)) {
+            return; // Avoid duplicate rendering
+        }
 
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const textarea = form.querySelector('textarea[name="message"]');
-        if (!textarea || !textarea.value.trim()) return;
+        const emptyNotice = feed.querySelector('.border-dashed');
+        if (emptyNotice) emptyNotice.remove();
 
-        const formData = new FormData(form);
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn) submitBtn.disabled = true;
+        const role = (msg.sender_role || 'User').toLowerCase();
+        let roleClass = 'bg-blue-100 text-[#0038A8] dark:bg-blue-950/60 dark:text-blue-300 border-blue-200';
+        if (role === 'admin') roleClass = 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200';
+        if (role === 'worker') roleClass = 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200';
 
-        fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            }
-        })
-        .then(res => {
-            if (!res.ok) throw new Error('HTTP error ' + res.status);
-            return res.json();
-        })
-        .then(data => {
-            if (data.success && data.message && feed) {
-                const msg = data.message;
-                const emptyNotice = feed.querySelector('.border-dashed');
-                if (emptyNotice) emptyNotice.remove();
+        const escMsg = (msg.message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const attachmentHtml = msg.attachment ? `
+            <div class="mt-2.5 pt-2 border-t ${isSelf ? 'border-blue-400/40' : 'border-gray-200 dark:border-zinc-700'}">
+                <a href="${msg.attachment.startsWith('/') ? msg.attachment : '/storage/' + msg.attachment}" target="_blank" class="inline-flex items-center gap-2 text-[11px] font-semibold ${isSelf ? 'text-blue-100 hover:text-white' : 'text-[#0038A8] dark:text-blue-400 hover:underline'}">
+                    <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                    View Attachment
+                </a>
+            </div>
+        ` : '';
 
-                const r = (msg.sender_role || '').toLowerCase();
-                let roleClass = 'bg-blue-100 text-[#0038A8] dark:bg-blue-950/60 dark:text-blue-300 border-blue-200';
-                if (r === 'admin') roleClass = 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200';
-                if (r === 'worker') roleClass = 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200';
+        const wrapper = document.createElement('div');
+        wrapper.className = `flex flex-col ${isSelf ? 'items-end' : 'items-start'}`;
+        if (msg.message_id) wrapper.setAttribute('data-message-id', msg.message_id);
 
-                const escMsg = (msg.message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                const attachmentHtml = msg.attachment ? `
-                    <div class="mt-2.5 pt-2 border-t border-blue-400/40">
-                        <a href="${msg.attachment}" target="_blank" class="inline-flex items-center gap-2 text-[11px] font-semibold text-blue-100 hover:text-white">
-                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                            View Attachment
-                        </a>
-                    </div>
-                ` : '';
+        const senderName = isSelf ? 'You' : (msg.sender_name || 'Staff / User');
 
-                const wrapper = document.createElement('div');
-                wrapper.className = 'flex flex-col items-end';
-                wrapper.innerHTML = `
-                    <div class="flex items-center gap-2 mb-1 text-[11px] text-gray-500 dark:text-gray-400">
-                        <span class="font-bold text-slate-800 dark:text-gray-200">You</span>
-                        <span class="px-1.5 py-0.2 text-[10px] font-extrabold uppercase rounded border ${roleClass}">${msg.sender_role}</span>
-                        <span>&bull;</span>
-                        <span>just now</span>
-                    </div>
-                    <div class="max-w-xl p-3.5 rounded-2xl text-xs leading-relaxed bg-[#0038A8] text-white rounded-tr-none shadow-2xs">
-                        <p class="whitespace-pre-line">${escMsg}</p>
-                        ${attachmentHtml}
-                    </div>
-                    <div class="mt-1 flex items-center gap-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 justify-end pr-1">
-                        <svg class="w-3 h-3 text-blue-500 dark:text-blue-400 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                        <span>Sent</span>
-                    </div>
-                `;
-                inner.appendChild(wrapper);
-                scrollToBottom();
+        wrapper.innerHTML = `
+            <div class="flex items-center gap-2 mb-1 text-[11px] text-gray-500 dark:text-gray-400">
+                <span class="font-bold text-slate-800 dark:text-gray-200">${senderName}</span>
+                <span class="px-1.5 py-0.2 text-[10px] font-extrabold uppercase rounded border ${roleClass}">${msg.sender_role || 'User'}</span>
+                <span>&bull;</span>
+                <span>just now</span>
+            </div>
+            <div class="max-w-xl p-3.5 rounded-2xl text-xs leading-relaxed ${isSelf ? 'bg-[#0038A8] text-white rounded-tr-none shadow-2xs' : 'bg-gray-100 dark:bg-zinc-800 text-slate-900 dark:text-gray-100 rounded-tl-none border border-gray-200 dark:border-zinc-700'}">
+                <p class="whitespace-pre-line">${escMsg}</p>
+                ${attachmentHtml}
+            </div>
+            <div class="mt-1 flex items-center gap-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 ${isSelf ? 'justify-end pr-1' : 'justify-start pl-1'}">
+                <svg class="w-3 h-3 text-blue-500 dark:text-blue-400 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                <span>Sent</span>
+            </div>
+        `;
 
-                textarea.value = '';
-                const fileInp = form.querySelector('input[type="file"]');
-                if (fileInp) fileInp.value = '';
-                const span = form.querySelector('.truncate');
-                if (span) { span.textContent = ''; span.classList.add('hidden'); }
-            }
-        })
-        .catch(err => {
-            console.error('AJAX message submission error:', err);
-        })
-        .finally(() => {
-            if (submitBtn) submitBtn.disabled = false;
+        inner.appendChild(wrapper);
+        scrollToBottom();
+    }
+
+    // Connect to Supabase Realtime for instant chat messages
+    function initRealtimeDetailsChat() {
+        if (!requestId || !window.supabaseClient) {
+            setTimeout(initRealtimeDetailsChat, 200);
+            return;
+        }
+
+        const clientUserId = parseInt(feed.getAttribute('data-client-user-id') || 0);
+        const clientName = feed.getAttribute('data-client-name') || 'Client';
+
+        window.supabaseClient
+            .channel(`realtime-request-${requestId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'request_messages',
+                    filter: `request_id=eq.${requestId}`
+                },
+                (payload) => {
+                    const newMsg = payload.new;
+                    if (newMsg && parseInt(newMsg.sender_id) !== currentUserId) {
+                        const isFromClient = (parseInt(newMsg.sender_id) === clientUserId);
+                        newMsg.sender_name = isFromClient ? clientName : 'GSO Staff / Admin';
+                        newMsg.sender_role = isFromClient ? 'Client' : 'Admin';
+                        appendMessageToFeed(newMsg, false);
+                    }
+                }
+            )
+            .subscribe();
+    }
+    initRealtimeDetailsChat();
+
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const textarea = form.querySelector('textarea[name="message"]');
+            if (!textarea || !textarea.value.trim()) return;
+
+            const formData = new FormData(form);
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = true;
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('HTTP error ' + res.status);
+                return res.json();
+            })
+            .then(data => {
+                if (data.success && data.message) {
+                    appendMessageToFeed(data.message, true);
+                    textarea.value = '';
+                    const fileInp = form.querySelector('input[type="file"]');
+                    if (fileInp) fileInp.value = '';
+                    const span = form.querySelector('.truncate');
+                    if (span) { span.textContent = ''; span.classList.add('hidden'); }
+                }
+            })
+            .catch(err => {
+                console.error('Message submission error:', err);
+            })
+            .finally(() => {
+                if (submitBtn) submitBtn.disabled = false;
+            });
         });
-    });
+    }
 });
-</script>

@@ -16,35 +16,7 @@
     </div>
 </div>
 
-<!-- KPI Grid (5 Metrics: Total Requests, Submitted, On Hold, In Progress, Completed) -->
-<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5 sm:gap-4 mb-6 font-sans">
-    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm">
-        <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Total Requests</div>
-        <div class="text-[#1a3c8f] dark:text-white text-2xl sm:text-3xl font-extrabold leading-none">{{ $totalRequests }}</div>
-    </div>
-
-    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm">
-        <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Submitted</div>
-        <div class="text-[#1a3c8f] dark:text-white text-2xl sm:text-3xl font-extrabold leading-none">{{ $submitted }}</div>
-    </div>
-
-    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm">
-        <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">On Hold</div>
-        <div class="text-[#1a3c8f] dark:text-white text-2xl sm:text-3xl font-extrabold leading-none">{{ $onHold }}</div>
-    </div>
-
-    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm">
-        <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">In Progress</div>
-        <div class="text-[#1a3c8f] dark:text-white text-2xl sm:text-3xl font-extrabold leading-none">{{ $inProgress }}</div>
-    </div>
-
-    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm col-span-2 sm:col-span-1">
-        <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Completed</div>
-        <div class="text-[#1a3c8f] dark:text-white text-2xl sm:text-3xl font-extrabold leading-none">{{ $completed }}</div>
-    </div>
-</div>
-
-<!-- Livewire Component Table -->
+<!-- Livewire Component Table & Live KPI Grid -->
 @livewire('admin.request-table')
 
 @endsection

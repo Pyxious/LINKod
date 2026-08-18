@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('PROJECT_HISTORY', function (Blueprint $table) {
+        Schema::table('project_history', function (Blueprint $table) {
             $table->string('proof_attachment')->nullable()->after('current_status');
         });
     }
@@ -21,7 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('PROJECT_HISTORY', function (Blueprint $table) {
+        Schema::table('project_history', function (Blueprint $table) {
             $table->dropColumn('proof_attachment');
         });
     }
