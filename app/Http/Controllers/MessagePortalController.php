@@ -78,12 +78,10 @@ class MessagePortalController extends Controller
 
         $requests = $query->orderByRaw("
             CASE 
-                WHEN priority = 'High' THEN 1 
-                WHEN priority = 'Medium' THEN 2 
-                WHEN priority = 'Low' THEN 3 
-                ELSE 4 
+                WHEN LOWER(priority) = 'high' THEN 1 
+                ELSE 2 
             END ASC
-        ")->orderBy('request_id', 'desc')->get();
+        ")->orderBy('submitted_at', 'asc')->orderBy('request_id', 'asc')->get();
 
         // Perform search filtering on loaded Collection (supports decrypted user PII names, requisition codes, categories, titles, locations, emails)
         if ($request->filled('search')) {

@@ -100,12 +100,16 @@ class RequestTable extends Component
 
         if ($this->sortField === 'priority') {
             $dir = strtoupper($this->sortDirection) === 'ASC' ? 'ASC' : 'DESC';
-            $query->orderByRaw("CASE priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 WHEN 'Low' THEN 3 ELSE 4 END {$dir}")
-                  ->orderBy('request_id', 'desc');
+            $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END {$dir}")
+                  ->orderBy('submitted_at', 'asc')
+                  ->orderBy('request_id', 'asc');
         } elseif (in_array($this->sortField, ['request_id', 'submitted_at', 'title', 'campus', 'location'])) {
             $query->orderBy($this->sortField, $this->sortDirection);
         } else {
-            $query->orderBy('submitted_at', 'desc');
+            // Default: High Priority at top (FCFS), Medium & Low below (FCFS regardless of med/low)
+            $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END ASC")
+                  ->orderBy('submitted_at', 'asc')
+                  ->orderBy('request_id', 'asc');
         }
 
         $requests = $query->paginate(15);

@@ -26,7 +26,9 @@ class RequestController extends Controller
     public function index(Request $request)
     {
         $query = ServiceRequest::with('client.user', 'category', 'latestHistory')
-            ->latest('submitted_at');
+            ->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END ASC")
+            ->orderBy('submitted_at', 'asc')
+            ->orderBy('request_id', 'asc');
 
         if ($request->filled('status')) {
             $query->whereHas('latestHistory', fn($q) =>
