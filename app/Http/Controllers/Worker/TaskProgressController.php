@@ -54,13 +54,15 @@ class TaskProgressController extends Controller
 
             // Save nature_of_work and recommendation if completed
             if ($validated['status'] === 'Completed') {
-                $nature = $validated['completion_type'] === 'Inspection Only'
-                    ? 'Inspection & Assessment Only'
-                    : ($validated['nature_of_work'] ?: 'Repair & Maintenance');
-                
-                $project->nature_of_work = $nature;
+                $completionType = $validated['completion_type'] ?? $request->input('completion_type');
+                $natureInput    = $validated['nature_of_work'] ?? $request->input('nature_of_work');
+
+                if ($completionType === 'Inspection Only' || $natureInput === 'Inspection & Assessment Only') {
+                    $project->nature_of_work = 'Inspection & Assessment Only';
+                }
+
                 if ($request->filled('recommendation')) {
-                    $project->recommendation = $validated['recommendation'];
+                    $project->recommendation = $request->input('recommendation');
                 }
                 $project->save();
             }
