@@ -6,8 +6,9 @@
 <div class="w-full flex flex-col font-sans min-h-[calc(100vh-64px)]">
     
     <!-- Hero Header Banner (Full-Width Shaded Section) -->
-    <section class="w-full bg-[#edf4fb] dark:bg-[#18181b] py-10 px-4 sm:px-6 lg:px-8 border-b border-gray-200 dark:border-zinc-800">
+    <section class="w-full bg-[#fffde7] dark:bg-[#18181b] py-8 sm:py-10 px-4 sm:px-6 lg:px-8 border-b border-gray-200/80 dark:border-zinc-800">
         <div class="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+
             <div>
                 <!-- Breadcrumb -->
                 <div class="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">
@@ -31,6 +32,12 @@
                         } }}">
                         {{ $request->current_status }}
                     </span>
+                    @if($request->project?->nature_of_work)
+                        <span class="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold rounded-full inline-flex items-center gap-1">
+                            <svg class="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                            {{ $request->project->nature_of_work }}
+                        </span>
+                    @endif
                 </div>
 
                 <h1 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
@@ -117,9 +124,10 @@
                     <!-- Description -->
                     <div class="mb-6">
                         <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Description</div>
-                        <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl text-slate-800 dark:text-gray-200 text-xs sm:text-sm leading-relaxed border border-gray-100 dark:border-zinc-700">
-                            {{ $request->description ?: 'No detailed description provided.' }}
+                        <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl text-slate-800 dark:text-gray-200 text-xs sm:text-sm leading-relaxed border border-gray-100 dark:border-zinc-700 whitespace-pre-line">
+                            {{ $request->display_description ?: 'No detailed description provided.' }}
                         </div>
+
                     </div>
 
                     <!-- Details Grid -->
@@ -189,25 +197,40 @@
                                     @php $grandTotal = 0; @endphp
                                     @foreach($request->project->billOfMaterials as $bom)
                                         @php 
+                                            $unit = $bom->material->unit_of_measurement ?? 'pcs';
                                             $unitCost = $bom->material->unit_cost ?? 0;
                                             $itemTotal = $bom->total_cost ?: ($bom->qty * $unitCost);
+                                            $isApproved = !is_null($bom->date_approved);
                                             $grandTotal += $itemTotal;
                                         @endphp
                                         <tr class="hover:bg-gray-50/50 dark:hover:bg-zinc-800/40 transition">
                                             <td class="py-3 px-3 font-bold text-slate-900 dark:text-white">
-                                                {{ $bom->material->material_name ?? 'Material Item' }}
+                                                <div class="flex items-center gap-2">
+                                                    <span>{{ $bom->material->material_name ?? 'Material Item' }}</span>
+                                                    @if(!$isApproved)
+                                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">Pending Pricing</span>
+                                                    @endif
+                                                </div>
                                             </td>
-                                            <td class="py-3 px-3 text-center text-gray-500">
-                                                {{ $bom->material->unit ?? 'pcs' }}
+                                            <td class="py-3 px-3 text-center text-gray-500 font-semibold">
+                                                {{ $unit }}
                                             </td>
                                             <td class="py-3 px-3 text-center font-bold text-slate-800 dark:text-gray-200">
-                                                {{ number_format($bom->qty, 0) }}
+                                                {{ rtrim(rtrim(number_format($bom->qty, 2), '0'), '.') }}
                                             </td>
-                                            <td class="py-3 px-3 text-right text-gray-500">
-                                                ₱{{ number_format($unitCost, 2) }}
+                                            <td class="py-3 px-3 text-right text-gray-500 font-medium">
+                                                @if($unitCost > 0)
+                                                    ₱{{ number_format($unitCost, 2) }}
+                                                @else
+                                                    <span class="text-gray-400 italic">--</span>
+                                                @endif
                                             </td>
                                             <td class="py-3 px-3 text-right font-bold text-slate-900 dark:text-white">
-                                                ₱{{ number_format($itemTotal, 2) }}
+                                                @if($itemTotal > 0)
+                                                    ₱{{ number_format($itemTotal, 2) }}
+                                                @else
+                                                    <span class="text-gray-400 italic">--</span>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach
@@ -220,6 +243,7 @@
                             <span class="text-xs font-bold text-slate-700 dark:text-gray-300">Total Estimated Materials Cost:</span>
                             <span class="text-base font-black text-[#0033a0] dark:text-blue-400">₱{{ number_format($grandTotal, 2) }}</span>
                         </div>
+
                     @else
                         <div class="p-6 bg-slate-50 dark:bg-zinc-800/30 rounded-xl text-center border border-gray-100 dark:border-zinc-800">
                             <p class="text-xs text-gray-400 italic">No Bill of Materials (BOM) required or requested yet for this job.</p>

@@ -127,7 +127,7 @@
                         $mCatName = strtolower($mProject?->request?->category?->category_name ?? '');
                         $mPrefix = match(true) {
                             str_contains($mCatName, 'carpentry') || str_contains($mCatName, 'masonry') => 'CMS',
-                            str_contains($mCatName, 'plumbing') => 'PS',
+                            str_contains($mCatName, 'plumbing') => 'PLS',
                             str_contains($mCatName, 'paint') => 'PTS',
                             str_contains($mCatName, 'electric') => 'EES',
                             default => 'REQ'
@@ -158,13 +158,20 @@
                             </div>
                         </div>
                         <div class="shrink-0">
-                            @if($member->is_available)
+                            @php
+                                $mActiveCount = $member->projects->count();
+                            @endphp
+                            @if($mActiveCount === 0)
                                 <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300">
                                     Available
                                 </span>
+                            @elseif($mActiveCount === 1)
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300">
+                                    Busy (1 Active)
+                                </span>
                             @else
                                 <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300">
-                                    Busy
+                                    Busy (1 Active, {{ $mActiveCount - 1 }} Queued)
                                 </span>
                             @endif
                         </div>
@@ -249,7 +256,10 @@
 
                     <!-- Status & Requisition Column -->
                     <td class="px-6 py-4">
-                        @if($worker->is_available)
+                        @php
+                            $wActiveCount = $worker->projects->count();
+                        @endphp
+                        @if($wActiveCount === 0)
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-green-50 text-green-700 border border-green-200 dark:bg-emerald-950/50 dark:text-emerald-300">
                                 <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Available
                             </span>
@@ -260,7 +270,7 @@
                                 $catName = strtolower($activeProject?->request?->category?->category_name ?? '');
                                 $prefix = match(true) {
                                     str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
-                                    str_contains($catName, 'plumbing') => 'PS',
+                                    str_contains($catName, 'plumbing') => 'PLS',
                                     str_contains($catName, 'paint') => 'PTS',
                                     str_contains($catName, 'electric') => 'EES',
                                     default => 'REQ'
@@ -270,7 +280,12 @@
                             @endphp
                             <div class="flex flex-col gap-1">
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 w-fit dark:bg-amber-950/50 dark:text-amber-300">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Busy
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> 
+                                    @if($wActiveCount === 1)
+                                        Busy (1 Active)
+                                    @else
+                                        Busy (1 Active, {{ $wActiveCount - 1 }} Queued)
+                                    @endif
                                 </span>
                                 @if($activeProject)
                                     <div class="text-[11px] text-gray-600 dark:text-gray-300 font-semibold flex items-center gap-1.5 mt-0.5">
@@ -287,6 +302,7 @@
                             </div>
                         @endif
                     </td>
+
 
                     <!-- Actions Column (Assign Team Only — Leader is managed on Team cards above) -->
                     <td class="px-6 py-4 text-right">

@@ -7,18 +7,31 @@ use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $notifications = auth()->user()
-            ->notifications()
-            ->latest('sent_at')
-            ->paginate(20);
+        $type = $request->query('type', 'all');
+        $user = auth()->user();
+
+        $query = $user->notifications()->latest('sent_at');
+
+        if ($type === 'requests') {
+            $query->where('type', '!=', 'new_message');
+        } elseif ($type === 'messages') {
+            $query->where('type', 'new_message');
+        }
+
+        $notifications = $query->paginate(20)->withQueryString();
+
+        $totalCount   = $user->notifications()->count();
+        $requestCount = $user->notifications()->where('type', '!=', 'new_message')->count();
+        $messageCount = $user->notifications()->where('type', 'new_message')->count();
 
         // Mark all as read
-        auth()->user()->notifications()->where('is_read', false)->update(['is_read' => true]);
+        $user->notifications()->where('is_read', false)->update(['is_read' => true]);
 
-        return view('worker.notifications.index', compact('notifications'));
+        return view('worker.notifications.index', compact('notifications', 'totalCount', 'requestCount', 'messageCount', 'type'));
     }
+
 
     public function readNotification(int $id)
     {

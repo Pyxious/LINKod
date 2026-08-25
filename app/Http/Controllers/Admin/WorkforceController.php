@@ -24,7 +24,7 @@ class WorkforceController extends Controller
                 'projects' => function($q) {
                     $q->with('request.category', 'latestHistory')
                       ->whereHas('latestHistory', function($lh) {
-                          $lh->where('current_status', '!=', 'Completed');
+                          $lh->whereNotIn('current_status', ['Completed', 'Cancelled']);
                       });
                 }
             ])->get();
@@ -33,7 +33,7 @@ class WorkforceController extends Controller
             ->get();
 
         $totalWorkers = $workers->count();
-        $availableWorkers = $workers->where('is_available', true)->count();
+        $availableWorkers = $workers->filter(fn($w) => $w->projects->isEmpty())->count();
         $busyWorkers = $totalWorkers - $availableWorkers;
         $onLeave = 0; // Mocked
 
@@ -43,9 +43,9 @@ class WorkforceController extends Controller
             $teamWorkers = $workers->where('team_id', $team->team_id);
             $team->team_members = $teamWorkers->values();
             $team->skilled_workers = $teamWorkers->count();
-            $team->available = $teamWorkers->where('is_available', true)->count();
-            // Mock active tasks for the team
-            $team->active_tasks = rand(0, 3);
+            $team->available = $teamWorkers->filter(fn($w) => $w->projects->isEmpty())->count();
+            $team->active_tasks = $teamWorkers->sum(fn($w) => $w->projects->count());
+
             
             // Team leader name & leader worker
             $leader = null;

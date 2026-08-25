@@ -6,9 +6,23 @@
 <div class="w-full max-w-6xl mx-auto space-y-6 font-sans">
     
     <!-- Top Header Banner -->
-    <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-            <div class="flex items-center gap-3 mb-2 flex-wrap">
+    <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 shadow-sm space-y-4"
+         x-data="{
+             dateStarted: '',
+             targetCompletion: '',
+             get printUrl() {
+                 let base = '{{ route('admin.requests.export', $serviceRequest->request_id) }}';
+                 let params = new URLSearchParams();
+                 if (this.dateStarted) params.append('date_started', this.dateStarted);
+                 if (this.targetCompletion) params.append('target_completion', this.targetCompletion);
+                 let qs = params.toString();
+                 return qs ? (base + '?' + qs) : base;
+             }
+         }">
+        
+        <!-- Row 1: Badges on Left, Clientele Satisfaction Button on Right (Same Line) -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 flex-wrap">
                 <span class="px-3 py-1 bg-[#0033a0] text-white text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-sm">
                     Requisition #{{ str_pad($serviceRequest->request_id, 4, '0', STR_PAD_LEFT) }}
                 </span>
@@ -23,41 +37,79 @@
                 <span class="px-3 py-1 bg-blue-100 text-blue-800 text-[11px] font-bold rounded-full">
                     {{ $serviceRequest->current_status }}
                 </span>
+                @if($serviceRequest->project?->nature_of_work)
+                    <span class="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold rounded-full inline-flex items-center gap-1">
+                        <svg class="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        {{ $serviceRequest->project->nature_of_work }}
+                    </span>
+                @endif
             </div>
 
-            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {{ $serviceRequest->title }}
-            </h1>
-
-            <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 font-medium">
-                Submitted by <span class="font-bold text-slate-800 dark:text-gray-200">{{ $serviceRequest->client->user->first_name ?? 'N/A' }} {{ $serviceRequest->client->user->last_name ?? '' }}</span> 
-                ({{ $serviceRequest->client->user->email_account ?? '' }})
-                • {{ \Carbon\Carbon::parse($serviceRequest->submitted_at)->format('M d, Y h:i A') }}
-            </p>
+            <!-- Clientele Satisfaction Button (Same line as badges) -->
+            <div class="shrink-0">
+                @if($serviceRequest->evaluation)
+                    <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-4 py-1.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-full transition shadow-sm inline-flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                        Print Satisfaction Page
+                    </a>
+                @else
+                    <button type="button" disabled class="px-4 py-1.5 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-full cursor-not-allowed inline-flex items-center gap-1.5 opacity-80" title="Client has not rated this service request yet">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                        Print Satisfaction Page (Not Rated Yet)
+                    </button>
+                @endif
+            </div>
         </div>
 
-        <div class="flex items-center gap-3 shrink-0 flex-wrap">
-            <a href="{{ route('admin.requests.export', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-full transition shadow-md inline-flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                Print Requisition
-            </a>
+        <!-- Row 2: Title & Details on Left, Print Requisition & Date Range Controls on Right -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1 border-t border-[#e5e1b0] dark:border-zinc-800">
+            <div class="flex-1 min-w-0">
+                <h1 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {{ $serviceRequest->title }}
+                </h1>
 
-            @if($serviceRequest->evaluation)
-                <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-full transition shadow-md inline-flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
-                    Print Satisfaction Page
+                <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 font-medium">
+                    Submitted by <span class="font-bold text-slate-800 dark:text-gray-200">{{ $serviceRequest->client->user->first_name ?? 'N/A' }} {{ $serviceRequest->client->user->last_name ?? '' }}</span> 
+                    ({{ $serviceRequest->client->user->email_account ?? '' }})
+                    • {{ \Carbon\Carbon::parse($serviceRequest->submitted_at)->format('M d, Y h:i A') }}
+                </p>
+            </div>
+
+            <!-- Print Requisition Action & Date Range Controls -->
+            <div class="flex flex-col gap-2 shrink-0 w-full sm:w-auto min-w-[300px]">
+                <!-- Print Requisition Button -->
+                <a :href="printUrl" target="_blank" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center justify-center gap-2 w-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    Print Requisition
                 </a>
-            @else
-                <button type="button" disabled class="px-5 py-2.5 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-full cursor-not-allowed inline-flex items-center gap-2 opacity-80" title="Client has not rated this service request yet">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
-                    Print Satisfaction Page (Not Rated Yet)
-                </button>
-            @endif
+
+                <!-- 2 Boxes: Left = Date Started, Right = Target Date of Completion -->
+                <div class="grid grid-cols-2 gap-2 bg-white/70 dark:bg-zinc-800/80 p-2.5 rounded-xl border border-amber-200/80 dark:border-zinc-700">
+                    <div>
+                        <label class="block text-[10px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
+                            Date Started
+                        </label>
+                        <input type="date" 
+                               x-model="dateStarted" 
+                               class="w-full px-2 py-1 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-semibold text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
+                            Target Completion
+                        </label>
+                        <input type="date" 
+                               x-model="targetCompletion" 
+                               :min="dateStarted" 
+                               class="w-full px-2 py-1 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-semibold text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Request Details Card -->
-    <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
+    <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm"
+         x-data="{ lightboxOpen: false, lightboxImg: '', lightboxTitle: '' }">
         <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 mb-4 flex items-center gap-2">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             Request Details & Specification
@@ -66,9 +118,10 @@
         <!-- Description Box -->
         <div class="mb-6">
             <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Description / Issue Summary</div>
-            <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl text-slate-800 dark:text-gray-200 text-sm leading-relaxed border border-gray-100 dark:border-zinc-700">
-                {{ $serviceRequest->description ?: 'No additional description provided.' }}
+            <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl text-slate-800 dark:text-gray-200 text-sm leading-relaxed border border-gray-100 dark:border-zinc-700 whitespace-pre-line">
+                {{ $serviceRequest->display_description ?: 'No additional description provided.' }}
             </div>
+
         </div>
 
         <!-- Details Grid -->
@@ -91,22 +144,366 @@
 
         <!-- Supporting Attachment (if any) -->
         @if($serviceRequest->attachment)
-            <div class="mt-6 border-t border-gray-100 dark:border-zinc-800 pt-5">
+            <div class="mt-6 border-t border-gray-100 dark:border-zinc-800 pt-5" x-data="{ attModal: false }">
                 <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Attachment / Photo Evidence</div>
-                <a href="{{ Storage::url($serviceRequest->attachment) }}" target="_blank" class="inline-flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl hover:border-[#0033a0] transition group">
-                    @if(Str::endsWith(strtolower($serviceRequest->attachment), ['.jpg', '.jpeg', '.png', '.webp']))
-                        <img src="{{ Storage::url($serviceRequest->attachment) }}" alt="Attachment" class="w-16 h-16 object-cover rounded-lg border border-gray-200">
-                    @else
-                        <div class="w-12 h-12 bg-blue-100 text-[#0033a0] rounded-lg flex items-center justify-center font-bold text-xs">PDF</div>
-                    @endif
-                    <div>
-                        <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-[#0033a0] transition">View Full Attachment ↗</div>
-                        <div class="text-[11px] text-gray-400">Click to open original file</div>
+                @if(Str::endsWith(strtolower($serviceRequest->attachment), ['.jpg', '.jpeg', '.png', '.webp']))
+                    <div @click="attModal = true" 
+                         class="inline-flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl hover:border-[#0033a0] transition group cursor-pointer">
+                        <img src="{{ Storage::url($serviceRequest->attachment) }}" alt="Attachment" class="w-14 h-14 object-cover rounded-lg border border-gray-200">
+                        <div>
+                            <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-[#0033a0] transition">Click to View Photo</div>
+                            <div class="text-[11px] text-gray-400">Click to preview in popup modal</div>
+                        </div>
                     </div>
-                </a>
+
+                    <!-- Lightbox Modal for Supporting Attachment -->
+                    <div x-show="attModal" 
+                         x-cloak 
+                         class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs"
+                         @click.outside="attModal = false" 
+                         @keydown.escape.window="attModal = false">
+                        <div class="relative max-w-4xl w-full max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 flex flex-col items-center">
+                            <div class="w-full flex items-center justify-between py-3 px-5 bg-zinc-800 text-white border-b border-zinc-700">
+                                <span class="text-xs font-bold uppercase tracking-wider text-gray-200">Client Supporting Photo Evidence</span>
+                                <button type="button" @click="attModal = false" class="p-1.5 text-gray-400 hover:text-white hover:bg-zinc-700 rounded-lg transition">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                            <div class="w-full p-4 flex items-center justify-center overflow-auto max-h-[80vh] bg-black/50">
+                                <img src="{{ Storage::url($serviceRequest->attachment) }}" alt="Attachment" class="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-lg">
+                            </div>
+                        </div>
+                    </div>
+                @else
+                    <a href="{{ Storage::url($serviceRequest->attachment) }}" target="_blank" class="inline-flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl hover:border-[#0033a0] transition group">
+                        <div class="w-12 h-12 bg-blue-100 text-[#0033a0] rounded-lg flex items-center justify-center font-bold text-xs">PDF</div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-[#0033a0] transition">Download Document ↗</div>
+                            <div class="text-[11px] text-gray-400">Click to open original file</div>
+                        </div>
+                    </a>
+                @endif
             </div>
         @endif
     </div>
+
+    <!-- Bill of Materials (BOM) Section Card (Direct Pricing & Approval in Request Page) -->
+    @if($serviceRequest->project && $serviceRequest->project->billOfMaterials->count() > 0)
+        @php
+            $pendingBomCount = $serviceRequest->project->billOfMaterials->whereNull('date_approved')->count();
+        @endphp
+        <div id="bom-section" 
+             class="bg-white dark:bg-[#1c1c1e] rounded-2xl border {{ $pendingBomCount > 0 ? 'border-amber-400 dark:border-amber-600' : 'border-gray-200 dark:border-zinc-800' }} p-6 sm:p-7 shadow-sm"
+             x-data="{
+                 items: {{ Js::from($serviceRequest->project->billOfMaterials->map(fn($b) => [
+                     'bom_id' => $b->bom_id,
+                     'material_name' => $b->material->material_name ?? 'Material Item',
+                     'unit' => $b->material->unit_of_measurement ?? 'pcs',
+                     'qty' => (float)$b->qty,
+                     'unit_cost' => (float)($b->material->unit_cost ?? 0),
+                     'is_approved' => !is_null($b->date_approved),
+                 ])) }},
+                 showAddMaterial: false,
+                 submittingBOM: false,
+                 selectedMaterialId: '',
+                 customName: '',
+                 addUnit: 'pcs',
+                 addQty: 1,
+                 addUnitCost: 0,
+                 catalog: {{ Js::from(($allMaterials ?? collect())->map(fn($m) => ['id' => $m->material_id, 'name' => $m->material_name, 'unit' => $m->unit_of_measurement ?? 'pcs', 'cost' => (float)$m->unit_cost])) }},
+                 isDiscrete(unit) {
+                     if (!unit) return true;
+                     const u = unit.toString().trim().toLowerCase();
+                     const continuousUnits = ['meter', 'meters', 'm', 'length', 'lengths', 'ft', 'feet', 'foot', 'liter', 'liters', 'l', 'kg', 'kilo', 'kilos', 'kilogram', 'kilograms', 'gallon', 'gallons', 'gal', 'yard', 'yards', 'yd', 'inch', 'inches', 'cm', 'mm'];
+                     return !continuousUnits.includes(u);
+                 },
+                 get grandTotal() {
+                     return this.items.reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.unit_cost) || 0)), 0);
+                 },
+                 onSelectAddChange() {
+                     if (this.selectedMaterialId && this.selectedMaterialId !== 'custom') {
+                         const found = this.catalog.find(m => m.id == this.selectedMaterialId);
+                         if (found) {
+                             this.addUnit = found.unit || 'pcs';
+                             this.addUnitCost = found.cost || 0;
+                         }
+                     } else if (this.selectedMaterialId === 'custom') {
+                         this.addUnitCost = 0;
+                         if (!this.addUnit) this.addUnit = 'pcs';
+                     }
+                 }
+             }">
+            
+            <!-- BOM Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-5">
+                <div>
+                    <div class="flex items-center gap-2.5 mb-1 flex-wrap">
+                        <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                            <span>Bill of Materials (BOM) — Pricing & Approval</span>
+                        </h2>
+                        @if($pendingBomCount > 0)
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                {{ $pendingBomCount }} Pending Pricing / Approval
+                            </span>
+                        @else
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                Approved
+                            </span>
+                        @endif
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                        Set or adjust unit prices directly below, then click "Save Prices & Approve BOM" to approve.
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" 
+                            @click="showAddMaterial = !showAddMaterial" 
+                            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <span x-text="showAddMaterial ? 'Close Form' : '+ Add Material'">+ Add Material</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- In-Place Pricing & Approval Form -->
+            <form action="{{ route('admin.bom.approve', $serviceRequest->project->project_id) }}" method="POST" @submit="submittingBOM = true">
+                @csrf
+                <input type="hidden" name="redirect_to" value="{{ route('admin.requests.show', $serviceRequest->request_id) }}#bom-section">
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-200 dark:border-zinc-800 text-[11px] font-extrabold text-gray-400 uppercase tracking-wider">
+                                <th class="py-2.5 px-3">Material Item</th>
+                                <th class="py-2.5 px-3 text-center w-28">Qty</th>
+                                <th class="py-2.5 px-3 text-center w-24">Unit</th>
+                                <th class="py-2.5 px-3 text-right w-36">Unit Price (₱)</th>
+                                <th class="py-2.5 px-3 text-right w-36">Total (₱)</th>
+                                <th class="py-2.5 px-3 text-center w-24">Status</th>
+                                <th class="py-2.5 px-3 text-center w-14">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
+                            <template x-for="(item, idx) in items" :key="item.bom_id">
+                                <tr class="hover:bg-blue-50/40 dark:hover:bg-zinc-800/40 transition">
+                                    
+                                    <!-- Hidden BOM ID -->
+                                    <input type="hidden" :name="'items[' + idx + '][bom_id]'" :value="item.bom_id">
+
+                                    <!-- Material Name -->
+                                    <td class="py-3 px-3">
+                                        <div class="font-bold text-slate-900 dark:text-white" x-text="item.material_name"></div>
+                                    </td>
+
+                                    <!-- Quantity Input (Step 1 for discrete units, 0.01 for continuous) -->
+                                    <td class="py-3 px-3 text-center">
+                                        <input type="number" 
+                                               :name="'items[' + idx + '][qty]'" 
+                                               x-model.number="item.qty" 
+                                               :step="isDiscrete(item.unit) ? '1' : '0.01'" 
+                                               :min="isDiscrete(item.unit) ? '1' : '0.01'" 
+                                               class="w-20 px-2 py-1.5 text-center font-bold border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#0033a0]" 
+                                               required>
+                                    </td>
+
+                                    <!-- Unit of Measurement (Non-editable badge) -->
+                                    <td class="py-3 px-3 text-center">
+                                        <div class="px-2 py-1 text-center font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-zinc-800/80 rounded-lg text-xs border border-gray-200 dark:border-zinc-700 select-none" x-text="item.unit || 'pcs'"></div>
+                                        <input type="hidden" :name="'items[' + idx + '][unit_of_measurement]'" :value="item.unit">
+                                    </td>
+
+                                    <!-- Unit Price Input -->
+                                    <td class="py-3 px-3 text-right">
+                                        <div class="relative inline-block w-32">
+                                            <span class="absolute left-2.5 top-1.5 text-xs font-bold text-gray-400">₱</span>
+                                            <input type="number" 
+                                                   :name="'items[' + idx + '][unit_cost]'" 
+                                                   x-model.number="item.unit_cost" 
+                                                   step="0.01" 
+                                                   min="0" 
+                                                   placeholder="0.00" 
+                                                   class="w-full pl-6 pr-2.5 py-1.5 text-right font-black border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-[#0033a0] dark:text-blue-400 focus:ring-2 focus:ring-[#0033a0]" 
+                                                   required>
+                                        </div>
+                                    </td>
+
+                                    <!-- Row Total -->
+                                    <td class="py-3 px-3 text-right font-black text-slate-900 dark:text-white">
+                                        ₱<span x-text="((parseFloat(item.qty) || 0) * (parseFloat(item.unit_cost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                                    </td>
+
+                                    <!-- Status -->
+                                    <td class="py-3 px-3 text-center">
+                                        <span x-show="item.is_approved" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                            Approved
+                                        </span>
+                                        <span x-show="!item.is_approved" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                            Pending
+                                        </span>
+                                    </td>
+
+                                    <!-- Delete Item Button -->
+                                    <td class="py-3 px-3 text-center">
+                                        <button type="button" 
+                                                @click="if(confirm('Remove this material from the BOM?')) { document.getElementById('delete-bom-item-' + item.bom_id).submit(); }" 
+                                                class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition" 
+                                                title="Delete material">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Grand Total & Direct Approval Action Bar -->
+                <div class="mt-5 pt-4 border-t border-gray-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50 dark:bg-zinc-800/50 p-4 rounded-xl">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xs font-bold text-slate-700 dark:text-gray-300">Total Materials Budget:</span>
+                        <span class="text-lg sm:text-xl font-black text-[#0033a0] dark:text-blue-400">
+                            ₱<span x-text="grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                        </span>
+                    </div>
+
+                    <button type="submit" 
+                            :disabled="submittingBOM" 
+                            class="w-full sm:w-auto px-7 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer">
+                        <svg x-show="submittingBOM" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span x-text="submittingBOM ? 'Saving & Approving...' : 'Save Prices & Approve BOM'">Save Prices & Approve BOM</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Inline Form: Add Additional Material (Toggled) -->
+            <div x-show="showAddMaterial" 
+                 x-cloak 
+                 x-transition 
+                 class="mt-5 pt-5 border-t border-gray-200 dark:border-zinc-800 bg-blue-50/40 dark:bg-zinc-800/30 p-4 rounded-xl">
+                <h3 class="text-xs font-black uppercase tracking-wider text-[#0033a0] dark:text-blue-400 mb-3 flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    <span>Add Item to this Request's BOM</span>
+                </h3>
+
+                <form action="{{ route('admin.bom.store', $serviceRequest->project->project_id) }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="redirect_to" value="{{ route('admin.requests.show', $serviceRequest->request_id) }}#bom-section">
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                        <!-- Catalog Select -->
+                        <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-4' : 'sm:col-span-5'">
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Select Catalog Material</label>
+                            <select name="material_id" 
+                                    x-model="selectedMaterialId" 
+                                    @change="onSelectAddChange()" 
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-[#0033a0]" 
+                                    required>
+                                <option value="">Select a material...</option>
+                                @foreach($allMaterials ?? [] as $m)
+                                    <option value="{{ $m->material_id }}">{{ $m->material_name }} ({{ $m->unit_of_measurement ?? 'pcs' }} - ₱{{ number_format($m->unit_cost, 2) }})</option>
+                                @endforeach
+                                <option value="custom" class="font-bold text-[#0033a0]">+ Add New Custom Material...</option>
+                            </select>
+                        </div>
+
+                        <!-- Custom Material Name if 'custom' -->
+                        <div class="sm:col-span-3" x-show="selectedMaterialId === 'custom'">
+                            <label class="block text-[11px] font-bold text-[#0033a0] uppercase tracking-wider mb-1">Custom Material Name</label>
+                            <input type="text" 
+                                   name="custom_material_name" 
+                                   x-model="customName" 
+                                   :required="selectedMaterialId === 'custom'" 
+                                   placeholder="e.g. Teflon Tape 1/2 in" 
+                                   class="w-full px-3 py-2 border border-[#0033a0] rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
+                        </div>
+
+                        <!-- Quantity -->
+                        <div class="sm:col-span-2">
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Quantity</label>
+                            <input type="number" 
+                                   name="qty" 
+                                   x-model.number="addQty" 
+                                   :step="isDiscrete(addUnit) ? '1' : '0.01'" 
+                                   :min="isDiscrete(addUnit) ? '1' : '0.01'" 
+                                   placeholder="1" 
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white" 
+                                   required>
+                        </div>
+
+                        <!-- Unit of Measurement -->
+                        <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-1' : 'sm:col-span-2'">
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Unit</label>
+                            
+                            <div x-show="selectedMaterialId !== 'custom'" class="w-full px-3 py-2 border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/80 rounded-lg text-xs font-bold text-slate-700 dark:text-gray-300 text-center flex items-center justify-center min-h-[38px] select-none">
+                                <span x-text="addUnit || 'pcs'"></span>
+                            </div>
+                            <input type="hidden" x-show="selectedMaterialId !== 'custom'" name="unit_of_measurement" :value="addUnit">
+
+                            <select x-show="selectedMaterialId === 'custom'" 
+                                    name="unit_of_measurement" 
+                                    x-model="addUnit" 
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
+                                <option value="pcs">pcs</option>
+                                <option value="meters">meters</option>
+                                <option value="lengths">lengths</option>
+                                <option value="rolls">rolls</option>
+                                <option value="boxes">boxes</option>
+                                <option value="bags">bags</option>
+                                <option value="liters">liters</option>
+                                <option value="sheets">sheets</option>
+                                <option value="sets">sets</option>
+                                <option value="units">units</option>
+                                <option value="kg">kg</option>
+                                <option value="gallons">gallons</option>
+                                <option value="pairs">pairs</option>
+                                <option value="tubes">tubes</option>
+                                <option value="packs">packs</option>
+                                <option value="feet">feet</option>
+                                <option value="can">can</option>
+                            </select>
+                        </div>
+
+                        <!-- Unit Cost -->
+                        <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-2' : 'sm:col-span-3'">
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Unit Price (₱)</label>
+                            <div class="relative">
+                                <span class="absolute left-2.5 top-2 text-xs font-bold text-gray-400">₱</span>
+                                <input type="number" 
+                                       name="unit_cost" 
+                                       x-model.number="addUnitCost" 
+                                       step="0.01" 
+                                       min="0" 
+                                       placeholder="0.00" 
+                                       class="w-full pl-6 pr-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-bold bg-white dark:bg-zinc-800 text-slate-900 dark:text-white" 
+                                       required>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="sm:col-span-12 flex justify-end pt-1">
+                            <button type="submit" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                <span>Add Item to BOM</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Hidden delete forms for each BOM item -->
+            @foreach($serviceRequest->project->billOfMaterials as $bItem)
+                <form id="delete-bom-item-{{ $bItem->bom_id }}" action="{{ route('admin.bom.destroy-item', ['projectId' => $serviceRequest->project->project_id, 'bomId' => $bItem->bom_id]) }}" method="POST" class="hidden">
+                    @csrf
+                    @method('DELETE')
+                </form>
+            @endforeach
+        </div>
+    @endif
+
 
     <!-- Clientele Satisfaction Rating Section Card (Displayed when client has rated the request) -->
     @if($serviceRequest->evaluation)
@@ -117,7 +514,9 @@
                         <svg class="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                         Clientele Satisfaction Measurement Rating
                     </h2>
-                    <p class="text-xs text-gray-500 mt-0.5 font-medium">Submitted by client on {{ $serviceRequest->evaluation->rated_at ? $serviceRequest->evaluation->rated_at->format('M d, Y h:i A') : 'N/A' }}</p>
+                    <p class="text-xs text-gray-500 mt-0.5 font-medium">
+                        Submitted {{ ($serviceRequest->evaluation->show_name ?? true) ? 'by ' . ($serviceRequest->client->user->first_name . ' ' . $serviceRequest->client->user->last_name) : 'anonymously' }} on {{ $serviceRequest->evaluation->rated_at ? $serviceRequest->evaluation->rated_at->format('M d, Y h:i A') : 'N/A' }}
+                    </p>
                 </div>
                 <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center gap-2 shrink-0">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
@@ -150,6 +549,25 @@
                         "{{ $serviceRequest->evaluation->feedback_text ?: 'No additional written feedback provided.' }}"
                     </p>
                 </div>
+            </div>
+
+            @php
+                $funcRatings = $serviceRequest->evaluation->function_ratings;
+                $funcLabels = [
+                    'quality'      => 'Quality of Service',
+                    'attitude'     => 'Attitude',
+                    'safety'       => 'Safety Precaution',
+                    'time'         => 'Time Bound',
+                    'housekeeping' => 'Housekeeping',
+                ];
+            @endphp
+            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-zinc-800 flex flex-wrap items-center gap-2">
+                <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mr-1">Rating Breakdown:</span>
+                @foreach($funcLabels as $k => $lbl)
+                    <span class="px-2.5 py-1 bg-slate-50 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-lg text-xs font-bold text-slate-800 dark:text-gray-200">
+                        {{ $lbl }}: <span class="text-[#0033a0] dark:text-blue-400 font-extrabold">{{ $funcRatings[$k] ?? $serviceRequest->evaluation->rating }}★</span>
+                    </span>
+                @endforeach
             </div>
         </div>
     @endif
@@ -253,6 +671,7 @@
                                                 }
                                             }
                                         }
+                                        $activeCount = $worker->projects->count();
                                     @endphp
                                     <label class="worker-option flex items-center gap-2.5 cursor-pointer p-2.5 hover:bg-blue-50 dark:hover:bg-zinc-800 rounded-xl border border-gray-100 dark:border-zinc-800 {{ $isRecommended ? 'bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : '' }} transition-colors min-w-0" data-team="{{ strtolower($worker->team->team_name ?? '') }}">
                                         <input type="checkbox" name="worker_ids[]" value="{{ $worker->worker_id }}" {{ $isRecommended ? 'checked' : '' }} class="worker-checkbox rounded text-[#0033a0] focus:ring-[#0033a0] w-4 h-4 shrink-0">
@@ -261,13 +680,22 @@
                                                 <div class="text-xs font-bold text-slate-900 dark:text-gray-200 truncate" title="{{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}">
                                                     {{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}
                                                 </div>
-                                                <div class="text-[11px] text-gray-500 truncate" title="{{ $worker->team->team_name ?? 'No Unit' }}">
-                                                    {{ $worker->team->team_name ?? 'No Unit' }}
+                                                <div class="text-[11px] text-gray-500 truncate flex items-center gap-1.5" title="{{ $worker->team->team_name ?? 'No Unit' }}">
+                                                    <span>{{ $worker->team->team_name ?? 'No Unit' }}</span>
+                                                    <span>•</span>
+                                                    @if($activeCount === 0)
+                                                        <span class="text-emerald-600 dark:text-emerald-400 font-bold">🟢 Available</span>
+                                                    @elseif($activeCount === 1)
+                                                        <span class="text-amber-600 dark:text-amber-400 font-bold">🟡 Busy (1 Active)</span>
+                                                    @else
+                                                        <span class="text-amber-600 dark:text-amber-400 font-bold">🟡 Busy (1 Active, {{ $activeCount - 1 }} Queued)</span>
+                                                    @endif
                                                 </div>
                                             </div>
                                             <span class="recommended-badge text-[9px] bg-[#0033a0] text-white px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide shrink-0 {{ $isRecommended ? '' : 'hidden' }}">Recommended</span>
                                         </div>
                                     </label>
+
                                 @endforeach
                                 @if($workers->isEmpty())
                                     <p class="text-xs text-gray-400 p-2 italic col-span-2">No active workers found in database.</p>
@@ -303,35 +731,178 @@
             </div>
         </div>
     @elseif($serviceRequest->project && $serviceRequest->project->current_status === 'Pending Verification')
-        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
-            <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                Worker Completed Job — Pending Final Admin Verification
-            </h2>
+        @php
+            $beforeHistory = $serviceRequest->project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->last();
+            $afterHistory = $serviceRequest->project->histories->whereIn('current_status', ['Pending Verification', 'Completed'])->whereNotNull('proof_attachment')->last();
+        @endphp
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 border-blue-400 dark:border-blue-700 p-7 shadow-sm"
+             x-data="{ lightboxOpen: false, lightboxImg: '', lightboxTitle: '' }">
+            <div class="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-zinc-800 pb-3">
+                <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Worker Completed Job — Pending Final Admin Verification
+                </h2>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
+                    Awaiting Inspection
+                </span>
+            </div>
+            
+            <p class="text-xs text-gray-500 mb-6">Inspect the before & after work evidence photos below to ensure the task was completed satisfactorily before closing this requisition.</p>
 
-            <div class="bg-blue-50/60 dark:bg-zinc-800/50 p-6 rounded-2xl border border-blue-200 dark:border-zinc-700 flex flex-col items-center text-center max-w-xl mx-auto">
-                @php
-                    $pendingHistory = $serviceRequest->project->histories->where('current_status', 'Pending Verification')->last();
-                @endphp
-                
-                @if($pendingHistory && $pendingHistory->proof_attachment)
-                    <div class="mb-5">
-                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Worker Uploaded Proof of Completion</p>
-                        <a href="{{ Storage::url($pendingHistory->proof_attachment) }}" target="_blank" class="inline-block p-1 bg-white border border-blue-300 rounded-xl shadow-sm hover:opacity-90 transition">
-                            <img src="{{ Storage::url($pendingHistory->proof_attachment) }}" alt="Proof" class="max-w-[240px] rounded-lg object-cover">
-                        </a>
+            <!-- Before & After Photos Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- Before Photo -->
+                <div class="bg-gray-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                BEFORE WORK PHOTO
+                            </span>
+                            @if($beforeHistory)
+                                <span class="text-[10px] text-gray-400 font-medium">{{ \Carbon\Carbon::parse($beforeHistory->updated_at)->format('M d, Y h:i A') }}</span>
+                            @endif
+                        </div>
+                        @if($beforeHistory && $beforeHistory->proof_attachment)
+                            <div @click="lightboxOpen = true; lightboxImg = '{{ Storage::url($beforeHistory->proof_attachment) }}'; lightboxTitle = 'Before Work Photo'" 
+                                 class="block group relative overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-black/5 dark:bg-black/40 p-2 cursor-pointer transition hover:border-amber-400">
+                                <img src="{{ Storage::url($beforeHistory->proof_attachment) }}" alt="Before Work" class="w-full max-h-64 object-contain rounded-lg group-hover:scale-[1.01] transition duration-200 mx-auto">
+                                <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5 rounded-xl">
+                                    <span class="bg-black/60 px-3 py-1.5 rounded-lg backdrop-blur-xs">Click to Preview</span>
+                                </div>
+                            </div>
+                        @else
+                            <div class="min-h-[140px] bg-gray-100 dark:bg-zinc-800/40 rounded-xl flex items-center justify-center text-xs text-gray-400 font-medium border border-dashed border-gray-200 dark:border-zinc-700">
+                                No before photo attached
+                            </div>
+                        @endif
                     </div>
-                @endif
-                
-                <form action="{{ route('admin.requests.verify', $serviceRequest->request_id) }}" method="POST" class="w-full">
+                </div>
+
+                <!-- After Photo -->
+                <div class="bg-gray-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                                AFTER WORK PHOTO (COMPLETION)
+                            </span>
+                            @if($afterHistory)
+                                <span class="text-[10px] text-gray-400 font-medium">{{ \Carbon\Carbon::parse($afterHistory->updated_at)->format('M d, Y h:i A') }}</span>
+                            @endif
+                        </div>
+                        @if($afterHistory && $afterHistory->proof_attachment)
+                            <div @click="lightboxOpen = true; lightboxImg = '{{ Storage::url($afterHistory->proof_attachment) }}'; lightboxTitle = 'After Work Photo (Completion)'" 
+                                 class="block group relative overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-black/5 dark:bg-black/40 p-2 cursor-pointer transition hover:border-emerald-400">
+                                <img src="{{ Storage::url($afterHistory->proof_attachment) }}" alt="After Work" class="w-full max-h-64 object-contain rounded-lg group-hover:scale-[1.01] transition duration-200 mx-auto">
+                                <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5 rounded-xl">
+                                    <span class="bg-black/60 px-3 py-1.5 rounded-lg backdrop-blur-xs">Click to Preview</span>
+                                </div>
+                            </div>
+                        @else
+                            <div class="min-h-[140px] bg-gray-100 dark:bg-zinc-800/40 rounded-xl flex items-center justify-center text-xs text-gray-400 font-medium border border-dashed border-gray-200 dark:border-zinc-700">
+                                Pending completion upload
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <!-- Verification Action Section -->
+            @php 
+                $isWorkerInspectionOnly = ($serviceRequest->project?->nature_of_work === 'Inspection & Assessment Only'); 
+            @endphp
+            <div class="bg-blue-50/70 dark:bg-zinc-800/70 p-6 rounded-2xl border-2 border-blue-200 dark:border-zinc-700 space-y-4">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-blue-200/80 dark:border-zinc-700">
+                    <div>
+                        <h3 class="text-sm font-bold text-[#0033a0] dark:text-blue-400 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Verify Project Completion
+                        </h3>
+                        <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                            @if($isWorkerInspectionOnly)
+                                Worker completed this job as <strong>Inspection &amp; Assessment Only</strong>. Review the returned form and findings before closing.
+                            @else
+                                Inspect the returned physical paper form. Type the nature of work and findings written by the team before closing the request.
+                            @endif
+                        </p>
+                    </div>
+                    @if($isWorkerInspectionOnly)
+                        <span class="px-3.5 py-1.5 bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-full inline-flex items-center gap-1.5 shrink-0 shadow-xs">
+                            <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                            Inspection &amp; Assessment Only
+                        </span>
+                    @elseif($serviceRequest->project?->nature_of_work)
+                        <span class="px-3 py-1 bg-blue-100 text-blue-800 border border-blue-300 text-xs font-bold rounded-full inline-flex items-center gap-1.5 shrink-0">
+                            {{ $serviceRequest->project->nature_of_work }}
+                        </span>
+                    @endif
+                </div>
+
+                <form action="{{ route('admin.requests.verify', $serviceRequest->request_id) }}" method="POST" class="space-y-4">
                     @csrf
-                    <button type="submit" class="w-full bg-[#0033a0] hover:bg-[#002480] text-white font-bold py-3 px-6 rounded-xl transition shadow-md flex justify-center items-center gap-2 text-sm">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Verify Completion & Close Request
-                    </button>
+                    
+                    @if($isWorkerInspectionOnly)
+                        <input type="hidden" name="nature_of_work" value="Inspection & Assessment Only">
+                        <!-- Inspection Findings from Paper -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-1.5">
+                                Inspection Findings &amp; Recommendations Written on Paper (Optional):
+                            </label>
+                            <textarea name="work_details" 
+                                      rows="2" 
+                                      placeholder="e.g. Conducted on-site inspection; circuit breaker reset and functioning properly / referred to external contractor."
+                                      class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0]">{{ $serviceRequest->project?->recommendation ?? '' }}</textarea>
+                        </div>
+                    @else
+                        <!-- Work Details / Nature of Work written on paper -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-1.5">
+                                Work Details / Findings Written on Paper (Nature of Work Done):
+                            </label>
+                            <textarea name="work_details" 
+                                      rows="2.5" 
+                                      placeholder="Type what the worker wrote on the physical paper (e.g. Replaced 4 fluorescent light bulbs and checked electrical lines)..."
+                                      class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0]">{{ $serviceRequest->project?->nature_of_work && $serviceRequest->project->nature_of_work !== 'Repair & Maintenance Done' ? $serviceRequest->project->nature_of_work : ($serviceRequest->project?->recommendation ?? '') }}</textarea>
+                        </div>
+                    @endif
+
+                    <div class="flex justify-end pt-1">
+                        <button type="submit" class="w-full sm:w-auto bg-[#0033a0] hover:bg-[#002480] text-white font-bold py-3 px-7 rounded-xl transition shadow-md flex justify-center items-center gap-2 text-xs">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Verify Completion &amp; Close Request
+                        </button>
+                    </div>
                 </form>
             </div>
+
+            <!-- Lightbox Modal Popup -->
+            <div x-show="lightboxOpen" 
+                 x-cloak 
+                 class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs"
+                 @keydown.escape.window="lightboxOpen = false"
+                 x-transition:enter="ease-out duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="ease-in duration-150"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0">
+                
+                <div class="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700" 
+                     @click.outside="lightboxOpen = false">
+                    <!-- Header Bar -->
+                    <div class="w-full flex items-center justify-between py-3 px-5 bg-zinc-800 text-white border-b border-zinc-700">
+                        <span class="text-xs font-bold uppercase tracking-wider text-gray-200" x-text="lightboxTitle"></span>
+                        <button type="button" @click="lightboxOpen = false" class="p-1.5 text-gray-400 hover:text-white hover:bg-zinc-700 rounded-lg transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <!-- Adaptive Image Area -->
+                    <div class="w-full p-4 flex items-center justify-center overflow-auto max-h-[80vh] bg-black/50">
+                        <img :src="lightboxImg" alt="Enlarged Photo" class="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-lg">
+                    </div>
+                </div>
+            </div>
         </div>
+
     @elseif($serviceRequest->current_status === 'Rejected')
         @php
             $rejectionHistory = $serviceRequest->histories->where('current_status', 'Rejected')->last();

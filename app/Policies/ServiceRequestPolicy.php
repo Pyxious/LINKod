@@ -16,17 +16,16 @@ class ServiceRequestPolicy
             return true;
         }
 
-        if ($user->role === 'client') {
-            return $user->client && $user->client->client_id === $serviceRequest->client_id;
+        // User owns the request (client or worker acting on client side)
+        if ($user->client && $user->client->client_id === $serviceRequest->client_id) {
+            return true;
         }
 
+        // Worker can view if assigned to the project associated with the request
         if ($user->role === 'worker') {
-            // Worker can view if assigned to the project associated with the request
-            // This assumes a relationship between Worker->Team and Project exists.
-            // For now, allow if they have an active project associated.
-            if ($serviceRequest->project) {
-                // Simplified: check if worker is assigned
-                return true; // Requires robust assignment check based on actual schema
+            $worker = $user->staff?->worker;
+            if ($worker && $serviceRequest->project && $serviceRequest->project->workers->contains('worker_id', $worker->worker_id)) {
+                return true;
             }
         }
 
@@ -42,8 +41,9 @@ class ServiceRequestPolicy
             return true;
         }
 
-        if ($user->role === 'client') {
-            return $user->client && $user->client->client_id === $serviceRequest->client_id;
+        // User owns the request
+        if ($user->client && $user->client->client_id === $serviceRequest->client_id) {
+            return true;
         }
 
         return false;

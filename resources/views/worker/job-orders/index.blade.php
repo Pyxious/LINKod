@@ -56,13 +56,116 @@
     </div>
 </form>
 
-<!-- Tasks Container -->
+@php
+    $inProgressTasks = $assignments->filter(fn($a) => $a->project && $a->project->current_status === 'In Progress');
+    
+    if ($statusFilter === 'In Progress') {
+        $tableTasks = $inProgressTasks;
+        $showInProgressBox = false;
+    } elseif ($statusFilter === 'Completed') {
+        $tableTasks = $assignments;
+        $showInProgressBox = false;
+    } else {
+        $tableTasks = $assignments->reject(fn($a) => $a->project && $a->project->current_status === 'In Progress');
+        $showInProgressBox = $inProgressTasks->isNotEmpty();
+    }
+@endphp
+
+<!-- Separate Box for Currently In Progress Task(s) -->
+@if($showInProgressBox)
+    <div class="mb-6 space-y-3 font-sans">
+        <div class="flex items-center justify-between px-1">
+            <h2 class="text-[#042B74] dark:text-blue-400 font-bold text-sm sm:text-base flex items-center gap-2">
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                </span>
+                Currently In Progress
+            </h2>
+            <span class="text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                {{ $inProgressTasks->count() }} {{ Str::plural('Task', $inProgressTasks->count()) }} Active
+            </span>
+        </div>
+
+        @foreach($inProgressTasks as $inProg)
+            @php
+                $ipReqId = $inProg->project?->request_id;
+                $ipCatName = strtolower($inProg->project?->request?->category?->category_name ?? '');
+                $ipPrefix = match(true) {
+                    str_contains($ipCatName, 'landscaping') => 'LS',
+                    str_contains($ipCatName, 'electrical') || str_contains($ipCatName, 'mechanical') => 'EMS',
+                    str_contains($ipCatName, 'carpentry') || str_contains($ipCatName, 'masonry') => 'CMS',
+                    str_contains($ipCatName, 'plumbing') => 'PLS',
+                    default => 'REQ'
+                };
+                $ipReqCode = $ipReqId ? ($ipPrefix . '-' . str_pad($ipReqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($inProg->project_id, 3, '0', STR_PAD_LEFT));
+                $ipPrio = ucfirst(strtolower($inProg->project?->request?->priority ?? 'Low'));
+                $ipPrioClass = match($ipPrio) {
+                    'High' => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+                    'Medium' => 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+                    default => 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                };
+            @endphp
+            <div class="bg-white dark:bg-[#1c1c1e] border-2 border-amber-400 dark:border-amber-500/80 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="space-y-2 min-w-0 flex-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 font-mono font-extrabold px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800 text-xs">
+                            {{ $ipReqCode }}
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border {{ $ipPrioClass }}">
+                            {{ $ipPrio }} Priority
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            In Progress
+                        </span>
+                    </div>
+
+                    <div>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-snug truncate">
+                            {{ $inProg->project->request->title ?? 'Untitled Job Order' }}
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            <span>{{ $inProg->project->request->location ?? 'Location N/A' }}</span>
+                            <span class="text-gray-400">•</span>
+                            <span>Assigned: {{ \Carbon\Carbon::parse($inProg->date_assigned)->format('M d, Y') }}</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 shrink-0">
+                    <a href="{{ route('worker.job-orders.show', $inProg->project_id) }}" 
+                       class="w-full sm:w-auto px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition inline-flex items-center justify-center gap-2">
+                        <span>Continue Task</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </a>
+                </div>
+            </div>
+        @endforeach
+    </div>
+@endif
+
+<!-- Queue / Assignments Container -->
 <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xs overflow-hidden">
     <div class="px-5 sm:px-6 py-4 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/40 flex justify-between items-center">
-        <h3 class="text-[#042B74] dark:text-blue-400 font-bold text-sm sm:text-base">Your Assignments</h3>
+        <h3 class="text-[#042B74] dark:text-blue-400 font-bold text-sm sm:text-base">
+            @if($statusFilter === 'Completed')
+                Completed Job Orders
+            @elseif($statusFilter === 'In Progress')
+                In Progress Tasks
+            @elseif($statusFilter === 'all')
+                All Assigned Tasks
+            @else
+                Task Queue
+            @endif
+        </h3>
         @if(empty($statusFilter) || $statusFilter === 'active')
             <span class="text-[11px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800">
-                Active Tasks
+                {{ $tableTasks->count() }} Queued
             </span>
         @elseif($statusFilter === 'Completed')
             <span class="text-[11px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-800">
@@ -73,7 +176,7 @@
 
     <!-- Mobile Card View (visible only on mobile < md screens) -->
     <div class="block md:hidden divide-y divide-gray-100 dark:divide-zinc-800/80">
-        @forelse($assignments as $a)
+        @forelse($tableTasks as $a)
             @php
                 $reqId = $a->project?->request_id;
                 $catName = strtolower($a->project?->request?->category?->category_name ?? '');
@@ -81,7 +184,7 @@
                     str_contains($catName, 'landscaping') => 'LS',
                     str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
                     str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
-                    str_contains($catName, 'plumbing') => 'PS',
+                    str_contains($catName, 'plumbing') => 'PLS',
                     default => 'REQ'
                 };
                 $reqCode = $reqId ? ($prefix . '-' . str_pad($reqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($a->project_id, 3, '0', STR_PAD_LEFT));
@@ -94,14 +197,21 @@
             @endphp
 
             <div class="p-4 space-y-3">
-                <!-- Top Line: Code & Priority badge -->
-                <div class="flex items-center justify-between gap-2">
-                    <span class="bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 font-mono font-extrabold px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800 text-xs">
-                        {{ $reqCode }}
-                    </span>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border {{ $prioClass }}">
-                        {{ $prio }} Priority
-                    </span>
+                <!-- Top Line: Queue & Code & Priority badge -->
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <div class="flex items-center gap-1.5">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-gray-300">
+                            #{{ $loop->iteration }}
+                        </span>
+                        <span class="bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 font-mono font-extrabold px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800 text-xs">
+                            {{ $reqCode }}
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border {{ $prioClass }}">
+                            {{ $prio }} Priority
+                        </span>
+                    </div>
                 </div>
 
                 <!-- Title & Location -->
@@ -145,12 +255,12 @@
                 <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-zinc-800 mb-3 text-gray-400">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 </div>
-                <h3 class="text-xs font-bold text-gray-900 dark:text-white mb-1">No Job Orders Found</h3>
+                <h3 class="text-xs font-bold text-gray-900 dark:text-white mb-1">No Job Orders in Queue</h3>
                 <p class="text-xs text-gray-400">
                     @if($statusFilter === 'Completed')
                         You have no completed job orders recorded.
                     @else
-                        No active task assignments match your search or filter criteria.
+                        No pending task assignments in your queue.
                     @endif
                 </p>
             </div>
@@ -162,6 +272,7 @@
         <table class="w-full text-left border-collapse">
             <thead>
                 <tr class="bg-gray-50/80 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 text-[#042B74] dark:text-blue-400 text-xs uppercase tracking-wider font-bold">
+                    <th class="px-6 py-4">Queue #</th>
                     <th class="px-6 py-4">Requisition No.</th>
                     <th class="px-6 py-4">Title / Location</th>
                     <th class="px-6 py-4">Priority</th>
@@ -171,7 +282,7 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
-                @forelse($assignments as $a)
+                @forelse($tableTasks as $a)
                     @php
                         $reqId = $a->project?->request_id;
                         $catName = strtolower($a->project?->request?->category?->category_name ?? '');
@@ -179,7 +290,7 @@
                             str_contains($catName, 'landscaping') => 'LS',
                             str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
                             str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
-                            str_contains($catName, 'plumbing') => 'PS',
+                            str_contains($catName, 'plumbing') => 'PLS',
                             default => 'REQ'
                         };
                         $reqCode = $reqId ? ($prefix . '-' . str_pad($reqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($a->project_id, 3, '0', STR_PAD_LEFT));
@@ -191,6 +302,13 @@
                         };
                     @endphp
                     <tr class="hover:bg-gray-50/70 dark:hover:bg-zinc-800/50 transition group">
+                        <!-- Queue Number -->
+                        <td class="px-6 py-4 font-bold text-gray-500 dark:text-gray-400">
+                            <span class="px-2 py-0.5 rounded text-[11px] font-extrabold bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300">
+                                #{{ $loop->iteration }}
+                            </span>
+                        </td>
+
                         <!-- Requisition Code -->
                         <td class="px-6 py-4 font-extrabold text-[#0038A8] dark:text-blue-300 font-mono text-xs">
                             <span class="bg-blue-50 dark:bg-blue-950/60 px-2 py-1 rounded-md border border-blue-200 dark:border-blue-800">
@@ -200,7 +318,9 @@
 
                         <!-- Title / Location -->
                         <td class="px-6 py-4">
-                            <div class="text-xs font-bold text-gray-900 dark:text-white">{{ $a->project->request->title ?? 'Untitled Job Order' }}</div>
+                            <div class="text-xs font-bold text-gray-900 dark:text-white">
+                                {{ $a->project->request->title ?? 'Untitled Job Order' }}
+                            </div>
                             <div class="text-[11px] text-gray-400 mt-0.5 truncate max-w-xs">{{ $a->project->request->location ?? 'Location N/A' }}</div>
                         </td>
 
@@ -236,16 +356,16 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-12 text-center">
+                        <td colspan="7" class="px-6 py-12 text-center">
                             <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-zinc-800 mb-3 text-gray-400">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                             </div>
-                            <h3 class="text-xs font-bold text-gray-900 dark:text-white mb-1">No Job Orders Found</h3>
+                            <h3 class="text-xs font-bold text-gray-900 dark:text-white mb-1">No Job Orders in Queue</h3>
                             <p class="text-xs text-gray-400">
                                 @if($statusFilter === 'Completed')
                                     You have no completed job orders recorded.
                                 @else
-                                    No active task assignments match your search or filter criteria.
+                                    No pending task assignments in your queue.
                                 @endif
                             </p>
                         </td>
@@ -257,3 +377,4 @@
 </div>
 
 @endsection
+

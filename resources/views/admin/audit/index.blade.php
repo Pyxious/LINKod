@@ -29,10 +29,9 @@
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="border-b border-gray-200 dark:border-zinc-800 text-[11px] font-bold text-[#1a3c8f] dark:text-blue-400 uppercase tracking-wider">
-                        <th class="py-3 px-4 w-1/4">User</th>
-                        <th class="py-3 px-4 w-5/12">Action / Activity</th>
-                        <th class="py-3 px-4 w-1/6">IP Address</th>
-                        <th class="py-3 px-4 w-1/6 text-right">Date &amp; Time (PST)</th>
+                        <th class="py-3 px-4 w-1/3">User</th>
+                        <th class="py-3 px-4 w-1/2">Action / Activity</th>
+                        <th class="py-3 px-4 text-right">Date &amp; Time (PST)</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
@@ -64,13 +63,6 @@
                             {{ $log->action ?? 'No action specified' }}
                         </td>
 
-                        <!-- IP Address Cell -->
-                        <td class="py-3.5 px-4 font-mono text-gray-500 dark:text-gray-400">
-                            <span class="px-2 py-0.5 bg-gray-100 dark:bg-zinc-800 rounded text-[11px] border border-gray-200 dark:border-zinc-700">
-                                {{ $log->ip_address ?? 'N/A' }}
-                            </span>
-                        </td>
-
                         <!-- Date/Time Cell -->
                         <td class="py-3.5 px-4 text-right text-gray-500 dark:text-gray-400 font-medium">
                             {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Manila')->format('M d, Y h:i A') }}
@@ -78,7 +70,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="4" class="py-12 text-center text-gray-400 italic">
+                        <td colspan="3" class="py-12 text-center text-gray-400 italic">
                             No audit logs recorded yet.
                         </td>
                     </tr>

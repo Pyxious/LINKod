@@ -150,8 +150,10 @@
         @php
             $clientUser = auth()->user();
             $clientId = $clientUser?->client?->client_id;
-            $navNotifications = $clientUser ? $clientUser->notifications()->where('type', '!=', 'new_message')->latest('sent_at')->take(5)->get() : collect();
-            $navUnreadCount = $clientUser ? $clientUser->notifications()->where('type', '!=', 'new_message')->where('is_read', false)->count() : 0;
+            $navNotifications = $clientUser ? $clientUser->notifications()->latest('sent_at')->take(20)->get() : collect();
+            $navUnreadCount = $clientUser ? $clientUser->notifications()->where('is_read', false)->count() : 0;
+            $navRequestUnreadCount = $clientUser ? $clientUser->notifications()->where('type', '!=', 'new_message')->where('is_read', false)->count() : 0;
+            $navMessageUnreadCount = $clientUser ? $clientUser->notifications()->where('type', 'new_message')->where('is_read', false)->count() : 0;
             
             $clientUnreadMessagesCount = $clientUser ? \App\Models\RequestMessage::where('is_read', false)
                 ->where('sender_id', '!=', $clientUser->user_id)
@@ -173,11 +175,11 @@
 
             @auth
             <!-- Notification Bell (Client Navbar) -->
-            <div class="relative" x-data="{ openNotifs: false }">
+            <div class="relative" x-data="{ openNotifs: false, activeTab: 'all' }">
                 <button @click="openNotifs = !openNotifs" 
                         type="button" 
                         title="Notifications"
-                        class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition relative focus:outline-none">
+                        class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition relative focus:outline-none cursor-pointer">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                     </svg>
@@ -189,54 +191,124 @@
                 <!-- Notifications Dropdown Popover (Client Navbar) -->
                 <div x-show="openNotifs" 
                      @click.outside="openNotifs = false" 
-                     x-transition 
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 translate-y-2 scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                     x-transition:leave-end="opacity-0 translate-y-2 scale-95"
                      x-cloak 
-                     class="fixed left-4 right-4 sm:absolute sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-80 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-50 text-left">
-                    <div class="px-4 py-3 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-[#f8faff] dark:bg-zinc-800/50">
+                     class="fixed left-4 right-4 sm:absolute sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-[390px] bg-white dark:bg-[#18181b] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-50 text-left">
+                    
+                    <!-- Header -->
+                    <div class="px-5 py-3.5 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-gray-50/70 dark:bg-zinc-800/40">
                         <div class="flex items-center gap-2">
-                            <span class="font-extrabold text-xs text-[#0033a0] dark:text-blue-400 uppercase tracking-wider">Notifications</span>
-                            <span data-notification-header-count class="px-2 py-0.5 text-[10px] font-black bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-full {{ ($navUnreadCount ?? 0) > 0 ? '' : 'hidden' }}">
+                            <span class="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider">Notifications</span>
+                            <span data-notification-header-count class="px-2 py-0.5 text-[10px] font-black bg-red-500 text-white rounded-full shadow-2xs {{ ($navUnreadCount ?? 0) > 0 ? '' : 'hidden' }}">
                                 {{ $navUnreadCount ?? 0 }} New
                             </span>
                         </div>
                         @if(($navUnreadCount ?? 0) > 0)
                             <form method="POST" action="{{ route('client.notifications.mark-all-read') }}">
                                 @csrf
-                                <button type="submit" class="text-[11px] font-bold text-[#0033a0] dark:text-blue-400 hover:underline">
-                                    Mark read
+                                <button type="submit" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline cursor-pointer">
+                                    Mark all read
                                 </button>
                             </form>
                         @endif
                     </div>
-                    <div data-notification-list class="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800">
+
+                    <!-- Category Filter Tabs -->
+                    <div class="px-4 py-2.5 bg-gray-50/40 dark:bg-zinc-900/60 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-1.5">
+                        <button type="button" 
+                                @click="activeTab = 'all'" 
+                                :class="activeTab === 'all' ? 'bg-[#0033a0] text-white shadow-xs font-bold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 font-semibold'"
+                                class="px-3 py-1.5 rounded-lg transition text-xs flex items-center gap-1.5 cursor-pointer">
+                            <span>All</span>
+                        </button>
+                        <button type="button" 
+                                @click="activeTab = 'requests'" 
+                                :class="activeTab === 'requests' ? 'bg-[#0033a0] text-white shadow-xs font-bold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 font-semibold'"
+                                class="px-3 py-1.5 rounded-lg transition text-xs flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                            <span>Requests</span>
+                            @if(($navRequestUnreadCount ?? 0) > 0)
+                                <span class="px-1.5 py-0.2 rounded-full text-[9px] bg-red-500 text-white font-black">{{ $navRequestUnreadCount }}</span>
+                            @endif
+                        </button>
+                        <button type="button" 
+                                @click="activeTab = 'messages'" 
+                                :class="activeTab === 'messages' ? 'bg-[#0033a0] text-white shadow-xs font-bold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 font-semibold'"
+                                class="px-3 py-1.5 rounded-lg transition text-xs flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                            <span>Messages</span>
+                            @if(($navMessageUnreadCount ?? 0) > 0)
+                                <span class="px-1.5 py-0.2 rounded-full text-[9px] bg-red-500 text-white font-black">{{ $navMessageUnreadCount }}</span>
+                            @endif
+                        </button>
+                    </div>
+
+                    <!-- Notification List -->
+                    <div data-notification-list class="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800/80">
                         @forelse($navNotifications ?? [] as $notif)
+                            @php
+                                $notifCat = ($notif->type === 'new_message') ? 'messages' : 'requests';
+                                $isMsg = ($notif->type === 'new_message');
+                            @endphp
                             <a href="{{ route('client.notifications.read', $notif->notification_id) }}" 
-                               class="block px-4 py-3 hover:bg-blue-50/60 dark:hover:bg-zinc-800/60 transition {{ !$notif->is_read ? 'bg-blue-50/40 dark:bg-zinc-800/30' : '' }}">
-                                <div class="flex items-start gap-2.5">
-                                    <div class="w-2 h-2 mt-1.5 rounded-full shrink-0 {{ !$notif->is_read ? 'bg-[#0033a0] dark:bg-blue-400' : 'bg-gray-300 dark:bg-zinc-700' }}"></div>
+                               data-notif-type="{{ $notifCat }}"
+                               x-show="activeTab === 'all' || activeTab === '{{ $notifCat }}'"
+                               class="block px-4 py-3.5 hover:bg-blue-50/60 dark:hover:bg-zinc-800/60 transition relative {{ !$notif->is_read ? 'bg-blue-50/40 dark:bg-blue-950/20' : '' }}">
+                                <div class="flex items-start gap-3">
+                                    <!-- Icon badge -->
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 {{ $isMsg ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-400' : 'bg-blue-100 text-[#0033a0] dark:bg-blue-950/80 dark:text-blue-400' }}">
+                                        @if($isMsg)
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                                        @else
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                                        @endif
+                                    </div>
+
+                                    <!-- Content -->
                                     <div class="flex-1 min-w-0">
-                                        <div class="flex justify-between items-baseline gap-2 mb-0.5">
-                                            <h4 class="text-xs font-bold text-slate-900 dark:text-white truncate">
-                                                {{ $notif->title ?? 'Notification' }}
-                                            </h4>
-                                            <span class="text-[10px] text-gray-400 shrink-0">
-                                                {{ \Carbon\Carbon::parse($notif->sent_at)->diffForHumans() }}
+                                        <div class="flex items-center justify-between gap-2 mb-1">
+                                            <div class="flex items-center gap-1.5 min-w-0">
+                                                @if(!$notif->is_read)
+                                                    <span class="w-2 h-2 rounded-full bg-[#0033a0] dark:bg-blue-400 shrink-0 inline-block"></span>
+                                                @endif
+                                                <h4 class="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                                    {{ $notif->title ?? 'Notification' }}
+                                                </h4>
+                                            </div>
+                                            <span class="text-[10px] font-medium text-gray-400 shrink-0 whitespace-nowrap">
+                                                {{ \Carbon\Carbon::parse($notif->sent_at)->diffForHumans(null, true, true) }}
                                             </span>
                                         </div>
-                                        <p class="text-[11px] text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
+                                        <p class="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
                                             {{ $notif->message }}
                                         </p>
                                     </div>
                                 </div>
                             </a>
                         @empty
-                            <div data-notification-empty class="p-6 text-center text-xs text-gray-400 dark:text-gray-500">
+                            <div data-notification-empty class="p-8 text-center text-xs text-gray-400 dark:text-gray-500">
+                                <svg class="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
                                 No notifications yet.
                             </div>
                         @endforelse
                     </div>
+
+                    <!-- Footer -->
+                    <div class="p-2.5 border-t border-gray-100 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-800/40 text-center">
+                        <a href="{{ route('client.notifications.index') }}" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline inline-flex items-center gap-1">
+                            <span>View all notifications</span>
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </a>
+                    </div>
                 </div>
             </div>
+
+
 
             <div class="relative" x-data="{ open: false }">
                 <button @click="open = !open" class="flex items-center gap-1.5 cursor-pointer p-1 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 transition">

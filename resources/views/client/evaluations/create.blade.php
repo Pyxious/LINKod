@@ -160,7 +160,11 @@
                         @foreach($functions as $key => $label)
                             <tr class="hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 transition">
                                 <td class="py-4 px-5 font-bold text-slate-900 dark:text-white">
-                                    {{ $label }}
+                                    <span>{{ $label }}</span>
+                                    <span class="text-red-500">*</span>
+                                    @error('ratings.'.$key)
+                                        <p class="text-xs text-red-500 font-normal mt-0.5">{{ $message }}</p>
+                                    @enderror
                                 </td>
                                 @for($score = 5; $score >= 1; $score--)
                                     <td class="py-4 px-3 text-center">
@@ -169,7 +173,8 @@
                                                    name="ratings[{{ $key }}]" 
                                                    value="{{ $score }}" 
                                                    class="w-5 h-5 text-[#0033a0] border-gray-300 focus:ring-[#0033a0] cursor-pointer"
-                                                   {{ $score === 5 ? 'checked' : '' }}>
+                                                   {{ (old('ratings.'.$key) == $score) ? 'checked' : '' }}
+                                                   required>
                                         </label>
                                     </td>
                                 @endfor
@@ -188,6 +193,33 @@
                           rows="4" 
                           placeholder="Express your Praise, Recommendations, or Criticisms here..." 
                           class="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]"></textarea>
+            </div>
+
+            <!-- Rater Name Visibility Preference (Optional Name) -->
+            @php
+                $clientUserName = trim((auth()->user()->first_name ?? '') . ' ' . (auth()->user()->last_name ?? ''));
+            @endphp
+            <div class="p-4 bg-slate-50 dark:bg-zinc-800/60 rounded-xl border border-gray-200 dark:border-zinc-700 flex items-start sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" 
+                           id="show_name" 
+                           name="show_name" 
+                           value="1" 
+                           class="w-5 h-5 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0] cursor-pointer shrink-0"
+                           {{ old('show_name', '1') ? 'checked' : '' }}>
+                    <label for="show_name" class="cursor-pointer select-none">
+                        <span class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white block">
+                            Include my name as Rater
+                            <span class="text-xs font-normal text-gray-500 dark:text-gray-400">({{ $clientUserName ?: 'Your Name' }})</span>
+                        </span>
+                        <span class="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                            Name is optional. Uncheck this box if you prefer to submit this evaluation anonymously.
+                        </span>
+                    </label>
+                </div>
+                <span class="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider bg-blue-100 dark:bg-blue-950 text-[#0033a0] dark:text-blue-300 rounded-full shrink-0">
+                    Optional
+                </span>
             </div>
 
             <!-- Bottom Sign-off & Submit Button -->

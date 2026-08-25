@@ -100,30 +100,48 @@ export function updateNotificationBadges(incrementBy = 1) {
  */
 export function prependNotificationToDropdown(notification) {
     const listContainers = document.querySelectorAll('[data-notification-list]');
+    const notifCategory = (notification.type === 'new_message') ? 'messages' : 'requests';
+    const isMsg = (notification.type === 'new_message');
+
     listContainers.forEach((list) => {
         const emptyState = list.querySelector('[data-notification-empty]');
         if (emptyState) emptyState.remove();
 
-        const readUrl = notification.notification_id 
-            ? `/notifications/${notification.notification_id}/read` 
-            : (notification.action_url || '#');
+        const readUrl = notification.action_url || '#';
 
         const item = document.createElement('a');
-        item.href = notification.action_url || readUrl;
-        item.className = 'block px-4 py-3 bg-blue-50/60 dark:bg-zinc-800/50 hover:bg-blue-100/60 dark:hover:bg-zinc-800/80 transition border-b border-gray-100 dark:border-zinc-800';
+        item.href = readUrl;
+        item.setAttribute('data-notif-type', notifCategory);
+        item.setAttribute('x-show', `activeTab === 'all' || activeTab === '${notifCategory}'`);
+        item.className = 'block px-4 py-3.5 bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50/60 dark:hover:bg-zinc-800/60 transition relative';
+
+        const iconSvg = isMsg ? `
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        ` : `
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        `;
+        const iconBg = isMsg 
+            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-400' 
+            : 'bg-blue-100 text-[#0033a0] dark:bg-blue-950/80 dark:text-blue-400';
+
         item.innerHTML = `
-            <div class="flex items-start gap-2.5">
-                <div class="w-2 h-2 mt-1.5 rounded-full shrink-0 bg-[#0033a0] dark:bg-blue-400 animate-pulse"></div>
+            <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${iconBg}">
+                    ${iconSvg}
+                </div>
                 <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-baseline gap-2 mb-0.5">
-                        <h4 class="text-xs font-bold text-slate-900 dark:text-white truncate">
-                            ${notification.title || 'Notification'}
-                        </h4>
-                        <span class="text-[10px] text-blue-600 dark:text-blue-400 font-semibold shrink-0">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="w-2 h-2 rounded-full bg-[#0033a0] dark:bg-blue-400 shrink-0 inline-block animate-pulse"></span>
+                            <h4 class="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                ${notification.title || 'Notification'}
+                            </h4>
+                        </div>
+                        <span class="text-[10px] font-semibold text-blue-600 dark:text-blue-400 shrink-0 whitespace-nowrap">
                             Just now
                         </span>
                     </div>
-                    <p class="text-[11px] text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
+                    <p class="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
                         ${notification.message || ''}
                     </p>
                 </div>
@@ -132,6 +150,7 @@ export function prependNotificationToDropdown(notification) {
         list.prepend(item);
     });
 }
+
 
 /**
  * Increment or decrement unread message badges in sidebar/menu
@@ -156,7 +175,7 @@ export function updateMessagesBadge(incrementBy = 1) {
 export function initRealtimeNotifications(userId) {
     if (!supabase || !userId) return null;
 
-    // 1. Channel for request-related notifications (General Bell)
+    // 1. Channel for request-related & message notifications (General Bell)
     supabase
         .channel(`user-notifications-${userId}`)
         .on(
@@ -169,16 +188,13 @@ export function initRealtimeNotifications(userId) {
             },
             (payload) => {
                 const notif = payload.new;
-                // Exclude message notifications from general notification bell
-                if (notif.type === 'new_message') {
-                    return;
-                }
                 updateNotificationBadges(1);
                 prependNotificationToDropdown(notif);
                 playNotificationChime();
             }
         )
         .subscribe();
+
 
     // 2. Channel for real-time unread messages badge on sidebar
     return supabase

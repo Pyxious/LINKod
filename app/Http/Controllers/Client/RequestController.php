@@ -157,8 +157,42 @@ class RequestController extends Controller
                 $user->update(['contact_number' => $validated['contact_number']]);
             }
 
-            
             unset($validated['contact_number']);
+
+            // Package Manpower structured details into description if provided
+            if ($request->filled('activity_title') || $request->filled('prep_details') || $request->filled('prep_date') || $request->filled('assistance_details') || $request->filled('clearing_details')) {
+                $manpowerData = [
+                    'activity_title'          => $request->input('activity_title', $validated['title']),
+                    'event_date'              => $request->input('event_date', ''),
+                    'venue'                   => $request->input('venue', $validated['location']),
+                    'prep_date'               => $request->input('prep_date', ''),
+                    'prep_details'            => $request->input('prep_details', ''),
+                    'prep_regular'            => $request->boolean('prep_regular', true),
+                    'prep_overtime'           => $request->boolean('prep_overtime', false),
+                    'prep_regular_time'       => $request->input('prep_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
+                    'prep_overtime_time'      => $request->input('prep_overtime_time', ''),
+                    'assistance_date'         => $request->input('assistance_date', ''),
+                    'assistance_details'      => $request->input('assistance_details', ''),
+                    'assistance_regular'      => $request->boolean('assistance_regular', true),
+                    'assistance_overtime'     => $request->boolean('assistance_overtime', false),
+                    'assistance_regular_time' => $request->input('assistance_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
+                    'assistance_overtime_time'=> $request->input('assistance_overtime_time', ''),
+                    'clearing_date'           => $request->input('clearing_date', ''),
+                    'clearing_details'        => $request->input('clearing_details', ''),
+                    'clearing_regular'        => $request->boolean('clearing_regular', true),
+                    'clearing_overtime'       => $request->boolean('clearing_overtime', false),
+                    'clearing_regular_time'   => $request->input('clearing_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
+                    'clearing_overtime_time'  => $request->input('clearing_overtime_time', ''),
+                    'additional_date'         => $request->input('additional_date', ''),
+                    'additional_notes'        => $request->input('additional_notes', ''),
+                    'general_description'     => $request->input('description', ''),
+                ];
+
+                $validated['description'] = json_encode($manpowerData);
+                if ($request->filled('activity_title')) {
+                    $validated['title'] = $request->input('activity_title');
+                }
+            }
 
             $attachmentPath = null;
             if ($request->hasFile('attachment')) {
@@ -167,13 +201,9 @@ class RequestController extends Controller
 
                 if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp']) && extension_loaded('gd')) {
                     try {
-                        $destinationPath = storage_path("app/public/attachments/{$client->client_id}");
-                        if (!file_exists($destinationPath)) {
-                            mkdir($destinationPath, 0755, true);
-                        }
-
+                        $disk = config('filesystems.default', 'public');
                         $filename = uniqid('att_') . '.' . ($extension === 'png' ? 'png' : 'jpg');
-                        $fullPath = $destinationPath . '/' . $filename;
+                        $relativeAttachmentPath = "attachments/{$client->client_id}/{$filename}";
 
                         $image = match ($extension) {
                             'png' => @imagecreatefrompng($file->getRealPath()),
@@ -197,22 +227,25 @@ class RequestController extends Controller
                                 $image = $newImage;
                             }
 
+                            ob_start();
                             if ($extension === 'png') {
-                                imagepng($image, $fullPath, 6);
+                                imagepng($image, null, 6);
                             } else {
-                                imagejpeg($image, $fullPath, 75); // 75% quality for low MB footprint
+                                imagejpeg($image, null, 75);
                             }
+                            $imageData = ob_get_clean();
                             imagedestroy($image);
 
-                            $attachmentPath = "attachments/{$client->client_id}/{$filename}";
+                            \Illuminate\Support\Facades\Storage::disk($disk)->put($relativeAttachmentPath, $imageData);
+                            $attachmentPath = $relativeAttachmentPath;
                         } else {
-                            $attachmentPath = $file->store("attachments/{$client->client_id}", 'public');
+                            $attachmentPath = $file->store("attachments/{$client->client_id}", $disk);
                         }
                     } catch (\Exception $ex) {
-                        $attachmentPath = $file->store("attachments/{$client->client_id}", 'public');
+                        $attachmentPath = $file->store("attachments/{$client->client_id}", config('filesystems.default', 'public'));
                     }
                 } else {
-                    $attachmentPath = $file->store("attachments/{$client->client_id}", 'public');
+                    $attachmentPath = $file->store("attachments/{$client->client_id}", config('filesystems.default', 'public'));
                 }
             }
 
@@ -265,7 +298,16 @@ class RequestController extends Controller
 
         $this->authorize('view', $request);
 
+        // Mark viewed conversation messages as read
+        if (auth()->check()) {
+            \App\Models\RequestMessage::where('request_id', $request->request_id)
+                ->where('sender_id', '!=', auth()->id())
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+        }
+
         return view('client.requests.show', compact('request'));
+
     }
 
     public function cancel(int $id)
@@ -289,9 +331,6 @@ class RequestController extends Controller
 
             // Release workers and cancel project if one existed
             if ($request->project) {
-                foreach ($request->project->workers as $worker) {
-                    $worker->update(['is_available' => true]);
-                }
                 \App\Models\ProjectHistory::create([
                     'project_id'      => $request->project->project_id,
                     'previous_status' => $request->project->current_status,
@@ -299,7 +338,12 @@ class RequestController extends Controller
                     'updated_at'      => now(),
                     'updated_by'      => auth()->id(),
                 ]);
+
+                foreach ($request->project->workers as $worker) {
+                    $worker->recalculateAvailability();
+                }
             }
+
 
             \App\Models\UserLog::create([
                 'user_id'    => auth()->id(),

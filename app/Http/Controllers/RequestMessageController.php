@@ -62,8 +62,10 @@ class RequestMessageController extends Controller
         // 3. Process Attachment if present
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('messages', 'public');
+            $disk = config('filesystems.default', 'public');
+            $attachmentPath = $request->file('attachment')->store('messages', $disk);
         }
+
 
         // 4. Create Message
         $message = RequestMessage::create([
@@ -73,6 +75,54 @@ class RequestMessageController extends Controller
             'attachment' => $attachmentPath,
             'is_read'    => false,
         ]);
+
+        // 5. Send Notifications to relevant recipients
+        $senderName = trim($user->first_name . ' ' . $user->last_name) ?: ($user->username ?? 'User');
+        $reqTitle = $serviceRequest->title ?: ('Requisition #' . $serviceRequest->request_id);
+
+        // Notify Client if sender is not the client
+        $clientUserId = $serviceRequest->client?->user_id;
+        if ($clientUserId && $clientUserId !== $user->user_id) {
+            $this->notifications->newMessagePosted(
+                $clientUserId,
+                $senderName,
+                $reqTitle,
+                $serviceRequest->request_id,
+                'client'
+            );
+        }
+
+        // Notify Assigned Workers if sender is not that worker
+        if ($serviceRequest->project && $serviceRequest->project->workers) {
+            foreach ($serviceRequest->project->workers as $pw) {
+                $workerUserId = $pw->staff?->user_id ?? $pw->user?->user_id;
+                if ($workerUserId && $workerUserId !== $user->user_id) {
+                    $this->notifications->newMessagePosted(
+                        $workerUserId,
+                        $senderName,
+                        $reqTitle,
+                        $serviceRequest->project->project_id ?? $serviceRequest->request_id,
+                        'worker'
+                    );
+                }
+            }
+        }
+
+        // Notify Admins if sender is not an admin
+        if ($user->role !== 'admin') {
+            $admins = User::where('role', 'admin')->get();
+            foreach ($admins as $admin) {
+                if ($admin->user_id !== $user->user_id) {
+                    $this->notifications->newMessagePosted(
+                        $admin->user_id,
+                        $senderName,
+                        $reqTitle,
+                        $serviceRequest->request_id,
+                        'admin'
+                    );
+                }
+            }
+        }
 
         if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
             $message->load('sender');
@@ -86,6 +136,7 @@ class RequestMessageController extends Controller
                     'sender_role'  => ucfirst($user->role ?? 'User'),
                     'created_at'   => $message->created_at->diffForHumans(),
                     'created_time' => $message->created_at->format('h:i A'),
+                    'is_read'      => (bool)$message->is_read,
                     'is_self'      => true,
                 ]
             ]);
@@ -100,4 +151,23 @@ class RequestMessageController extends Controller
 
         return redirect()->to($targetUrl);
     }
+
+    public function markAsRead(Request $request, int $requestId)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['success' => false], 401);
+        }
+
+        $updated = RequestMessage::where('request_id', $requestId)
+            ->where('sender_id', '!=', $user->user_id)
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+
+        return response()->json([
+            'success' => true,
+            'updated' => $updated,
+        ]);
+    }
 }
+

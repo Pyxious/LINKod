@@ -11,7 +11,7 @@ class Project extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'client_id', 'request_id', 'approved_by', 'date_approved', 'recommendation',
+        'client_id', 'request_id', 'approved_by', 'date_approved', 'recommendation', 'nature_of_work',
     ];
 
     protected $casts = ['date_approved' => 'date'];

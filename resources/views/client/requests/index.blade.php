@@ -118,7 +118,7 @@
                             str_contains($catName, 'landscaping') => 'LS',
                             str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
                             str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
-                            str_contains($catName, 'plumbing') => 'PS',
+                            str_contains($catName, 'plumbing') => 'PLS',
                             default => 'REQ'
                         };
                         $displayStatus = ucfirst($r->current_status ?? 'Pending');

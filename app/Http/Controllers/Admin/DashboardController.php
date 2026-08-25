@@ -60,7 +60,33 @@ class DashboardController extends Controller
         ));
     }
 
+    public function notificationsIndex(Request $request)
+    {
+        $type = $request->query('type', 'all');
+        $user = auth()->user();
+
+        $query = $user->notifications()->latest('sent_at');
+
+        if ($type === 'requests') {
+            $query->where('type', '!=', 'new_message');
+        } elseif ($type === 'messages') {
+            $query->where('type', 'new_message');
+        }
+
+        $notifications = $query->paginate(20)->withQueryString();
+
+        $totalCount   = $user->notifications()->count();
+        $requestCount = $user->notifications()->where('type', '!=', 'new_message')->count();
+        $messageCount = $user->notifications()->where('type', 'new_message')->count();
+
+        // Mark all as read
+        $user->notifications()->where('is_read', false)->update(['is_read' => true]);
+
+        return view('admin.notifications.index', compact('notifications', 'totalCount', 'requestCount', 'messageCount', 'type'));
+    }
+
     public function readNotification(int $id)
+
     {
         $notification = auth()->user()->notifications()->findOrFail($id);
         $notification->update(['is_read' => true]);
