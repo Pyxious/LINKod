@@ -57,7 +57,7 @@ class MessagePortalController extends Controller
         }
         // Admin sees all requests
 
-        // Status tab filter (active, all, resolved) - Defaults to 'active' on page open
+        // Status tab filter (active, all, resolved, cancelled) - Defaults to 'active' on page open
         $statusFilter = strtolower($request->query('status', 'active'));
         if ($statusFilter === 'active') {
             $query->where(function($q) {
@@ -67,9 +67,14 @@ class MessagePortalController extends Controller
             });
         } elseif ($statusFilter === 'resolved') {
             $query->whereHas('latestHistory', function($lh) {
-                $lh->whereIn('current_status', ['Completed', 'Cancelled', 'Rejected']);
+                $lh->where('current_status', 'Completed');
+            });
+        } elseif ($statusFilter === 'cancelled') {
+            $query->whereHas('latestHistory', function($lh) {
+                $lh->whereIn('current_status', ['Cancelled', 'Rejected']);
             });
         }
+
 
         $requests = $query->orderByRaw("
             CASE 
@@ -100,7 +105,7 @@ class MessagePortalController extends Controller
                     str_contains($catName, 'landscaping') => 'ls',
                     str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'ems',
                     str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'cms',
-                    str_contains($catName, 'plumbing') => 'ps',
+                    str_contains($catName, 'plumbing') => 'pls',
                     str_contains($catName, 'painting') => 'paint',
                     default => 'req'
                 };

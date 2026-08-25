@@ -67,18 +67,19 @@
                         str_contains($catName, 'landscaping') => 'LS',
                         str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
                         str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
-                        str_contains($catName, 'plumbing') => 'PS',
+                        str_contains($catName, 'plumbing') => 'PLS',
                         default => 'REQ'
                     };
                     $reqCode = $reqId ? ($prefix . '-' . str_pad($reqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($a->project_id, 3, '0', STR_PAD_LEFT));
                     $prio = ucfirst(strtolower($a->project?->request?->priority ?? 'Low'));
+                    $isHighPrio = strtolower($prio) === 'high';
                     $prioClass = match($prio) {
                         'High' => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
                         'Medium' => 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
                         default => 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
                     };
                 @endphp
-                <div class="border border-gray-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition group">
+                <div class="border border-gray-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition group {{ $isHighPrio ? 'bg-red-50/20 dark:bg-red-950/10' : '' }}">
                     <div class="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
                         <!-- Status Dot -->
                         <div class="w-3 h-3 rounded-full shrink-0 mt-1 sm:mt-0
@@ -88,6 +89,9 @@
                         </div>
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2 flex-wrap mb-1">
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300">
+                                    #{{ $loop->iteration }}
+                                </span>
                                 <span class="text-[#0038A8] dark:text-blue-300 font-extrabold bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-[11px] font-mono">
                                     {{ $reqCode }}
                                 </span>
@@ -97,9 +101,10 @@
                                 <span class="px-2 py-0.2 rounded-full text-[10px] font-extrabold border {{ $prioClass }}">
                                     {{ $prio }}
                                 </span>
+
                             </div>
                             <div class="text-xs text-gray-500 flex items-center gap-2 flex-wrap">
-                                <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> {{ $a->date_assigned->format('M d, Y') }}</span>
+                                <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> {{ \Carbon\Carbon::parse($a->date_assigned)->format('M d, Y') }}</span>
                                 <span>&bull;</span>
                                 <span class="font-bold text-gray-700 dark:text-gray-300">{{ $a->project->current_status }}</span>
                             </div>
@@ -109,6 +114,7 @@
                         View Assignment
                     </a>
                 </div>
+
             @empty
                 <div class="text-center py-10">
                     <div class="w-16 h-16 mx-auto bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-3">

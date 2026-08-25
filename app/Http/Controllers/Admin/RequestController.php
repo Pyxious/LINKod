@@ -146,21 +146,53 @@ class RequestController extends Controller
                 ]);
             }
 
+            // Package Manpower structured details into description if provided
+            if ($request->filled('activity_title') || $request->filled('prep_details') || $request->filled('prep_date') || $request->filled('assistance_details') || $request->filled('clearing_details')) {
+                $manpowerData = [
+                    'activity_title'          => $request->input('activity_title', $validated['title']),
+                    'event_date'              => $request->input('event_date', ''),
+                    'venue'                   => $request->input('venue', $validated['location']),
+                    'prep_date'               => $request->input('prep_date', ''),
+                    'prep_details'            => $request->input('prep_details', ''),
+                    'prep_regular'            => $request->boolean('prep_regular', true),
+                    'prep_overtime'           => $request->boolean('prep_overtime', false),
+                    'prep_regular_time'       => $request->input('prep_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
+                    'prep_overtime_time'      => $request->input('prep_overtime_time', ''),
+                    'assistance_date'         => $request->input('assistance_date', ''),
+                    'assistance_details'      => $request->input('assistance_details', ''),
+                    'assistance_regular'      => $request->boolean('assistance_regular', true),
+                    'assistance_overtime'     => $request->boolean('assistance_overtime', false),
+                    'assistance_regular_time' => $request->input('assistance_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
+                    'assistance_overtime_time'=> $request->input('assistance_overtime_time', ''),
+                    'clearing_date'           => $request->input('clearing_date', ''),
+                    'clearing_details'        => $request->input('clearing_details', ''),
+                    'clearing_regular'        => $request->boolean('clearing_regular', true),
+                    'clearing_overtime'       => $request->boolean('clearing_overtime', false),
+                    'clearing_regular_time'   => $request->input('clearing_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
+                    'clearing_overtime_time'  => $request->input('clearing_overtime_time', ''),
+                    'additional_date'         => $request->input('additional_date', ''),
+                    'additional_notes'        => $request->input('additional_notes', ''),
+                    'general_description'     => $request->input('description', ''),
+                ];
+
+                $validated['description'] = json_encode($manpowerData);
+                if ($request->filled('activity_title')) {
+                    $validated['title'] = $request->input('activity_title');
+                }
+            }
+
             // Handle attachment upload
             $attachmentPath = null;
+
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
                 $extension = strtolower($file->getClientOriginalExtension());
 
                 if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp']) && extension_loaded('gd')) {
                     try {
-                        $destinationPath = storage_path("app/public/attachments/{$client->client_id}");
-                        if (!file_exists($destinationPath)) {
-                            mkdir($destinationPath, 0755, true);
-                        }
-
+                        $disk = config('filesystems.default', 'public');
                         $filename = uniqid('att_') . '.' . ($extension === 'png' ? 'png' : 'jpg');
-                        $fullPath = $destinationPath . '/' . $filename;
+                        $relativeAttachmentPath = "attachments/{$client->client_id}/{$filename}";
 
                         $image = match ($extension) {
                             'png' => @imagecreatefrompng($file->getRealPath()),
@@ -184,22 +216,25 @@ class RequestController extends Controller
                                 $image = $newImage;
                             }
 
+                            ob_start();
                             if ($extension === 'png') {
-                                imagepng($image, $fullPath, 6);
+                                imagepng($image, null, 6);
                             } else {
-                                imagejpeg($image, $fullPath, 75);
+                                imagejpeg($image, null, 75);
                             }
+                            $imageData = ob_get_clean();
                             imagedestroy($image);
 
-                            $attachmentPath = "attachments/{$client->client_id}/{$filename}";
+                            \Illuminate\Support\Facades\Storage::disk($disk)->put($relativeAttachmentPath, $imageData);
+                            $attachmentPath = $relativeAttachmentPath;
                         } else {
-                            $attachmentPath = $file->store("attachments/{$client->client_id}", 'public');
+                            $attachmentPath = $file->store("attachments/{$client->client_id}", $disk);
                         }
                     } catch (\Exception $ex) {
-                        $attachmentPath = $file->store("attachments/{$client->client_id}", 'public');
+                        $attachmentPath = $file->store("attachments/{$client->client_id}", config('filesystems.default', 'public'));
                     }
                 } else {
-                    $attachmentPath = $file->store("attachments/{$client->client_id}", 'public');
+                    $attachmentPath = $file->store("attachments/{$client->client_id}", config('filesystems.default', 'public'));
                 }
             }
 
@@ -249,12 +284,28 @@ class RequestController extends Controller
     public function show(int $id)
     {
         $serviceRequest = ServiceRequest::with(
-            'client.user', 'category', 'histories.updatedBy', 'evaluation', 'project.histories'
+            'client.user', 'category', 'histories.updatedBy', 'evaluation', 'project.histories', 'project.billOfMaterials.material'
         )->findOrFail($id);
 
+        // Mark viewed conversation messages as read
+        if (auth()->check()) {
+            \App\Models\RequestMessage::where('request_id', $serviceRequest->request_id)
+                ->where('sender_id', '!=', auth()->id())
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+        }
+
         $workers = \App\Models\Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))
-            ->with('user', 'team')
-            ->where('is_available', true)
+            ->with([
+                'user', 
+                'team',
+                'projects' => function($q) {
+                    $q->with('request.category', 'latestHistory')
+                      ->whereHas('latestHistory', function($lh) {
+                          $lh->whereNotIn('current_status', ['Completed', 'Cancelled']);
+                      });
+                }
+            ])
             ->get()
             ->sortBy(function($worker) use ($serviceRequest) {
                 $teamName = strtolower($worker->team->team_name ?? '');
@@ -270,14 +321,16 @@ class RequestController extends Controller
                     }
                 }
                 $recKey = $isRecommended ? 0 : 1;
+                $activeCount = $worker->projects->count();
                 $teamKey = $worker->team_id ?? 999999;
-                return sprintf('%d-%06d-%06d', $recKey, $teamKey, $worker->worker_id);
+                return sprintf('%d-%03d-%06d-%06d', $recKey, $activeCount, $teamKey, $worker->worker_id);
             })
             ->values();
 
         $categories = \App\Models\Category::all();
+        $allMaterials = \App\Models\Materials::orderBy('material_name')->get();
 
-        return view('admin.requests.show', compact('serviceRequest', 'workers', 'categories'));
+        return view('admin.requests.show', compact('serviceRequest', 'workers', 'categories', 'allMaterials'));
     }
 
     public function approve(Request $request, int $id)
@@ -332,7 +385,7 @@ class RequestController extends Controller
 
             $workerIds = $request->input('worker_ids', []);
 
-            // If no workers were explicitly checked, auto-assign available workers from the team matching the category
+            // If no workers were explicitly checked, auto-assign workers from the team matching the category (least loaded first)
             if (empty($workerIds) && $request->category_id) {
                 $category = \App\Models\Category::find($request->category_id);
                 if ($category) {
@@ -349,13 +402,23 @@ class RequestController extends Controller
                     });
 
                     if ($matchingTeam) {
-                        $workerIds = \App\Models\Worker::where('team_id', $matchingTeam->team_id)
-                            ->where('is_available', true)
-                            ->pluck('worker_id')
-                            ->toArray();
+                        $teamWorkers = \App\Models\Worker::where('team_id', $matchingTeam->team_id)
+                            ->with(['projects' => function($q) {
+                                $q->whereHas('latestHistory', fn($lh) => $lh->whereNotIn('current_status', ['Completed', 'Cancelled']));
+                            }])
+                            ->get()
+                            ->sortBy(fn($w) => $w->projects->count());
+
+                        $availableOnTeam = $teamWorkers->filter(fn($w) => $w->projects->isEmpty());
+                        if ($availableOnTeam->isNotEmpty()) {
+                            $workerIds = $availableOnTeam->pluck('worker_id')->toArray();
+                        } else {
+                            $workerIds = $teamWorkers->take(2)->pluck('worker_id')->toArray();
+                        }
                     }
                 }
             }
+
 
             if (!empty($workerIds)) {
                 foreach ($workerIds as $workerId) {
@@ -458,17 +521,42 @@ class RequestController extends Controller
         }
     }
 
-    public function verifyCompletion(int $id)
+    public function verifyCompletion(Request $request, int $id)
     {
         try {
             $serviceRequest = ServiceRequest::with('project')->findOrFail($id);
 
-            if ($serviceRequest->current_status === 'Completed') {
-                return redirect()->route('admin.requests.show', $id)
-                    ->with('info', 'This project completion has already been verified.');
+            // Update Project Details
+            if ($serviceRequest->project) {
+                $isInspection = $serviceRequest->project->nature_of_work === 'Inspection & Assessment Only' 
+                    || $request->input('nature_of_work') === 'Inspection & Assessment Only';
+
+                if ($isInspection) {
+                    $serviceRequest->project->nature_of_work = 'Inspection & Assessment Only';
+                    if ($request->filled('work_details')) {
+                        $serviceRequest->project->recommendation = $request->input('work_details');
+                    } elseif ($request->filled('recommendation')) {
+                        $serviceRequest->project->recommendation = $request->input('recommendation');
+                    }
+                } else {
+                    $details = $request->input('work_details') ?: $request->input('recommendation') ?: $request->input('nature_of_work');
+                    if ($details) {
+                        $serviceRequest->project->nature_of_work = $details;
+                        $serviceRequest->project->recommendation = $details;
+                    } elseif (!$serviceRequest->project->nature_of_work) {
+                        $serviceRequest->project->nature_of_work = 'Repair & Maintenance Done';
+                    }
+                }
+
+                $serviceRequest->project->save();
             }
 
-            // Update Project History
+            if ($serviceRequest->current_status === 'Completed') {
+                return redirect()->route('admin.requests.show', $id)
+                    ->with('success', 'Project work details and nature of work updated successfully.');
+            }
+
+            // Update Project History if not completed yet
             if ($serviceRequest->project) {
                 ProjectHistory::create([
                     'project_id'      => $serviceRequest->project->project_id,
@@ -477,13 +565,22 @@ class RequestController extends Controller
                     'updated_at'      => now(),
                     'updated_by'      => auth()->id(),
                 ]);
+
+                // Recalculate availability for all assigned workers
+                foreach ($serviceRequest->project->workers as $assignedWorker) {
+                    $assignedWorker->recalculateAvailability();
+                }
             }
+
+            $remarks = ($serviceRequest->project?->nature_of_work ?? 'Completed') 
+                . ($serviceRequest->project?->recommendation ? ' — ' . $serviceRequest->project->recommendation : '');
 
             // Update Request History
             RequestHistory::create([
                 'request_id'      => $serviceRequest->request_id,
                 'previous_status' => $serviceRequest->current_status,
                 'current_status'  => 'Completed',
+                'remarks'         => $remarks,
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);

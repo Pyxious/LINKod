@@ -24,6 +24,7 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
     Route::post('/requests',             [RequestController::class, 'store'])->name('requests.store')->middleware('throttle:10,1');
     Route::get('/requests/{id}',         [RequestController::class, 'show'])->name('requests.show');
     Route::post('/requests/{id}/messages', [\App\Http\Controllers\RequestMessageController::class, 'store'])->name('requests.messages.store')->middleware('throttle:15,1');
+    Route::post('/requests/{id}/messages/mark-read', [\App\Http\Controllers\RequestMessageController::class, 'markAsRead'])->name('requests.messages.mark-read');
     Route::get('/requests/{id}/export',  [RequestController::class, 'export'])->name('requests.export');
     Route::get('/requests/{id}/satisfaction', [RequestController::class, 'printSatisfaction'])->name('requests.satisfaction');
     Route::post('/requests/{id}/approve',[RequestController::class, 'approve'])->name('requests.approve')->middleware('throttle:10,1');
@@ -43,6 +44,7 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
     Route::post('/bom/{projectId}',       [BomController::class, 'store'])->name('bom.store');
     Route::get('/bom/{projectId}',        [BomController::class, 'show'])->name('bom.show');
     Route::post('/bom/{projectId}/approve',[BomController::class, 'approve'])->name('bom.approve');
+    Route::delete('/bom/{projectId}/item/{bomId}', [BomController::class, 'destroyItem'])->name('bom.destroy-item');
 
     // Materials catalog
     Route::get('/materials',          [MaterialsController::class, 'index'])->name('materials.index');
@@ -56,6 +58,7 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
     Route::post('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 
     // Notifications
+    Route::get('/notifications', [DashboardController::class, 'notificationsIndex'])->name('notifications.index');
     Route::get('/notifications/{id}/read', [DashboardController::class, 'readNotification'])->name('notifications.read');
     Route::post('/notifications/mark-all-read', [DashboardController::class, 'markAllRead'])->name('notifications.mark-all-read');
 

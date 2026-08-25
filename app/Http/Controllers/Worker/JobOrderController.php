@@ -67,17 +67,34 @@ class JobOrderController extends Controller
             }
 
             return true;
-        })->sortBy(function($a) {
-            $prio = strtolower($a->project?->request?->priority ?? 'low');
-            return match($prio) {
-                'high'   => 1,
-                'medium' => 2,
-                'low'    => 3,
-                default  => 4
-            };
-        });
+        })->sort(function($a, $b) {
+            $prioA = strtolower($a->project?->request?->priority ?? 'low');
+            $prioB = strtolower($b->project?->request?->priority ?? 'low');
+
+            $isHighA = ($prioA === 'high');
+            $isHighB = ($prioB === 'high');
+
+            // High priority requests are always at the top
+            if ($isHighA && !$isHighB) {
+                return -1;
+            }
+            if (!$isHighA && $isHighB) {
+                return 1;
+            }
+
+            // Both High OR both Med/Low -> strictly FCFS (earliest assignment first)
+            $idA = $a->assignment_id ?? $a->project_id ?? 0;
+            $idB = $b->assignment_id ?? $b->project_id ?? 0;
+
+            if ($idA !== $idB) {
+                return $idA <=> $idB;
+            }
+
+            return 0;
+        })->values();
 
         return view('worker.job-orders.index', compact('assignments', 'statusFilter', 'priorityFilter', 'search'));
+
     }
 
     public function show(int $projectId)
@@ -97,7 +114,16 @@ class JobOrderController extends Controller
             403
         );
 
+        // Mark viewed conversation messages as read
+        if (auth()->check() && $project->request_id) {
+            \App\Models\RequestMessage::where('request_id', $project->request_id)
+                ->where('sender_id', '!=', auth()->id())
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+        }
+
         $materials = \App\Models\Materials::orderBy('material_name')->get();
         return view('worker.job-orders.show', compact('project', 'materials'));
+
     }
 }

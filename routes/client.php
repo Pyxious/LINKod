@@ -17,6 +17,7 @@ Route::middleware(['auth', '2fa', 'role:client'])->prefix('client')->name('clien
     Route::post('/requests',            [RequestController::class, 'store'])->name('requests.store')->middleware('throttle:10,1');
     Route::get('/requests/{id}',        [RequestController::class, 'show'])->name('requests.show');
     Route::post('/requests/{id}/messages', [\App\Http\Controllers\RequestMessageController::class, 'store'])->name('requests.messages.store')->middleware('throttle:15,1');
+    Route::post('/requests/{id}/messages/mark-read', [\App\Http\Controllers\RequestMessageController::class, 'markAsRead'])->name('requests.messages.mark-read');
     Route::post('/requests/{id}/cancel', [RequestController::class, 'cancel'])->name('requests.cancel')->middleware('throttle:10,1');
 
     Route::get('/requests/{id}/evaluate',  [EvaluationController::class, 'create'])->name('evaluations.create');

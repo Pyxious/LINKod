@@ -14,8 +14,11 @@ class TaskProgressController extends Controller
     {
         try {
             $validated = $request->validate([
-                'status' => 'required|in:In Progress,Completed',
-                'proof'  => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                'status'           => 'required|in:In Progress,Completed',
+                'completion_type'  => 'nullable|string|max:150',
+                'nature_of_work'   => 'nullable|string|max:150',
+                'recommendation'   => 'nullable|string|max:1000',
+                'proof'            => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
             ]);
 
             $worker  = auth()->user()->staff?->worker;
@@ -26,23 +29,40 @@ class TaskProgressController extends Controller
                 403
             );
 
-            if ($validated['status'] === 'Completed' && !$request->hasFile('proof')) {
-                return redirect()->back()->with('error', 'Proof of completion is required.');
+            if ($validated['status'] === 'In Progress' && !$request->hasFile('proof')) {
+                return redirect()->back()->with('error', 'A Before-Work photo is required before setting task to In Progress.');
             }
 
+            if ($validated['status'] === 'Completed' && !$request->hasFile('proof')) {
+                return redirect()->back()->with('error', 'An After-Work / proof of completion photo is required.');
+            }
+
+            $disk = config('filesystems.default', 'public');
             $proofPath = null;
             if ($request->hasFile('proof')) {
-                $proofPath = $request->file('proof')->store('proofs', 'public');
+                $proofPath = $request->file('proof')->store('proofs', $disk);
             }
 
             $previousStatus = $project->current_status;
-
             $actualStatus = $validated['status'] === 'Completed' ? 'Pending Verification' : $validated['status'];
 
             // Guard against duplicate rapid clicks
             if ($previousStatus === $actualStatus) {
                 return redirect()->route('worker.job-orders.show', $projectId)
                     ->with('info', "Task status is already {$actualStatus}.");
+            }
+
+            // Save nature_of_work and recommendation if completed
+            if ($validated['status'] === 'Completed') {
+                $nature = $validated['completion_type'] === 'Inspection Only'
+                    ? 'Inspection & Assessment Only'
+                    : ($validated['nature_of_work'] ?: 'Repair & Maintenance');
+                
+                $project->nature_of_work = $nature;
+                if ($request->filled('recommendation')) {
+                    $project->recommendation = $validated['recommendation'];
+                }
+                $project->save();
             }
 
             ProjectHistory::create([
@@ -58,10 +78,16 @@ class TaskProgressController extends Controller
             if ($project->request_id) {
                 $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
                 if ($serviceRequest) {
+                    $remarks = null;
+                    if ($validated['status'] === 'Completed') {
+                        $remarks = ($project->nature_of_work ?? 'Completed') . ($project->recommendation ? ' — ' . $project->recommendation : '');
+                    }
+
                     \App\Models\RequestHistory::create([
                         'request_id'      => $serviceRequest->request_id,
                         'previous_status' => $serviceRequest->current_status,
                         'current_status'  => $actualStatus,
+                        'remarks'         => $remarks,
                         'updated_at'      => now(),
                         'updated_by'      => auth()->id(),
                     ]);
@@ -75,9 +101,10 @@ class TaskProgressController extends Controller
                 'created_at' => now(),
             ]);
 
-            // If completed by worker, notify admins to verify
+            // If completed by worker, notify admins to verify and recalculate worker availability
             if ($validated['status'] === 'Completed') {
-                $worker->update(['is_available' => true]);
+                $worker->recalculateAvailability();
+
                 
                 $notificationService = new \App\Services\NotificationService();
                 $admins = \App\Models\User::where('role', 'admin')->get();

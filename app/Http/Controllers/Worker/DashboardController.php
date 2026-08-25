@@ -15,17 +15,33 @@ class DashboardController extends Controller
             ? $worker->assignments()
                 ->with('project.request.category', 'project.latestHistory')
                 ->get()
-                ->filter(fn($a) => $a->project && $a->project->current_status !== 'Completed')
-                ->sortBy(function($a) {
-                    $prio = strtolower($a->project?->request?->priority ?? 'low');
-                    return match($prio) {
-                        'high' => 1,
-                        'medium' => 2,
-                        'low' => 3,
-                        default => 4
-                    };
+                ->filter(fn($a) => $a->project && !in_array($a->project->current_status, ['Completed', 'Cancelled']))
+                ->sort(function($a, $b) {
+                    $prioA = strtolower($a->project?->request?->priority ?? 'low');
+                    $prioB = strtolower($b->project?->request?->priority ?? 'low');
+
+                    $isHighA = ($prioA === 'high');
+                    $isHighB = ($prioB === 'high');
+
+                    if ($isHighA && !$isHighB) {
+                        return -1;
+                    }
+                    if (!$isHighA && $isHighB) {
+                        return 1;
+                    }
+
+                    $idA = $a->assignment_id ?? $a->project_id ?? 0;
+                    $idB = $b->assignment_id ?? $b->project_id ?? 0;
+
+                    if ($idA !== $idB) {
+                        return $idA <=> $idB;
+                    }
+
+                    return 0;
                 })
+                ->values()
             : collect();
+
 
         $notifications = $user->notifications()->latest('sent_at')->take(10)->get();
         $unreadCount   = $user->notifications()->where('is_read', false)->count();

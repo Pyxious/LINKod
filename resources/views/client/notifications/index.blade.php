@@ -31,21 +31,50 @@
         <!-- Main Outer Box (Soft Blue Container with Blue Border) -->
         <div class="bg-[#EBF3FE] dark:bg-[#151d2a] border border-[#7DAAF4] dark:border-blue-800 rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-2xs">
             
+            <!-- Notification Filter Tabs -->
+            <div class="flex items-center gap-2 mb-6 border-b border-[#7DAAF4]/40 dark:border-blue-800/60 pb-3 overflow-x-auto">
+                <a href="{{ route('client.notifications.index', ['type' => 'all']) }}" 
+                   class="px-4 py-2 rounded-xl text-xs font-extrabold transition inline-flex items-center gap-2 {{ ($type ?? 'all') === 'all' ? 'bg-[#0038A8] text-white shadow-xs' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-white/80 border border-gray-200 dark:border-zinc-700' }}">
+                    <span>All</span>
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ ($type ?? 'all') === 'all' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300' }}">{{ $totalCount ?? 0 }}</span>
+                </a>
+
+                <a href="{{ route('client.notifications.index', ['type' => 'requests']) }}" 
+                   class="px-4 py-2 rounded-xl text-xs font-extrabold transition inline-flex items-center gap-2 {{ ($type ?? 'all') === 'requests' ? 'bg-[#0038A8] text-white shadow-xs' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-white/80 border border-gray-200 dark:border-zinc-700' }}">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    <span>Request Updates</span>
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ ($type ?? 'all') === 'requests' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300' }}">{{ $requestCount ?? 0 }}</span>
+                </a>
+
+                <a href="{{ route('client.notifications.index', ['type' => 'messages']) }}" 
+                   class="px-4 py-2 rounded-xl text-xs font-extrabold transition inline-flex items-center gap-2 {{ ($type ?? 'all') === 'messages' ? 'bg-[#0038A8] text-white shadow-xs' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-white/80 border border-gray-200 dark:border-zinc-700' }}">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                    <span>Messages</span>
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ ($type ?? 'all') === 'messages' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300' }}">{{ $messageCount ?? 0 }}</span>
+                </a>
+            </div>
+
             <div class="space-y-3.5">
                 @forelse($notifications as $n)
                     @php
                         $isRead = $n->is_read;
                         $sentDate = $n->sent_at ? \Carbon\Carbon::parse($n->sent_at) : null;
+                        $isMessage = ($n->type === 'new_message');
                     @endphp
                     
                     <div class="bg-white dark:bg-[#1c1c1e] border {{ $isRead ? 'border-gray-200 dark:border-zinc-800' : 'border-[#7DAAF4] dark:border-blue-700 ring-1 ring-blue-100 dark:ring-blue-900/30' }} rounded-xl p-5 shadow-2xs hover:shadow-xs transition flex gap-4 items-start relative">
                         
                         <!-- Left Icon Badge -->
-                        <div class="w-10 h-10 rounded-full {{ $isRead ? 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400' : 'bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-400' }} flex items-center justify-center shrink-0 mt-0.5">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                            </svg>
+                        <div class="w-10 h-10 rounded-full {{ $isRead ? 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400' : ($isMessage ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400' : 'bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-400') }} flex items-center justify-center shrink-0 mt-0.5">
+                            @if($isMessage)
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                            @else
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                </svg>
+                            @endif
                         </div>
+
 
                         <!-- Notification Details -->
                         <div class="flex-1 min-w-0">

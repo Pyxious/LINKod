@@ -142,7 +142,8 @@ class NotificationService
             'new_message',
             'New Message Received',
             "{$senderName} sent a message regarding \"{$requestTitle}\".",
-            $actionUrl
+            $actionUrl . '#messages-section'
         );
     }
 }
+

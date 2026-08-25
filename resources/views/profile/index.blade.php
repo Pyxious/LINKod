@@ -246,21 +246,6 @@
                                     <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">11-digit Philippine mobile number starting with 09.</p>
                                 </div>
 
-                                <!-- Date of Birth (Optional) -->
-                                <div>
-                                    <label class="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-1.5">
-                                        Date of Birth <span class="text-xs font-normal text-gray-400 dark:text-gray-500">(Optional)</span>
-                                    </label>
-                                    <input type="date" 
-                                           name="date_of_birth" 
-                                           value="{{ old('date_of_birth', optional($user->date_of_birth)->format('Y-m-d')) }}" 
-                                           max="{{ now()->subYears(15)->format('Y-m-d') }}"
-                                           class="w-full px-4 py-2.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-gray-800 dark:text-gray-200 focus:outline-none focus:border-[#0038A8] focus:ring-1 focus:ring-[#0038A8]">
-                                    @error('date_of_birth')
-                                        <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
                                 @if($user->isClient())
                                 <hr class="border-gray-100 dark:border-zinc-800 my-6">
 

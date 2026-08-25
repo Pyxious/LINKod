@@ -10,11 +10,14 @@ use App\Models\Evaluation;
 use App\Models\Category;
 use App\Models\UserLog;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
+
 
 class ReportController extends Controller
 {
@@ -36,11 +39,86 @@ class ReportController extends Controller
         $categories = Category::all();
         $workers = Worker::with('user', 'team')->get();
 
-        // Real database requests for Excel live preview (with evaluation)
-        $previewRequests = ServiceRequest::with(['category', 'client.user', 'project.histories', 'evaluation'])
-            ->latest('submitted_at')
-            ->take(15)
-            ->get();
+        // Only finished/completed requests for Accomplishment Reports preview
+        $previewRequests = ServiceRequest::with(['category', 'client.user', 'project.histories', 'evaluation', 'latestHistory', 'histories'])
+            ->where(function($q) {
+                $q->whereHas('latestHistory', function($lh) {
+                    $lh->where('current_status', 'Completed');
+                })->orWhereHas('project.latestHistory', function($plh) {
+                    $plh->where('current_status', 'Completed');
+                });
+            })
+            ->orderBy('submitted_at', 'asc')
+            ->orderBy('request_id', 'asc')
+            ->get()
+            ->map(function($req) {
+                $startedDate = '';
+                $completionDate = '';
+                
+                if ($req->project) {
+                    $startHistory = $req->project->histories->where('current_status', 'In Progress')->first();
+                    if ($startHistory) {
+                        $startedDate = Carbon::parse($startHistory->updated_at)->format('n/j/Y');
+                    }
+                    $compHistory = $req->project->histories->where('current_status', 'Completed')->first();
+                    if ($compHistory) {
+                        $completionDate = Carbon::parse($compHistory->updated_at)->format('n/j/Y');
+                    }
+                }
+                
+                if (!$startedDate && $req->histories) {
+                    $reqStart = $req->histories->where('current_status', 'In Progress')->first();
+                    if ($reqStart) {
+                        $startedDate = Carbon::parse($reqStart->updated_at)->format('n/j/Y');
+                    }
+                }
+
+                if (!$completionDate && $req->histories) {
+                    $reqComp = $req->histories->where('current_status', 'Completed')->first();
+                    if ($reqComp) {
+                        $completionDate = Carbon::parse($reqComp->updated_at)->format('n/j/Y');
+                    }
+                }
+
+                if (!$startedDate && $req->submitted_at) {
+                    $startedDate = Carbon::parse($req->submitted_at)->format('n/j/Y');
+                }
+                if (!$completionDate && $req->submitted_at) {
+                    $completionDate = Carbon::parse($req->submitted_at)->format('n/j/Y');
+                }
+
+                $ratingVal = '';
+                if ($req->evaluation) {
+                    $r = (float) $req->evaluation->rating;
+                    $ratingVal = ($r == (int)$r) ? (string)(int)$r : number_format($r, 1);
+                }
+
+                $catName = strtolower($req->category->category_name ?? '');
+                $prefix = match(true) {
+                    str_contains($catName, 'landscaping') => 'LS',
+                    str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                    str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+                    str_contains($catName, 'plumbing') => 'PLS',
+                    str_contains($catName, 'painting') => 'PAINT',
+                    default => 'REQ'
+                };
+
+                return [
+                    'request_id' => $req->request_id,
+                    'category_id' => $req->category_id,
+                    'category_name' => $req->category->category_name ?? 'General Maintenance',
+                    'prefix' => $prefix,
+                    'title' => $req->title,
+                    'description' => $req->description,
+                    'location' => $req->location ?? 'N/A',
+                    'submitted_at' => $req->submitted_at ? Carbon::parse($req->submitted_at)->format('Y-m-d') : null,
+                    'request_date_formatted' => $req->submitted_at ? Carbon::parse($req->submitted_at)->format('n/j/Y') : '',
+                    'started_date' => $startedDate,
+                    'completion_date' => $completionDate,
+                    'rating' => $ratingVal,
+                    'current_status' => 'Completed',
+                ];
+            });
 
         // Fetch real generated reports history from UserLog
         $recentReports = UserLog::with('user')
@@ -63,30 +141,57 @@ class ReportController extends Controller
         $request->validate([
             'category_id' => 'nullable|exists:category,category_id',
             'start_date'  => 'nullable|date',
-            'end_date'    => 'nullable|date|after_or_equal:start_date'
+            'end_date'    => 'nullable|date|after_or_equal:start_date',
+            'period'      => 'nullable|string',
+            'report_year' => 'nullable|integer'
         ]);
+
+        $year = $request->filled('report_year') ? (int)$request->report_year : now()->year;
+        $period = $request->input('period', 'sem1');
+
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $startDate = Carbon::parse($request->start_date);
+            $endDate   = Carbon::parse($request->end_date);
+            $year      = $startDate->year;
+        } elseif ($period === 'sem1') {
+            $startDate = Carbon::createFromDate($year, 1, 1)->startOfDay();
+            $endDate   = Carbon::createFromDate($year, 6, 30)->endOfDay();
+        } elseif ($period === 'sem2') {
+            $startDate = Carbon::createFromDate($year, 7, 1)->startOfDay();
+            $endDate   = Carbon::createFromDate($year, 12, 31)->endOfDay();
+        } elseif ($period === 'year') {
+            $startDate = Carbon::createFromDate($year, 1, 1)->startOfDay();
+            $endDate   = Carbon::createFromDate($year, 12, 31)->endOfDay();
+        } else {
+            $startDate = now()->month <= 6 ? Carbon::createFromDate($year, 1, 1)->startOfDay() : Carbon::createFromDate($year, 7, 1)->startOfDay();
+            $endDate   = now()->month <= 6 ? Carbon::createFromDate($year, 6, 30)->endOfDay() : Carbon::createFromDate($year, 12, 31)->endOfDay();
+        }
 
         $categoryId = $request->input('category_id');
         $category   = $categoryId ? Category::find($categoryId) : null;
-        $categoryName = $category ? $category->category_name : 'ALL MAINTENANCE SECTIONS';
+        $categoryName = $category ? $category->category_name : 'ALL SERVICE UNITS';
 
-        $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date) : now()->startOfYear();
-        $endDate   = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date) : now();
-
-        // Fetch requests for the report
-        $query = ServiceRequest::with(['category', 'project.histories', 'client.user', 'evaluation'])
+        // Fetch ONLY finished/completed requests for Accomplishment Report
+        $query = ServiceRequest::with(['category', 'project.histories', 'client.user', 'evaluation', 'latestHistory', 'histories'])
+            ->where(function($q) {
+                $q->whereHas('latestHistory', function($lh) {
+                    $lh->where('current_status', 'Completed');
+                })->orWhereHas('project.latestHistory', function($plh) {
+                    $plh->where('current_status', 'Completed');
+                });
+            })
             ->whereBetween('submitted_at', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
 
         if ($categoryId) {
             $query->where('category_id', $categoryId);
         }
 
-        $serviceRequests = $query->get();
+        $serviceRequests = $query->orderBy('submitted_at', 'asc')->orderBy('request_id', 'asc')->get();
 
         // Audit Log
         UserLog::create([
             'user_id' => auth()->id(),
-            'action' => "admin generated AR from {$startDate->format('M d, Y')} to {$endDate->format('M d, Y')} for {$categoryName}",
+            'action' => "admin generated Accomplishment Report from {$startDate->format('M d, Y')} to {$endDate->format('M d, Y')} for {$categoryName}",
             'ip_address' => request()->ip(),
             'created_at' => now()
         ]);
@@ -95,7 +200,6 @@ class ReportController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
 
         // 1. Header (A to G columns)
-        $year = $startDate->year;
         $sheet->mergeCells('A2:G2');
         $sheet->setCellValue('A2', "{$year} ACCOMPLISHMENT REPORT");
         $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(16)->setName('Times New Roman');
@@ -103,15 +207,26 @@ class ReportController extends Controller
 
         $sheet->mergeCells('A4:G4');
         $sheet->setCellValue('A4', "MAINTENANCE SECTION: " . strtoupper($categoryName));
-        $sheet->getStyle('A4')->getFont()->setBold(true)->setSize(11);
+        $sheet->getStyle('A4')->getFont()->setBold(true)->setSize(11)->setName('Arial');
+        $sheet->getStyle('A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $startMonth = strtoupper($startDate->format('F'));
-        $endMonth   = strtoupper($endDate->format('F'));
-        $monthRange = ($startMonth === $endMonth) ? $startMonth : "{$startMonth} TO {$endMonth}";
+        $startMonth = $startDate->month;
+        $endMonth   = $endDate->month;
+        if ($startMonth === 1 && $endMonth === 6) {
+            $monthRange = 'JANUARY TO JUNE';
+        } elseif ($startMonth === 7 && $endMonth === 12) {
+            $monthRange = 'JULY TO DECEMBER';
+        } elseif ($startMonth === 1 && $endMonth === 12) {
+            $monthRange = 'JANUARY TO DECEMBER';
+        } else {
+            $startMonthStr = strtoupper($startDate->format('F'));
+            $endMonthStr   = strtoupper($endDate->format('F'));
+            $monthRange = ($startMonthStr === $endMonthStr) ? $startMonthStr : "{$startMonthStr} TO {$endMonthStr}";
+        }
 
         $sheet->mergeCells('A6:G6');
         $sheet->setCellValue('A6', $monthRange);
-        $sheet->getStyle('A6')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('A6')->getFont()->setBold(true)->setSize(12)->setName('Arial');
         $sheet->getStyle('A6')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         // 2. Table Headers
@@ -149,52 +264,78 @@ class ReportController extends Controller
         ];
         $sheet->getStyle('A8:G9')->applyFromArray($styleArray);
 
-        // 3. Populate Data
+        // 3. Populate Data - Sequential generation starting from 001
         $row = 10;
+        $counter = 1;
         foreach ($serviceRequests as $req) {
             $catName = strtolower($req->category->category_name ?? '');
             $prefix = match(true) {
                 str_contains($catName, 'landscaping') => 'LS',
                 str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
                 str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
-                str_contains($catName, 'plumbing') => 'PS',
-                str_contains($catName, 'painting') => 'PS',
+                str_contains($catName, 'plumbing') => 'PLS',
+                str_contains($catName, 'painting') => 'PAINT',
                 default => 'REQ'
             };
 
-            $reqNum = $req->requisition_no ?: ($prefix . "-" . str_pad($req->request_id, 3, '0', STR_PAD_LEFT));
+            // Sequential numbering formatted with 3 digits (e.g. REQ-001, EMS-002, PLS-003)
+            $reqNum = $prefix . '-' . str_pad($counter, 3, '0', STR_PAD_LEFT);
+            $counter++;
+
             $office = $req->location ?? 'N/A';
-            $reqDate = \Carbon\Carbon::parse($req->submitted_at)->format('n/j/Y');
+            $reqDate = $req->submitted_at ? Carbon::parse($req->submitted_at)->format('n/j/Y') : '';
             
             $startedDate = '';
             $completionDate = '';
             
             if ($req->project) {
-                $startHistory = \App\Models\ProjectHistory::where('project_id', $req->project->project_id)
-                    ->where('current_status', 'In Progress')
-                    ->first();
+                $startHistory = $req->project->histories->where('current_status', 'In Progress')->first();
                 if ($startHistory) {
-                    $startedDate = \Carbon\Carbon::parse($startHistory->updated_at)->format('n/j/Y');
+                    $startedDate = Carbon::parse($startHistory->updated_at)->format('n/j/Y');
                 }
                 
-                $completedHistory = \App\Models\ProjectHistory::where('project_id', $req->project->project_id)
-                    ->where('current_status', 'Completed')
-                    ->first();
+                $completedHistory = $req->project->histories->where('current_status', 'Completed')->first();
                 if ($completedHistory) {
-                    $completionDate = \Carbon\Carbon::parse($completedHistory->updated_at)->format('n/j/Y');
+                    $completionDate = Carbon::parse($completedHistory->updated_at)->format('n/j/Y');
                 }
             }
 
+            if (!$startedDate && $req->histories) {
+                $reqStart = $req->histories->where('current_status', 'In Progress')->first();
+                if ($reqStart) {
+                    $startedDate = Carbon::parse($reqStart->updated_at)->format('n/j/Y');
+                }
+            }
+
+            if (!$completionDate && $req->histories) {
+                $reqComp = $req->histories->where('current_status', 'Completed')->first();
+                if ($reqComp) {
+                    $completionDate = Carbon::parse($reqComp->updated_at)->format('n/j/Y');
+                }
+            }
+
+            if (!$startedDate) {
+                $startedDate = $reqDate;
+            }
+            if (!$completionDate) {
+                $completionDate = $reqDate;
+            }
+
             // Clientele Satisfaction Rating
-            $ratingVal = '';
+            $ratingVal = '—';
             if ($req->evaluation) {
                 $r = (float) $req->evaluation->rating;
                 $ratingVal = ($r == (int)$r) ? (string)(int)$r : number_format($r, 1);
             }
 
+            $taskDetails = $req->title;
+            if ($req->description) {
+                $taskDetails .= "\n" . $req->description;
+            }
+
             $sheet->setCellValue('A'.$row, $reqNum);
             $sheet->setCellValue('B'.$row, $office);
-            $sheet->setCellValue('C'.$row, $req->title . ($req->description ? "\n" . $req->description : ''));
+            $sheet->setCellValue('C'.$row, $taskDetails);
             $sheet->setCellValue('D'.$row, $reqDate);
             $sheet->setCellValue('E'.$row, $startedDate);
             $sheet->setCellValue('F'.$row, $completionDate);
@@ -209,18 +350,25 @@ class ReportController extends Controller
             $row++;
         }
 
-        // Adjust column widths
+        // Adjust column widths and A4 page setup
         $sheet->getColumnDimension('A')->setWidth(18);
-        $sheet->getColumnDimension('B')->setWidth(20);
-        $sheet->getColumnDimension('C')->setWidth(40);
-        $sheet->getColumnDimension('D')->setWidth(14);
-        $sheet->getColumnDimension('E')->setWidth(14);
-        $sheet->getColumnDimension('F')->setWidth(14);
+        $sheet->getColumnDimension('B')->setWidth(22);
+        $sheet->getColumnDimension('C')->setWidth(42);
+        $sheet->getColumnDimension('D')->setWidth(15);
+        $sheet->getColumnDimension('E')->setWidth(15);
+        $sheet->getColumnDimension('F')->setWidth(15);
         $sheet->getColumnDimension('G')->setWidth(18);
+
+        $sheet->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4);
+        $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
+        $sheet->getPageSetup()->setFitToWidth(1);
+        $sheet->getPageSetup()->setFitToHeight(0);
 
         // Download Response
         $writer = new Xlsx($spreadsheet);
-        $fileName = 'Accomplishment_Report_' . time() . '.xlsx';
+
+        $cleanCatName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $categoryName);
+        $fileName = "{$year}_Accomplishment_Report_{$cleanCatName}_" . str_replace(' ', '_', $monthRange) . '.xlsx';
         
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="' . $fileName . '"');

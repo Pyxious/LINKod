@@ -5,8 +5,8 @@
     <title>Clientele Satisfaction Survey - BU-F-GSO-CSM</title>
     <style>
         @page {
-            size: 8.5in 11in portrait;
-            margin: 0.35in 0.45in;
+            size: A4 portrait;
+            margin: 8mm 10mm;
         }
         * {
             box-sizing: border-box;
@@ -15,15 +15,15 @@
         }
         body {
             font-family: "Times New Roman", Times, serif;
-            font-size: 13.5px;
+            font-size: 13px;
             color: #000;
             background-color: #fff;
             line-height: 1.35;
         }
         .container {
             position: relative;
-            min-height: 10.2in;
-            max-width: 760px;
+            min-height: 275mm;
+            max-width: 190mm;
             margin: 0 auto;
             display: flex;
             flex-direction: column;
@@ -32,6 +32,7 @@
         .content-wrap {
             flex: 1 0 auto;
         }
+
 
         /* Header Layout */
         .header-table {
@@ -244,11 +245,15 @@
         </div>
 
         <!-- Name of Rater & Date -->
+        @php
+            $showName = $serviceRequest->evaluation?->show_name ?? true;
+            $raterName = $showName ? trim(($serviceRequest->client->user->first_name ?? '') . ' ' . ($serviceRequest->client->user->last_name ?? '')) : '';
+        @endphp
         <div class="rater-row">
             <div>
                 <strong>NAME OF RATER:</strong>
                 <span class="underlined-value">
-                    {{ $serviceRequest->client->user->first_name ?? '' }} {{ $serviceRequest->client->user->last_name ?? '' }}
+                    {{ $raterName }}
                 </span>
                 <div style="font-size: 11px; font-style: italic; padding-left: 135px; color: #333;">(Optional)</div>
             </div>
@@ -301,13 +306,13 @@
 
         <!-- Functions & Rating Scales Table -->
         @php
-            $rating = (int) ($serviceRequest->evaluation->rating ?? 5);
+            $functionRatings = $serviceRequest->evaluation?->function_ratings ?? [];
             $functions = [
-                'Quality of Service',
-                'Attitude',
-                'Safety Precaution Awareness',
-                'Time Bound',
-                'Workplace Housekeeping',
+                'quality'      => 'Quality of Service',
+                'attitude'     => 'Attitude',
+                'safety'       => 'Safety Precaution Awareness',
+                'time'         => 'Time Bound',
+                'housekeeping' => 'Workplace Housekeeping',
             ];
         @endphp
 
@@ -326,14 +331,17 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($functions as $func)
+                @foreach($functions as $key => $label)
+                    @php
+                        $rowScore = (int) ($functionRatings[$key] ?? $serviceRequest->evaluation?->rating ?? 0);
+                    @endphp
                     <tr>
-                        <td class="function-col">{{ $func }}</td>
-                        <td class="check-col">{{ $rating === 5 ? '✓' : '' }}</td>
-                        <td class="check-col">{{ $rating === 4 ? '✓' : '' }}</td>
-                        <td class="check-col">{{ $rating === 3 ? '✓' : '' }}</td>
-                        <td class="check-col">{{ $rating === 2 ? '✓' : '' }}</td>
-                        <td class="check-col">{{ $rating === 1 ? '✓' : '' }}</td>
+                        <td class="function-col">{{ $label }}</td>
+                        <td class="check-col">{{ $rowScore === 5 ? '✓' : '' }}</td>
+                        <td class="check-col">{{ $rowScore === 4 ? '✓' : '' }}</td>
+                        <td class="check-col">{{ $rowScore === 3 ? '✓' : '' }}</td>
+                        <td class="check-col">{{ $rowScore === 2 ? '✓' : '' }}</td>
+                        <td class="check-col">{{ $rowScore === 1 ? '✓' : '' }}</td>
                     </tr>
                 @endforeach
             </tbody>

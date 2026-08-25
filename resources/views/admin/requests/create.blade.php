@@ -40,6 +40,63 @@
             selectedLocation: '',
             customLocation: '',
 
+            // Manpower & Event Specific Fields
+            activityTitle: '',
+            eventDate: '',
+            prepDateFrom: '',
+            prepDateTo: '',
+            prepDetails: '',
+            prepRegular: true,
+            prepOvertime: false,
+            prepTimePreset: 'regular',
+            prepRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
+            prepOvertimeTime: '',
+
+            assistanceDateFrom: '',
+            assistanceDateTo: '',
+            assistanceDetails: '',
+            assistanceRegular: true,
+            assistanceOvertime: false,
+            assistanceTimePreset: 'regular',
+            assistanceRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
+            assistanceOvertimeTime: '',
+
+            clearingDateFrom: '',
+            clearingDateTo: '',
+            clearingDetails: '',
+            clearingRegular: true,
+            clearingOvertime: false,
+            clearingTimePreset: 'regular',
+            clearingRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
+            clearingOvertimeTime: '',
+
+            additionalNotes: '',
+
+            timePresets: [
+                { value: 'morning',   label: 'Morning (8:00 AM – 12:00 PM)',    time: '8:00 - 12:00' },
+                { value: 'afternoon', label: 'Afternoon (1:00 PM – 5:00 PM)',    time: '1:00 - 5:00' },
+                { value: 'regular',   label: 'Regular (8:00 AM – 5:00 PM)',      time: '8:00 - 12:00 / 1:00 - 5:00' },
+                { value: 'fullday',   label: 'Full Day (8:00 AM – 5:00 PM)',     time: '8:00 - 5:00' },
+                { value: 'custom',    label: 'Custom…',                          time: '' },
+            ],
+
+            applyTimePreset(section) {
+                const map = { prep: 'prepTimePreset', assistance: 'assistanceTimePreset', clearing: 'clearingTimePreset' };
+                const timeMap = { prep: 'prepRegularTime', assistance: 'assistanceRegularTime', clearing: 'clearingRegularTime' };
+                const preset = this.timePresets.find(p => p.value === this[map[section]]);
+                if (preset && preset.value !== 'custom') this[timeMap[section]] = preset.time;
+            },
+
+            formatDateRange(from, to) {
+                if (!from && !to) return '';
+                if (!to || from === to) return from;
+                return from + ' to ' + to;
+            },
+
+            get prepDate() { return this.formatDateRange(this.prepDateFrom, this.prepDateTo); },
+            get assistanceDate() { return this.formatDateRange(this.assistanceDateFrom, this.assistanceDateTo); },
+            get clearingDate() { return this.formatDateRange(this.clearingDateFrom, this.clearingDateTo); },
+
             init() {
                 if (this.selectedCategoryId) {
                     this.$nextTick(() => {
@@ -52,6 +109,7 @@
                     });
                 }
             },
+
 
             fileName: '',
             fileSizeFormatted: '',
@@ -194,12 +252,25 @@
                 return this.locationsMap[this.selectedCampus] || ['General Campus Area', 'Other Location'];
             },
 
+            get isManpowerCategory() {
+                return (this.selectedCategoryName || '').toLowerCase().includes('manpower');
+            },
+
+            get isEventConcern() {
+                return (this.selectedConcern || '') === 'Event & Activity Venue Setup' ||
+                       (this.selectedConcern || '').toLowerCase().includes('event & activity');
+            },
+
             get finalTitle() {
-                if (this.selectedConcern.includes('Other')) {
+                if (this.isEventConcern && this.activityTitle) {
+                    return this.activityTitle;
+                }
+                if (this.selectedConcern && this.selectedConcern.includes('Other')) {
                     return this.customConcern || this.selectedConcern;
                 }
                 return this.selectedConcern;
             },
+
 
             get finalLocation() {
                 if (this.selectedLocation.includes('Other')) {
@@ -207,6 +278,7 @@
                 }
                 return this.selectedLocation;
             },
+
 
             handleFileSelect(event) {
                 const file = event.target.files[0];
@@ -329,13 +401,27 @@
                         </template>
                     </select>
 
+                    <!-- Dynamic Title of Activity Box (Appears when Event / Manpower is chosen) -->
+                    <div x-show="isEventConcern" x-cloak class="mt-3 p-4 bg-blue-50/70 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-[#1a3c8f] dark:text-blue-300 mb-1.5">
+                            Title of the Activity / Event Name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               x-model="activityTitle" 
+                               name="activity_title" 
+                               placeholder="e.g. 56th Commencement Exercises, University Intramurals, General Assembly" 
+                               class="w-full px-3.5 py-2 bg-white dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded-lg text-sm text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-[#1a3c8f]"
+                               :required="isEventConcern">
+                        <p class="text-[11px] text-blue-600 dark:text-blue-400 mt-1">Specify the exact event title for the official Manpower Request Form.</p>
+                    </div>
+
                     <!-- Custom Concern Input if 'Other' is selected -->
-                    <div x-show="selectedConcern && selectedConcern.includes('Other')" x-cloak class="mt-2">
+                    <div x-show="selectedConcern && selectedConcern.includes('Other') && !isManpowerCategory" x-cloak class="mt-2">
                         <input type="text" 
                                x-model="customConcern" 
                                placeholder="Please specify your concern / title" 
                                class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm focus:ring-2 focus:ring-[#1a3c8f] focus:border-transparent dark:text-white"
-                               :required="selectedConcern && selectedConcern.includes('Other')">
+                               :required="selectedConcern && selectedConcern.includes('Other') && !isManpowerCategory">
                     </div>
 
                     <!-- Hidden Input submitting final title -->
@@ -367,7 +453,7 @@
 
                     <!-- Location / Office Dropdown -->
                     <div>
-                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">Office / Location <span class="text-red-500">*</span></label>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">Office / Location / Venue <span class="text-red-500">*</span></label>
                         
                         <select x-model="selectedLocation"
                                 :disabled="!selectedCampus"
@@ -398,13 +484,153 @@
                 <input type="hidden" name="complexity" value="low">
                 <input type="hidden" name="urgency" value="low">
 
-                <!-- Description -->
-                <div>
+                <!-- CONDITIONAL: MANPOWER WORK DETAILS & SCHEDULE -->
+                <div x-show="isManpowerCategory" x-cloak class="space-y-3 pt-2">
+                    <div class="p-3 bg-blue-900 text-white rounded-lg text-xs font-bold uppercase tracking-wider">
+                        Work Details To Be Completed For The Event
+                    </div>
+
+                    <!-- 1. Preparation Activity -->
+                    <div class="p-3.5 bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 rounded-lg space-y-2">
+                        <label class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase">1. Preparation Activity</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-0.5">From Date</label>
+                                <input type="date" x-model="prepDateFrom" @change="if(!prepDateTo) prepDateTo = prepDateFrom"
+                                       class="w-full px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-0.5">To Date</label>
+                                <input type="date" x-model="prepDateTo" :min="prepDateFrom"
+                                       class="w-full px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white">
+                            </div>
+                        </div>
+                        <input type="hidden" name="prep_date" :value="prepDate">
+                        <textarea x-model="prepDetails" name="prep_details" rows="2" placeholder="Describe preparation tasks..." class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
+                        <div class="flex flex-wrap items-center gap-3 text-xs">
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" x-model="prepRegular" name="prep_regular" value="1" class="rounded text-[#1a3c8f]">
+                                <span class="font-semibold text-gray-700 dark:text-gray-300">Regular:</span>
+                            </label>
+                            <div class="flex items-center gap-2" x-show="prepRegular">
+                                <select x-model="prepTimePreset" @change="applyTimePreset('prep')"
+                                        class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs bg-white dark:bg-zinc-800 dark:text-white">
+                                    <template x-for="p in timePresets" :key="p.value">
+                                        <option :value="p.value" x-text="p.label"></option>
+                                    </template>
+                                </select>
+                                <input type="text" x-model="prepRegularTime" x-show="prepTimePreset === 'custom'" name="prep_regular_time"
+                                       placeholder="Custom time" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white">
+                                <span x-show="prepTimePreset !== 'custom'" class="font-medium text-gray-700 dark:text-gray-300 text-xs" x-text="prepRegularTime"></span>
+                                <input type="hidden" name="prep_regular_time" :value="prepRegularTime">
+                            </div>
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" x-model="prepOvertime" name="prep_overtime" value="1" class="rounded text-[#1a3c8f]">
+                                <span class="font-semibold text-gray-700 dark:text-gray-300">Overtime:</span>
+                                <input type="text" x-model="prepOvertimeTime" name="prep_overtime_time" placeholder="e.g. 5:00 - 8:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white" :disabled="!prepOvertime">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 2. Assistance During Event -->
+                    <div class="p-3.5 bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 rounded-lg space-y-2">
+                        <label class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase">2. Assistance During The Event</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-0.5">From Date</label>
+                                <input type="date" x-model="assistanceDateFrom" @change="if(!assistanceDateTo) assistanceDateTo = assistanceDateFrom"
+                                       class="w-full px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-0.5">To Date</label>
+                                <input type="date" x-model="assistanceDateTo" :min="assistanceDateFrom"
+                                       class="w-full px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white">
+                            </div>
+                        </div>
+                        <input type="hidden" name="assistance_date" :value="assistanceDate">
+                        <textarea x-model="assistanceDetails" name="assistance_details" rows="2" placeholder="Describe assistance tasks..." class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
+                        <div class="flex flex-wrap items-center gap-3 text-xs">
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" x-model="assistanceRegular" name="assistance_regular" value="1" class="rounded text-[#1a3c8f]">
+                                <span class="font-semibold text-gray-700 dark:text-gray-300">Regular:</span>
+                            </label>
+                            <div class="flex items-center gap-2" x-show="assistanceRegular">
+                                <select x-model="assistanceTimePreset" @change="applyTimePreset('assistance')"
+                                        class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs bg-white dark:bg-zinc-800 dark:text-white">
+                                    <template x-for="p in timePresets" :key="p.value">
+                                        <option :value="p.value" x-text="p.label"></option>
+                                    </template>
+                                </select>
+                                <input type="text" x-model="assistanceRegularTime" x-show="assistanceTimePreset === 'custom'" name="assistance_regular_time"
+                                       placeholder="Custom time" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white">
+                                <span x-show="assistanceTimePreset !== 'custom'" class="font-medium text-gray-700 dark:text-gray-300 text-xs" x-text="assistanceRegularTime"></span>
+                                <input type="hidden" name="assistance_regular_time" :value="assistanceRegularTime">
+                            </div>
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" x-model="assistanceOvertime" name="assistance_overtime" value="1" class="rounded text-[#1a3c8f]">
+                                <span class="font-semibold text-gray-700 dark:text-gray-300">Overtime:</span>
+                                <input type="text" x-model="assistanceOvertimeTime" name="assistance_overtime_time" placeholder="e.g. 5:00 - 10:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white" :disabled="!assistanceOvertime">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 3. Clearing Upon Event -->
+                    <div class="p-3.5 bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 rounded-lg space-y-2">
+                        <label class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase">3. Clearing Upon The Event</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-0.5">From Date</label>
+                                <input type="date" x-model="clearingDateFrom" @change="if(!clearingDateTo) clearingDateTo = clearingDateFrom"
+                                       class="w-full px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-0.5">To Date</label>
+                                <input type="date" x-model="clearingDateTo" :min="clearingDateFrom"
+                                       class="w-full px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white">
+                            </div>
+                        </div>
+                        <input type="hidden" name="clearing_date" :value="clearingDate">
+                        <textarea x-model="clearingDetails" name="clearing_details" rows="2" placeholder="Describe clearing tasks..." class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
+                        <div class="flex flex-wrap items-center gap-3 text-xs">
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" x-model="clearingRegular" name="clearing_regular" value="1" class="rounded text-[#1a3c8f]">
+                                <span class="font-semibold text-gray-700 dark:text-gray-300">Regular:</span>
+                            </label>
+                            <div class="flex items-center gap-2" x-show="clearingRegular">
+                                <select x-model="clearingTimePreset" @change="applyTimePreset('clearing')"
+                                        class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs bg-white dark:bg-zinc-800 dark:text-white">
+                                    <template x-for="p in timePresets" :key="p.value">
+                                        <option :value="p.value" x-text="p.label"></option>
+                                    </template>
+                                </select>
+                                <input type="text" x-model="clearingRegularTime" x-show="clearingTimePreset === 'custom'" name="clearing_regular_time"
+                                       placeholder="Custom time" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white">
+                                <span x-show="clearingTimePreset !== 'custom'" class="font-medium text-gray-700 dark:text-gray-300 text-xs" x-text="clearingRegularTime"></span>
+                                <input type="hidden" name="clearing_regular_time" :value="clearingRegularTime">
+                            </div>
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" x-model="clearingOvertime" name="clearing_overtime" value="1" class="rounded text-[#1a3c8f]">
+                                <span class="font-semibold text-gray-700 dark:text-gray-300">Overtime:</span>
+                                <input type="text" x-model="clearingOvertimeTime" name="clearing_overtime_time" placeholder="e.g. 5:00 - 8:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white" :disabled="!clearingOvertime">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 4. Additional Note -->
+                    <div class="p-3.5 bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 rounded-lg space-y-2">
+                        <label class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase">4. Additional Note (Supplies / Tools)</label>
+                        <textarea x-model="additionalNotes" name="additional_notes" rows="2" placeholder="e.g. Supplies, materials, tools, equipment to be used..." class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
+                    </div>
+                </div>
+
+                <!-- Standard Description (Non-Manpower) -->
+                <div x-show="!isManpowerCategory" x-cloak>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">Detailed Description</label>
                     <textarea name="description" rows="4" placeholder="Provide additional details regarding the issue (e.g. room number, exact problem symptoms)..."
                         class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm focus:ring-2 focus:ring-[#1a3c8f] focus:border-transparent dark:text-white">{{ old('description') }}</textarea>
                     @error('description') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
                 </div>
+
 
                 <!-- Attachment -->
                 <div>

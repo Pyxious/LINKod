@@ -41,4 +41,36 @@ class Worker extends Model
         return $this->hasOneThrough(User::class, Staff::class,
             'staff_id', 'user_id', 'staff_id', 'user_id');
     }
+
+    public function activeProjects()
+    {
+        return $this->projects()
+            ->with('request.category', 'latestHistory')
+            ->whereHas('latestHistory', function($lh) {
+                $lh->whereNotIn('current_status', ['Completed', 'Cancelled']);
+            });
+    }
+
+    public function getActiveProjectsCountAttribute(): int
+    {
+        return $this->projects()
+            ->whereHas('latestHistory', function($lh) {
+                $lh->whereNotIn('current_status', ['Completed', 'Cancelled']);
+            })
+            ->count();
+    }
+
+    public function recalculateAvailability(): bool
+    {
+        $hasActive = $this->projects()
+            ->whereHas('latestHistory', function($lh) {
+                $lh->whereNotIn('current_status', ['Completed', 'Cancelled']);
+            })
+            ->exists();
+
+        $isAvailable = !$hasActive;
+        $this->update(['is_available' => $isAvailable]);
+        return $isAvailable;
+    }
 }
+
