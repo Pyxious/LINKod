@@ -664,7 +664,7 @@
                         <div>
                             @if($serviceRequest->project?->nature_of_work)
                                 <div style="font-size:10.5px; font-weight:bold;">{{ strtoupper($serviceRequest->project->nature_of_work) }}</div>
-                                @if($serviceRequest->project->recommendation)
+                                @if($serviceRequest->project->recommendation && trim(strtolower($serviceRequest->project->recommendation)) !== trim(strtolower($serviceRequest->project->nature_of_work)))
                                     <div style="font-size:9.5px; margin-top:2px; color:#222; font-weight:normal;">{{ $serviceRequest->project->recommendation }}</div>
                                 @endif
                             @endif
