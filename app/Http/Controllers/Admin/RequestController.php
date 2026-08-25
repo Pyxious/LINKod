@@ -542,7 +542,7 @@ class RequestController extends Controller
                     $details = $request->input('work_details') ?: $request->input('recommendation') ?: $request->input('nature_of_work');
                     if ($details) {
                         $serviceRequest->project->nature_of_work = $details;
-                        $serviceRequest->project->recommendation = $details;
+                        $serviceRequest->project->recommendation = null;
                     } elseif (!$serviceRequest->project->nature_of_work) {
                         $serviceRequest->project->nature_of_work = 'Repair & Maintenance Done';
                     }
