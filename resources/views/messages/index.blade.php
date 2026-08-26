@@ -77,10 +77,12 @@
                         $isReqCancelled = in_array(strtolower($req->latestHistory?->current_status ?? $req->current_status ?? ''), ['cancelled', 'rejected']);
                         $prefix = match(true) {
                             str_contains($catName, 'landscaping') => 'LS',
-                            str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                            str_contains($catName, 'janitorial') => 'JS',
                             str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
                             str_contains($catName, 'plumbing') => 'PLS',
-                            str_contains($catName, 'painting') => 'PAINT',
+                            str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                            str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                            str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                             default => 'REQ'
                         };
                         $reqCode = $req->requisition_no ?: ($prefix . '-' . str_pad($req->request_id, 3, '0', STR_PAD_LEFT));
@@ -181,10 +183,12 @@
                     $catNameSelected = strtolower($selectedRequest->category->category_name ?? '');
                     $prefixSel = match(true) {
                         str_contains($catNameSelected, 'landscaping') => 'LS',
-                        str_contains($catNameSelected, 'electrical') || str_contains($catNameSelected, 'mechanical') => 'EMS',
+                        str_contains($catNameSelected, 'janitorial') => 'JS',
                         str_contains($catNameSelected, 'carpentry') || str_contains($catNameSelected, 'masonry') => 'CMS',
                         str_contains($catNameSelected, 'plumbing') => 'PLS',
-                        str_contains($catNameSelected, 'painting') => 'PAINT',
+                        str_contains($catNameSelected, 'electrical') || str_contains($catNameSelected, 'mechanical') => 'EMS',
+                        str_contains($catNameSelected, 'painting') || str_contains($catNameSelected, 'paint') => 'PAINT',
+                        str_contains($catNameSelected, 'manpower') || str_contains($catNameSelected, 'event') => 'MAN',
                         default => 'REQ'
                     };
                     $selectedReqCode = $selectedRequest->requisition_no ?: ($prefixSel . '-' . str_pad($selectedRequest->request_id, 3, '0', STR_PAD_LEFT));

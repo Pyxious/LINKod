@@ -9,10 +9,12 @@
     $catName = strtolower($req->category->category_name ?? '');
     $prefix = match(true) {
         str_contains($catName, 'landscaping') => 'LS',
-        str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+        str_contains($catName, 'janitorial') => 'JS',
         str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
         str_contains($catName, 'plumbing') => 'PLS',
-        str_contains($catName, 'painting') => 'PAINT',
+        str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+        str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+        str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
         default => 'REQ'
     };
     $reqCode = $reqId ? ($prefix . '-' . str_pad($reqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($project->project_id, 3, '0', STR_PAD_LEFT));
@@ -98,33 +100,114 @@
 
         @php
             $beforeHistory = $project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->last();
+            $afterHistory = $project->histories->whereIn('current_status', ['Pending Verification', 'Completed'])->whereNotNull('proof_attachment')->last();
+            $hasProofPhotos = ($beforeHistory && $beforeHistory->proof_attachment) || ($afterHistory && $afterHistory->proof_attachment);
         @endphp
-        @if($beforeHistory && $beforeHistory->proof_attachment)
-            <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-6" x-data="{ openBeforeModal: false }">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
-                        BEFORE WORK PHOTO ATTACHED
+
+        @if($hasProofPhotos)
+            <!-- Photo Evidence & Proof of Work Card (Visible to Worker at all stages) -->
+            <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm p-6 space-y-4"
+                 x-data="{ lightboxOpen: false, lightboxImg: '', lightboxTitle: '' }">
+                
+                <div class="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-3 flex-wrap gap-2">
+                    <div>
+                        <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400">
+                            Submitted Photo Proofs
+                        </h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Photos captured and submitted as evidence for this job order.
+                        </p>
+                    </div>
+                    <span class="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-100 dark:border-blue-900 rounded-lg text-xs font-bold">
+                        Proof of Work
                     </span>
-                    <span class="text-[10px] text-gray-400 font-medium">{{ \Carbon\Carbon::parse($beforeHistory->updated_at)->format('M d, Y h:i A') }}</span>
                 </div>
-                <div @click="openBeforeModal = true" class="block group relative overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-black/5 dark:bg-black/40 p-2 cursor-pointer transition hover:border-amber-400">
-                    <img src="{{ Storage::url($beforeHistory->proof_attachment) }}" alt="Before Work" class="w-full max-h-56 object-contain rounded-lg group-hover:scale-[1.01] transition duration-200 mx-auto">
-                    <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5 rounded-xl">
-                        <span class="bg-black/60 px-3 py-1.5 rounded-lg backdrop-blur-xs">Click to Preview</span>
+
+                <!-- 2-Column Photo Grid: Before Photo & After Photo -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Before Photo Card -->
+                    <div class="bg-gray-50/70 dark:bg-zinc-800/40 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                    BEFORE WORK PHOTO
+                                </span>
+                                @if($beforeHistory)
+                                    <span class="text-[10px] text-gray-400 font-medium">{{ \Carbon\Carbon::parse($beforeHistory->updated_at)->format('M d, Y h:i A') }}</span>
+                                @endif
+                            </div>
+
+                            @if($beforeHistory && $beforeHistory->proof_attachment)
+                                <div @click="lightboxOpen = true; lightboxImg = '{{ Storage::url($beforeHistory->proof_attachment) }}'; lightboxTitle = 'Before Work Photo'" 
+                                     class="block group relative overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-black/5 dark:bg-black/40 p-2 cursor-pointer transition hover:border-amber-400">
+                                    <img src="{{ Storage::url($beforeHistory->proof_attachment) }}" alt="Before Work" class="w-full max-h-56 object-contain rounded-lg group-hover:scale-[1.01] transition duration-200 mx-auto">
+                                    <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5 rounded-xl">
+                                        <span class="bg-black/70 px-3 py-1.5 rounded-lg backdrop-blur-xs shadow-sm flex items-center gap-1.5">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                            <span>Click to View Full</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="min-h-[140px] bg-gray-100 dark:bg-zinc-800/40 rounded-xl flex items-center justify-center text-xs text-gray-400 font-medium border border-dashed border-gray-200 dark:border-zinc-700">
+                                    No before photo recorded
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- After Photo Card -->
+                    <div class="bg-gray-50/70 dark:bg-zinc-800/40 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                                    AFTER WORK PHOTO (COMPLETION)
+                                </span>
+                                @if($afterHistory)
+                                    <span class="text-[10px] text-gray-400 font-medium">{{ \Carbon\Carbon::parse($afterHistory->updated_at)->format('M d, Y h:i A') }}</span>
+                                @endif
+                            </div>
+
+                            @if($afterHistory && $afterHistory->proof_attachment)
+                                <div @click="lightboxOpen = true; lightboxImg = '{{ Storage::url($afterHistory->proof_attachment) }}'; lightboxTitle = 'After Work Photo (Completion)'" 
+                                     class="block group relative overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-black/5 dark:bg-black/40 p-2 cursor-pointer transition hover:border-emerald-400">
+                                    <img src="{{ Storage::url($afterHistory->proof_attachment) }}" alt="After Work" class="w-full max-h-56 object-contain rounded-lg group-hover:scale-[1.01] transition duration-200 mx-auto">
+                                    <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5 rounded-xl">
+                                        <span class="bg-black/70 px-3 py-1.5 rounded-lg backdrop-blur-xs shadow-sm flex items-center gap-1.5">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                            <span>Click to View Full</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="min-h-[140px] bg-gray-100 dark:bg-zinc-800/40 rounded-xl flex items-center justify-center text-xs text-gray-400 font-medium border border-dashed border-gray-200 dark:border-zinc-700">
+                                    Pending completion photo upload
+                                </div>
+                            @endif
+                        </div>
                     </div>
                 </div>
 
-                <!-- Lightbox Modal -->
-                <div x-show="openBeforeModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs" @click.outside="openBeforeModal = false" @keydown.escape.window="openBeforeModal = false">
-                    <div class="relative max-w-3xl w-full max-h-[85vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700">
-                        <div class="w-full flex items-center justify-between py-3 px-5 bg-zinc-800 text-white border-b border-zinc-700">
-                            <span class="text-xs font-bold uppercase tracking-wider text-gray-200">Before Work Photo</span>
-                            <button type="button" @click="openBeforeModal = false" class="p-1.5 text-gray-400 hover:text-white hover:bg-zinc-700 rounded-lg transition">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            </button>
+                <!-- Lightbox Preview Modal -->
+                <div x-show="lightboxOpen" 
+                     x-cloak 
+                     class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs" 
+                     @click.outside="lightboxOpen = false" 
+                     @keydown.escape.window="lightboxOpen = false">
+                    <div class="relative max-w-4xl w-full max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 flex flex-col">
+                        <div class="w-full flex items-center justify-between py-3 px-5 bg-zinc-800 text-white border-b border-zinc-700 shrink-0">
+                            <span class="text-xs font-bold uppercase tracking-wider text-gray-200" x-text="lightboxTitle">Photo Preview</span>
+                            <div class="flex items-center gap-2">
+                                <a :href="lightboxImg" target="_blank" download class="p-1.5 text-gray-300 hover:text-white hover:bg-zinc-700 rounded-lg transition" title="Open in New Tab / Download">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                </a>
+                                <button type="button" @click="lightboxOpen = false" class="p-1.5 text-gray-400 hover:text-white hover:bg-zinc-700 rounded-lg transition">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
                         </div>
-                        <div class="w-full p-4 flex items-center justify-center overflow-auto max-h-[75vh] bg-black/50">
-                            <img src="{{ Storage::url($beforeHistory->proof_attachment) }}" alt="Before Work" class="max-h-[70vh] w-auto max-w-full object-contain rounded-lg shadow-lg">
+                        <div class="w-full p-4 flex items-center justify-center overflow-auto max-h-[78vh] bg-black/60">
+                            <img :src="lightboxImg" alt="Proof Preview" class="max-h-[72vh] w-auto max-w-full object-contain rounded-lg shadow-lg">
                         </div>
                     </div>
                 </div>

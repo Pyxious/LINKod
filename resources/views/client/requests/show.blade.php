@@ -55,13 +55,91 @@
                 @endif
 
                 @if(in_array($request->current_status, ['Submitted', 'Pending']))
-                    <form action="{{ route('client.requests.cancel', $request->request_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to cancel this request?');">
-                        @csrf
-                        <button type="submit" class="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full transition shadow-md inline-flex items-center gap-2">
+                    <div x-data="{ cancelModalOpen: false, cancelling: false }">
+                        <!-- Trigger Button -->
+                        <button type="button" 
+                                @click="cancelModalOpen = true" 
+                                class="px-5 sm:px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full transition shadow-md inline-flex items-center gap-2 cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            Cancel Request
+                            <span>Cancel Request</span>
                         </button>
-                    </form>
+
+                        <!-- Cancel Confirmation Modal Popup -->
+                        <div x-show="cancelModalOpen" 
+                             x-cloak 
+                             class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-xs"
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-150"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             @click.outside="cancelModalOpen = false" 
+                             @keydown.escape.window="cancelModalOpen = false">
+                            
+                            <div class="relative w-full max-w-md bg-white dark:bg-[#1c1c1e] rounded-2xl shadow-2xl border border-gray-200 dark:border-zinc-800 overflow-hidden transform transition-all p-6 sm:p-7 space-y-5"
+                                 x-transition:enter="transition ease-out duration-200"
+                                 x-transition:enter-start="opacity-0 scale-95"
+                                 x-transition:enter-end="opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-150"
+                                 x-transition:leave-start="opacity-100 scale-100"
+                                 x-transition:leave-end="opacity-0 scale-95">
+                                
+                                <!-- Icon & Header -->
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/80 flex items-center justify-center shrink-0">
+                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-black text-slate-900 dark:text-white leading-tight">Cancel Service Request?</h3>
+                                        <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-0.5">Requisition #{{ str_pad($request->request_id, 4, '0', STR_PAD_LEFT) }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Request Summary Box -->
+                                <div class="bg-gray-50/80 dark:bg-zinc-800/50 rounded-xl p-4 border border-gray-200 dark:border-zinc-700/80 space-y-2 text-xs">
+                                    <div class="flex justify-between items-start gap-2">
+                                        <span class="text-gray-500 dark:text-gray-400 font-medium">Request Title:</span>
+                                        <span class="font-bold text-slate-900 dark:text-white text-right truncate max-w-[200px]">{{ $request->title }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center gap-2">
+                                        <span class="text-gray-500 dark:text-gray-400 font-medium">Category:</span>
+                                        <span class="font-bold text-slate-900 dark:text-white text-right">{{ $request->category->category_name ?? 'General' }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center gap-2">
+                                        <span class="text-gray-500 dark:text-gray-400 font-medium">Location:</span>
+                                        <span class="font-bold text-slate-900 dark:text-white text-right truncate max-w-[200px]">{{ $request->campus ?? 'BU Main' }} — {{ $request->location }}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Warning Message -->
+                                <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                                    Are you sure you want to cancel this request? Once cancelled, this service request will be withdrawn and closed from GSO maintenance scheduling.
+                                </p>
+
+                                <!-- Form Actions -->
+                                <form action="{{ route('client.requests.cancel', $request->request_id) }}" method="POST" @submit="cancelling = true">
+                                    @csrf
+                                    <div class="flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2.5 pt-2">
+                                        <button type="button" 
+                                                @click="cancelModalOpen = false" 
+                                                :disabled="cancelling"
+                                                class="w-full sm:w-auto px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-700 transition cursor-pointer">
+                                            Keep Request
+                                        </button>
+                                        <button type="submit" 
+                                                :disabled="cancelling"
+                                                class="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60">
+                                            <svg x-show="cancelling" x-cloak class="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                            <span x-text="cancelling ? 'Cancelling...' : 'Yes, Cancel Request'">Yes, Cancel Request</span>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                 @endif
             </div>
         </div>
