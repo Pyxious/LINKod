@@ -3,6 +3,11 @@
 @section('page-title', 'Review & Action Request')
 
 @section('content')
+@php
+    $catNameLower = strtolower($serviceRequest->category->category_name ?? '');
+    $isManpower = str_contains($catNameLower, 'manpower') || str_contains($catNameLower, 'event');
+@endphp
+
 <div class="w-full max-w-6xl mx-auto space-y-6 font-sans">
     
     <!-- Top Header Banner -->
@@ -38,8 +43,7 @@
                     {{ $serviceRequest->current_status }}
                 </span>
                 @if($serviceRequest->project?->nature_of_work)
-                    <span class="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold rounded-full inline-flex items-center gap-1">
-                        <svg class="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    <span class="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold rounded-full">
                         {{ $serviceRequest->project->nature_of_work }}
                     </span>
                 @endif
@@ -48,13 +52,11 @@
             <!-- Clientele Satisfaction Button (Same line as badges) -->
             <div class="shrink-0">
                 @if($serviceRequest->evaluation)
-                    <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-4 py-1.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-full transition shadow-sm inline-flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                    <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-4 py-1.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-full transition shadow-sm inline-flex items-center">
                         Print Satisfaction Page
                     </a>
                 @else
-                    <button type="button" disabled class="px-4 py-1.5 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-full cursor-not-allowed inline-flex items-center gap-1.5 opacity-80" title="Client has not rated this service request yet">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                    <button type="button" disabled class="px-4 py-1.5 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-full cursor-not-allowed inline-flex items-center opacity-80" title="Client has not rated this service request yet">
                         Print Satisfaction Page (Not Rated Yet)
                     </button>
                 @endif
@@ -76,33 +78,34 @@
             </div>
 
             <!-- Print Requisition Action & Date Range Controls -->
-            <div class="flex flex-col gap-2 shrink-0 w-full sm:w-auto min-w-[300px]">
+            <div class="flex flex-col gap-2 shrink-0 w-full sm:w-auto {{ $isManpower ? 'min-w-[180px]' : 'min-w-[300px]' }}">
                 <!-- Print Requisition Button -->
-                <a :href="printUrl" target="_blank" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center justify-center gap-2 w-full">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                <a :href="printUrl" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center justify-center w-full">
                     Print Requisition
                 </a>
 
-                <!-- 2 Boxes: Left = Date Started, Right = Target Date of Completion -->
-                <div class="grid grid-cols-2 gap-2 bg-white/70 dark:bg-zinc-800/80 p-2.5 rounded-xl border border-amber-200/80 dark:border-zinc-700">
-                    <div>
-                        <label class="block text-[10px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                            Date Started
-                        </label>
-                        <input type="date" 
-                               x-model="dateStarted" 
-                               class="w-full px-2 py-1 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-semibold text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                @if(!$isManpower)
+                    <!-- 2 Boxes: Left = Date Started, Right = Target Date of Completion -->
+                    <div class="grid grid-cols-2 gap-2 bg-white dark:bg-zinc-800 p-2.5 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-2xs">
+                        <div>
+                            <label class="block text-[10px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
+                                Date Started
+                            </label>
+                            <input type="date" 
+                                   x-model="dateStarted" 
+                                   class="w-full px-2 py-1 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-semibold text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
+                                Target Completion
+                            </label>
+                            <input type="date" 
+                                   x-model="targetCompletion" 
+                                   :min="dateStarted" 
+                                   class="w-full px-2 py-1 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-semibold text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-[10px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                            Target Completion
-                        </label>
-                        <input type="date" 
-                               x-model="targetCompletion" 
-                               :min="dateStarted" 
-                               class="w-full px-2 py-1 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-semibold text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0]">
-                    </div>
-                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -110,37 +113,198 @@
     <!-- Request Details Card -->
     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm"
          x-data="{ lightboxOpen: false, lightboxImg: '', lightboxTitle: '' }">
-        <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 mb-4 flex items-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            Request Details & Specification
+        <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 mb-4">
+            Request Details &amp; Specification
         </h2>
 
-        <!-- Description Box -->
-        <div class="mb-6">
-            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Description / Issue Summary</div>
-            <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl text-slate-800 dark:text-gray-200 text-sm leading-relaxed border border-gray-100 dark:border-zinc-700 whitespace-pre-line">
-                {{ $serviceRequest->display_description ?: 'No additional description provided.' }}
+        @php
+            $m = $serviceRequest->manpower_details;
+        @endphp
+
+        @if($isManpower)
+            <!-- Top Details Grid for Manpower: Category, Campus, Location -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                    <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Service Category</div>
+                    <div class="text-sm font-bold text-slate-900 dark:text-white">{{ $serviceRequest->category->category_name ?? 'Manpower' }}</div>
+                </div>
+
+                <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                    <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Campus</div>
+                    <div class="text-sm font-bold text-slate-900 dark:text-white">{{ $serviceRequest->campus ?? 'BU Main' }}</div>
+                </div>
+
+                <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                    <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Office / Location</div>
+                    <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ $serviceRequest->location }}</div>
+                </div>
             </div>
 
-        </div>
+            <!-- Manpower Request Breakdown (Separate Themed Boxes) -->
+            <div class="space-y-3.5 mb-2">
+                <!-- 1. Activity / Event Overview Box -->
+                <div class="bg-blue-50/60 dark:bg-zinc-800/60 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                    <div class="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                        <div class="text-[11px] font-bold text-[#0033a0] dark:text-blue-300 uppercase tracking-wider">
+                            Activity / Event
+                        </div>
+                        @if(!empty($m['event_date']))
+                            <span class="px-2.5 py-0.5 bg-blue-100 dark:bg-blue-950 text-[#0033a0] dark:text-blue-300 rounded-md text-[11px] font-bold">
+                                Event Date: {{ $m['event_date'] }}
+                            </span>
+                        @endif
+                    </div>
+                    <div class="text-sm font-bold text-slate-900 dark:text-white">
+                        {{ $m['activity_title'] ?: $serviceRequest->title }}
+                    </div>
+                </div>
 
-        <!-- Details Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
-                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Service Category</div>
-                <div class="text-sm font-bold text-slate-900 dark:text-white">{{ $serviceRequest->category->category_name ?? 'Unclassified' }}</div>
+                <!-- 2. Preparation Box (if provided) -->
+                @if(!empty($m['prep_details']))
+                    @php
+                        $prepTimeStr = (!empty($m['prep_regular']) ? ('Regular Time: ' . ($m['prep_regular_time'] ?? '8:00 - 12:00 / 1:00 - 5:00')) : '') 
+                                     . (!empty($m['prep_overtime']) ? ((!empty($m['prep_regular']) ? ' • ' : '') . 'Overtime: ' . ($m['prep_overtime_time'] ?? '5:00 PM onwards')) : '');
+                    @endphp
+                    <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                        <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                            <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Preparation
+                            </div>
+                            @if(!empty($m['prep_date']) || $prepTimeStr)
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    @if(!empty($m['prep_date']))
+                                        <span class="px-2 py-0.5 bg-gray-200/80 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded text-[10.5px] font-bold">
+                                            {{ $m['prep_date'] }}
+                                        </span>
+                                    @endif
+                                    @if($prepTimeStr)
+                                        <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-100 dark:border-blue-900 rounded text-[10.5px] font-semibold">
+                                            {{ $prepTimeStr }}
+                                        </span>
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
+                        <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                            {{ $m['prep_details'] }}
+                        </div>
+                    </div>
+                @endif
+
+                <!-- 3. Event Assistance Box (if provided) -->
+                @if(!empty($m['assistance_details']))
+                    @php
+                        $assistTimeStr = (!empty($m['assistance_regular']) ? ('Regular Time: ' . ($m['assistance_regular_time'] ?? '8:00 - 12:00 / 1:00 - 5:00')) : '') 
+                                       . (!empty($m['assistance_overtime']) ? ((!empty($m['assistance_regular']) ? ' • ' : '') . 'Overtime: ' . ($m['assistance_overtime_time'] ?? '5:00 PM onwards')) : '');
+                    @endphp
+                    <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                        <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                            <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Event Assistance
+                            </div>
+                            @if(!empty($m['assistance_date']) || $assistTimeStr)
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    @if(!empty($m['assistance_date']))
+                                        <span class="px-2 py-0.5 bg-gray-200/80 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded text-[10.5px] font-bold">
+                                            {{ $m['assistance_date'] }}
+                                        </span>
+                                    @endif
+                                    @if($assistTimeStr)
+                                        <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-100 dark:border-blue-900 rounded text-[10.5px] font-semibold">
+                                            {{ $assistTimeStr }}
+                                        </span>
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
+                        <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                            {{ $m['assistance_details'] }}
+                        </div>
+                    </div>
+                @endif
+
+                <!-- 4. Clearing / Teardown Box (if provided) -->
+                @if(!empty($m['clearing_details']))
+                    @php
+                        $clearTimeStr = (!empty($m['clearing_regular']) ? ('Regular Time: ' . ($m['clearing_regular_time'] ?? '8:00 - 12:00 / 1:00 - 5:00')) : '') 
+                                      . (!empty($m['clearing_overtime']) ? ((!empty($m['clearing_regular']) ? ' • ' : '') . 'Overtime: ' . ($m['clearing_overtime_time'] ?? '5:00 PM onwards')) : '');
+                    @endphp
+                    <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                        <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                            <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Clearing / Teardown
+                            </div>
+                            @if(!empty($m['clearing_date']) || $clearTimeStr)
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    @if(!empty($m['clearing_date']))
+                                        <span class="px-2 py-0.5 bg-gray-200/80 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded text-[10.5px] font-bold">
+                                            {{ $m['clearing_date'] }}
+                                        </span>
+                                    @endif
+                                    @if($clearTimeStr)
+                                        <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-100 dark:border-blue-900 rounded text-[10.5px] font-semibold">
+                                            {{ $clearTimeStr }}
+                                        </span>
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
+                        <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                            {{ $m['clearing_details'] }}
+                        </div>
+                    </div>
+                @endif
+
+                <!-- 5. Additional Notes Box (if provided) -->
+                @if(!empty($m['additional_notes']))
+                    <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                        <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                            Additional Notes &amp; Special Instructions
+                        </div>
+                        <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                            {{ $m['additional_notes'] }}
+                        </div>
+                    </div>
+                @endif
+
+                @if(!empty($m['general_description']))
+                    <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                        <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                            General Description
+                        </div>
+                        <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                            {{ $m['general_description'] }}
+                        </div>
+                    </div>
+                @endif
+            </div>
+        @else
+            <!-- Standard Description Box (Non-Manpower) -->
+            <div class="mb-6">
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Description / Issue Summary</div>
+                <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl text-slate-800 dark:text-gray-200 text-sm leading-relaxed border border-gray-100 dark:border-zinc-700 whitespace-pre-line">
+                    {{ $serviceRequest->display_description ?: 'No additional description provided.' }}
+                </div>
             </div>
 
-            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
-                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Campus</div>
-                <div class="text-sm font-bold text-slate-900 dark:text-white">{{ $serviceRequest->campus ?? 'BU Main' }}</div>
-            </div>
+            <!-- Details Grid (Non-Manpower) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                    <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Service Category</div>
+                    <div class="text-sm font-bold text-slate-900 dark:text-white">{{ $serviceRequest->category->category_name ?? 'Unclassified' }}</div>
+                </div>
 
-            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
-                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Office / Location</div>
-                <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ $serviceRequest->location }}</div>
+                <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                    <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Campus</div>
+                    <div class="text-sm font-bold text-slate-900 dark:text-white">{{ $serviceRequest->campus ?? 'BU Main' }}</div>
+                </div>
+
+                <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                    <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Office / Location</div>
+                    <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ $serviceRequest->location }}</div>
+                </div>
             </div>
-        </div>
+        @endif
 
         <!-- Supporting Attachment (if any) -->
         @if($serviceRequest->attachment)
@@ -238,9 +402,8 @@
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-5">
                 <div>
                     <div class="flex items-center gap-2.5 mb-1 flex-wrap">
-                        <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400 flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                            <span>Bill of Materials (BOM) — Pricing & Approval</span>
+                        <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">
+                            Bill of Materials (BOM) — Pricing &amp; Approval
                         </h2>
                         @if($pendingBomCount > 0)
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">
@@ -248,8 +411,7 @@
                                 {{ $pendingBomCount }} Pending Pricing / Approval
                             </span>
                         @else
-                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
                                 Approved
                             </span>
                         @endif
@@ -510,16 +672,14 @@
         <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 border-[#0033a0] dark:border-blue-700 p-7 shadow-sm">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-4">
                 <div>
-                    <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                    <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">
                         Clientele Satisfaction Measurement Rating
                     </h2>
                     <p class="text-xs text-gray-500 mt-0.5 font-medium">
                         Submitted {{ ($serviceRequest->evaluation->show_name ?? true) ? 'by ' . ($serviceRequest->client->user->first_name . ' ' . $serviceRequest->client->user->last_name) : 'anonymously' }} on {{ $serviceRequest->evaluation->rated_at ? $serviceRequest->evaluation->rated_at->format('M d, Y h:i A') : 'N/A' }}
                     </p>
                 </div>
-                <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center gap-2 shrink-0">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center shrink-0">
                     Print Satisfaction Form
                 </a>
             </div>
@@ -575,11 +735,8 @@
     <!-- Assigned Personnel & Maintenance Unit Card (Displayed when request is approved and has assigned workers) -->
     @if($serviceRequest->project && $serviceRequest->project->workers->isNotEmpty())
         <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-2xs">
-            <h2 class="text-base font-bold text-[#042B74] dark:text-blue-400 mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-[#0038A8] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                Assigned Maintenance Personnel & Unit
+            <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 mb-4">
+                Assigned Maintenance Personnel &amp; Unit
             </h2>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -615,9 +772,8 @@
     <!-- Action Forms Section -->
     @if(in_array($serviceRequest->current_status, ['Submitted', 'Pending']))
         <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
-            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                <svg class="w-5 h-5 text-[#0033a0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                Action Required: Review & Process Request
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-6">
+                Action Required: Review &amp; Process Request
             </h2>
             
             <div class="flex flex-col lg:flex-row gap-6 items-stretch">
@@ -628,7 +784,7 @@
                     <div>
                         <div class="flex items-center gap-2 text-[#0033a0] dark:text-blue-400 font-bold text-sm mb-4">
                             <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-extrabold">1</span>
-                            Approve Request & Assign Project
+                            Approve Request &amp; Assign Project
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
@@ -684,11 +840,11 @@
                                                     <span>{{ $worker->team->team_name ?? 'No Unit' }}</span>
                                                     <span>•</span>
                                                     @if($activeCount === 0)
-                                                        <span class="text-emerald-600 dark:text-emerald-400 font-bold">🟢 Available</span>
+                                                        <span class="text-emerald-600 dark:text-emerald-400 font-bold">Available</span>
                                                     @elseif($activeCount === 1)
-                                                        <span class="text-amber-600 dark:text-amber-400 font-bold">🟡 Busy (1 Active)</span>
+                                                        <span class="text-amber-600 dark:text-amber-400 font-bold">Busy (1 Active)</span>
                                                     @else
-                                                        <span class="text-amber-600 dark:text-amber-400 font-bold">🟡 Busy (1 Active, {{ $activeCount - 1 }} Queued)</span>
+                                                        <span class="text-amber-600 dark:text-amber-400 font-bold">Busy (1 Active, {{ $activeCount - 1 }} Queued)</span>
                                                     @endif
                                                 </div>
                                             </div>
@@ -705,8 +861,7 @@
                     </div>
 
                     <button type="submit" class="w-full bg-[#0033a0] hover:bg-[#002480] text-white font-bold py-3 px-4 rounded-xl transition shadow-md flex justify-center items-center gap-2 text-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                        Approve & Launch Project
+                        Approve &amp; Launch Project
                     </button>
                 </form>
 
@@ -724,7 +879,6 @@
                         </div>
                     </div>
                     <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition flex justify-center items-center gap-2 text-sm shadow-md">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                         Reject Request
                     </button>
                 </form>
@@ -738,8 +892,7 @@
         <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 border-blue-400 dark:border-blue-700 p-7 shadow-sm"
              x-data="{ lightboxOpen: false, lightboxImg: '', lightboxTitle: '' }">
             <div class="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-zinc-800 pb-3">
-                <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400">
                     Worker Completed Job — Pending Final Admin Verification
                 </h2>
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
@@ -747,7 +900,7 @@
                 </span>
             </div>
             
-            <p class="text-xs text-gray-500 mb-6">Inspect the before & after work evidence photos below to ensure the task was completed satisfactorily before closing this requisition.</p>
+            <p class="text-xs text-gray-500 mb-6">Inspect the before &amp; after work evidence photos below to ensure the task was completed satisfactorily before closing this requisition.</p>
 
             <!-- Before & After Photos Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -813,8 +966,7 @@
             <div class="bg-blue-50/70 dark:bg-zinc-800/70 p-6 rounded-2xl border-2 border-blue-200 dark:border-zinc-700 space-y-4">
                 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-blue-200/80 dark:border-zinc-700">
                     <div>
-                        <h3 class="text-sm font-bold text-[#0033a0] dark:text-blue-400 flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <h3 class="text-sm font-bold text-[#0033a0] dark:text-blue-400">
                             Verify Project Completion
                         </h3>
                         <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
@@ -826,12 +978,11 @@
                         </p>
                     </div>
                     @if($isWorkerInspectionOnly)
-                        <span class="px-3.5 py-1.5 bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-full inline-flex items-center gap-1.5 shrink-0 shadow-xs">
-                            <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        <span class="px-3.5 py-1.5 bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-full shrink-0 shadow-xs">
                             Inspection &amp; Assessment Only
                         </span>
                     @elseif($serviceRequest->project?->nature_of_work)
-                        <span class="px-3 py-1 bg-blue-100 text-blue-800 border border-blue-300 text-xs font-bold rounded-full inline-flex items-center gap-1.5 shrink-0">
+                        <span class="px-3 py-1 bg-blue-100 text-blue-800 border border-blue-300 text-xs font-bold rounded-full shrink-0">
                             {{ $serviceRequest->project->nature_of_work }}
                         </span>
                     @endif

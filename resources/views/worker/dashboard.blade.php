@@ -65,9 +65,12 @@
                     $catName = strtolower($a->project?->request?->category?->category_name ?? '');
                     $prefix = match(true) {
                         str_contains($catName, 'landscaping') => 'LS',
-                        str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                        str_contains($catName, 'janitorial') => 'JS',
                         str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
                         str_contains($catName, 'plumbing') => 'PLS',
+                        str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                        str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                        str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                         default => 'REQ'
                     };
                     $reqCode = $reqId ? ($prefix . '-' . str_pad($reqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($a->project_id, 3, '0', STR_PAD_LEFT));

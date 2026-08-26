@@ -137,21 +137,21 @@ class ServiceRequest extends Model
             $data = json_decode($desc, true);
             if (is_array($data)) {
                 $lines = [];
-                if (!empty($data['activity_title'])) $lines[] = "📌 Activity: " . $data['activity_title'];
-                if (!empty($data['event_date'])) $lines[] = "📅 Event Date: " . $data['event_date'];
+                if (!empty($data['activity_title'])) $lines[] = "Activity: " . $data['activity_title'];
+                if (!empty($data['event_date'])) $lines[] = "Event Date: " . $data['event_date'];
                 if (!empty($data['prep_details'])) {
                     $prepTime = (!empty($data['prep_regular']) ? 'Regular Time' : '') . (!empty($data['prep_overtime']) ? ' + Overtime' : '');
-                    $lines[] = "🔨 Preparation (" . ($data['prep_date'] ?? 'N/A') . ($prepTime ? " | {$prepTime}" : '') . "): " . $data['prep_details'];
+                    $lines[] = "Preparation (" . ($data['prep_date'] ?? 'N/A') . ($prepTime ? " | {$prepTime}" : '') . "): " . $data['prep_details'];
                 }
                 if (!empty($data['assistance_details'])) {
                     $assistTime = (!empty($data['assistance_regular']) ? 'Regular Time' : '') . (!empty($data['assistance_overtime']) ? ' + Overtime' : '');
-                    $lines[] = "👥 Event Assistance (" . ($data['assistance_date'] ?? 'N/A') . ($assistTime ? " | {$assistTime}" : '') . "): " . $data['assistance_details'];
+                    $lines[] = "Event Assistance (" . ($data['assistance_date'] ?? 'N/A') . ($assistTime ? " | {$assistTime}" : '') . "): " . $data['assistance_details'];
                 }
                 if (!empty($data['clearing_details'])) {
                     $clearTime = (!empty($data['clearing_regular']) ? 'Regular Time' : '') . (!empty($data['clearing_overtime']) ? ' + Overtime' : '');
-                    $lines[] = "🧹 Clearing / Teardown (" . ($data['clearing_date'] ?? 'N/A') . ($clearTime ? " | {$clearTime}" : '') . "): " . $data['clearing_details'];
+                    $lines[] = "Clearing / Teardown (" . ($data['clearing_date'] ?? 'N/A') . ($clearTime ? " | {$clearTime}" : '') . "): " . $data['clearing_details'];
                 }
-                if (!empty($data['additional_notes'])) $lines[] = "📝 Additional Notes: " . $data['additional_notes'];
+                if (!empty($data['additional_notes'])) $lines[] = "Additional Notes: " . $data['additional_notes'];
                 if (!empty($data['general_description'])) $lines[] = $data['general_description'];
                 return implode("\n\n", $lines);
             }
