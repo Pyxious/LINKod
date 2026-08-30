@@ -48,6 +48,72 @@ class DashboardController extends Controller
             'Completed'  => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count(),
         ];
 
+        // Real-Time Task Monitoring Feed
+        $activities = collect();
+        $reqHistories = \App\Models\RequestHistory::with(['request.category', 'request.project.workers.staff.user'])
+            ->latest('updated_at')
+            ->take(15)
+            ->get();
+
+        foreach ($reqHistories as $rh) {
+            if (!$rh->request) continue;
+            $r = $rh->request;
+            $catName = strtolower($r->category->category_name ?? '');
+            $prefix = match(true) {
+                str_contains($catName, 'landscaping') => 'LS',
+                str_contains($catName, 'janitorial') => 'JS',
+                str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+                str_contains($catName, 'plumbing') => 'PLS',
+                str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
+                default => 'REQ'
+            };
+            $code = $prefix . '-' . str_pad($r->request_id, 3, '0', STR_PAD_LEFT);
+            $workerName = $r->project?->workers?->first()?->staff?->user?->first_name;
+
+            if ($rh->current_status === 'Completed') {
+                $actor = $workerName ? "Worker {$workerName}" : "Worker";
+                $activities->push([
+                    'text'  => "{$actor} completed task {$code}",
+                    'color' => 'emerald',
+                    'time'  => \Carbon\Carbon::parse($rh->updated_at),
+                ]);
+            } elseif ($rh->current_status === 'Submitted') {
+                $activities->push([
+                    'text'  => "New request submitted {$code}",
+                    'color' => 'orange',
+                    'time'  => \Carbon\Carbon::parse($rh->updated_at ?? $r->submitted_at),
+                ]);
+            } elseif ($rh->current_status === 'In Progress') {
+                $actor = $workerName ? "Worker {$workerName}" : "Worker";
+                $activities->push([
+                    'text'  => "{$actor} started task {$code}",
+                    'color' => 'yellow',
+                    'time'  => \Carbon\Carbon::parse($rh->updated_at),
+                ]);
+            } elseif ($rh->current_status === 'Pending Verification') {
+                $actor = $workerName ? "Worker {$workerName}" : "Worker";
+                $activities->push([
+                    'text'  => "{$actor} submitted task proof for {$code}",
+                    'color' => 'blue',
+                    'time'  => \Carbon\Carbon::parse($rh->updated_at),
+                ]);
+            }
+        }
+
+        $realTimeMonitoring = $activities->unique(fn($a) => $a['text'] . $a['time']->format('Y-m-d H:i'))
+            ->sortByDesc('time')
+            ->take(6)
+            ->values();
+
+        // Service Requests Inventory (Latest 5 Requests)
+        $recentRequests = ServiceRequest::with(['category', 'client.user', 'latestHistory'])
+            ->orderBy('submitted_at', 'desc')
+            ->orderBy('request_id', 'desc')
+            ->take(5)
+            ->get();
+
         // Notifications
         $user = auth()->user();
         $notifications = $user ? $user->notifications()->latest('sent_at')->take(10)->get() : collect();
@@ -56,7 +122,7 @@ class DashboardController extends Controller
         return view('admin.dashboard', compact(
             'totalRequests', 'requestsToday', 'activeTasks', 'availableWorkers', 'totalWorkers',
             'availablePct', 'completionRate', 'completedThisMonth', 'taskStatus',
-            'requestProgress', 'notifications', 'unreadCount'
+            'requestProgress', 'realTimeMonitoring', 'recentRequests', 'notifications', 'unreadCount'
         ));
     }
 

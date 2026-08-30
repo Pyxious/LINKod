@@ -125,6 +125,152 @@
     </div>
 </div>
 
+<!-- Real-Time Monitoring & Service Requests Inventory Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6 font-sans">
+    
+    <!-- Card 1: Real-Time Task Monitoring -->
+    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+        <div>
+            <div class="mb-5">
+                <h2 class="text-[#0033a0] dark:text-blue-400 text-lg font-bold leading-tight">Real-Time Task Monitoring</h2>
+                <p class="text-xs text-gray-400 font-medium mt-0.5">Overview</p>
+            </div>
+
+            <!-- Monitoring Activities Feed -->
+            <div class="space-y-3.5 mb-6">
+                @forelse($realTimeMonitoring as $act)
+                    @php
+                        $circleColor = match($act['color'] ?? 'emerald') {
+                            'emerald' => 'border-emerald-500 text-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20',
+                            'yellow'  => 'border-amber-400 text-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
+                            'orange'  => 'border-orange-400 text-orange-400 bg-orange-50/50 dark:bg-orange-950/20',
+                            'blue'    => 'border-blue-500 text-blue-500 bg-blue-50/50 dark:bg-blue-950/20',
+                            default   => 'border-gray-400 text-gray-400 bg-gray-50/50 dark:bg-zinc-800'
+                        };
+                    @endphp
+                    <div class="flex items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-zinc-800/80 last:border-0 last:pb-0">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-3.5 h-3.5 rounded-full border-2 {{ $circleColor }} shrink-0"></div>
+                            <span class="text-xs font-semibold text-slate-800 dark:text-gray-200 truncate">{{ $act['text'] }}</span>
+                        </div>
+                        <span class="text-[11px] font-medium text-gray-400 dark:text-gray-500 shrink-0 whitespace-nowrap">
+                            {{ $act['time']->format('M j, Y - h:i A') }}
+                        </span>
+                    </div>
+                @empty
+                    <div class="text-center py-8 text-xs text-gray-400 italic">
+                        No recent real-time monitoring events recorded yet.
+                    </div>
+                @endforelse
+            </div>
+        </div>
+
+        <div class="pt-4 border-t border-gray-100 dark:border-zinc-800 flex justify-end">
+            <a href="{{ route('admin.audit.index') }}" class="bg-[#0033a0] hover:bg-[#002480] text-white px-5 py-2 rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-1.5">
+                <span>View all activities</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+    </div>
+
+    <!-- Card 2: Service Requests Inventory -->
+    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+        <div>
+            <div class="mb-4">
+                <h2 class="text-[#0033a0] dark:text-blue-400 text-lg font-bold leading-tight">Service Requests Inventory</h2>
+                <p class="text-xs text-gray-400 font-medium mt-0.5">Preview of Latest 5 Requests</p>
+            </div>
+
+            <!-- Inventory Table -->
+            <div class="overflow-x-auto mb-6">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-gray-200 dark:border-zinc-800 text-[11px] font-bold text-[#1a3c8f] dark:text-blue-400 uppercase tracking-wider">
+                            <th class="pb-2.5 pr-3">Requisition No.</th>
+                            <th class="pb-2.5 px-3">Category</th>
+                            <th class="pb-2.5 px-3 text-center">Priority</th>
+                            <th class="pb-2.5 px-3 text-center">Status</th>
+                            <th class="pb-2.5 pl-3 text-right">Date Requested</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-zinc-800/80">
+                        @forelse($recentRequests as $req)
+                            @php
+                                $catName = strtolower($req->category->category_name ?? '');
+                                $prefix = match(true) {
+                                    str_contains($catName, 'landscaping') => 'LS',
+                                    str_contains($catName, 'janitorial') => 'JS',
+                                    str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+                                    str_contains($catName, 'plumbing') => 'PLS',
+                                    str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                                    str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                                    str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
+                                    default => 'REQ'
+                                };
+                                $reqCode = $prefix . '-' . str_pad($req->request_id, 3, '0', STR_PAD_LEFT);
+
+                                $prio = strtolower($req->priority ?? 'low');
+                                $prioClass = match($prio) {
+                                    'high'   => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+                                    'medium' => 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+                                    default  => 'bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-800'
+                                };
+
+                                $st = $req->current_status;
+                                $stClass = match($st) {
+                                    'Submitted'            => 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+                                    'Pending', 'Approved'  => 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800',
+                                    'In Progress'          => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+                                    'Pending Verification' => 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800',
+                                    'Completed'            => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+                                    default                => 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:border-zinc-700'
+                                };
+                            @endphp
+                            <tr class="hover:bg-gray-50/80 dark:hover:bg-zinc-800/40 transition">
+                                <td class="py-3 pr-3 font-mono font-bold text-[#0033a0] dark:text-blue-400">
+                                    <a href="{{ route('admin.requests.show', $req->request_id) }}" class="hover:underline">
+                                        {{ $reqCode }}
+                                    </a>
+                                </td>
+                                <td class="py-3 px-3 font-medium text-slate-800 dark:text-gray-200">
+                                    {{ $req->category->category_name ?? 'General' }}
+                                </td>
+                                <td class="py-3 px-3 text-center">
+                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $prioClass }}">
+                                        {{ ucfirst($req->priority ?? 'Low') }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-3 text-center">
+                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $stClass }}">
+                                        {{ $st }}
+                                    </span>
+                                </td>
+                                <td class="py-3 pl-3 text-right text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">
+                                    {{ $req->submitted_at ? \Carbon\Carbon::parse($req->submitted_at)->format('m/d/Y') : 'N/A' }}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="py-6 text-center text-xs text-gray-400 italic">
+                                    No service requests found in inventory.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="pt-4 border-t border-gray-100 dark:border-zinc-800 flex justify-end">
+            <a href="{{ route('admin.requests.index') }}" class="bg-[#0033a0] hover:bg-[#002480] text-white px-5 py-2 rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-1.5">
+                <span>View all requests</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+    </div>
+
+</div>
+
 @endsection
 
 @push('scripts')

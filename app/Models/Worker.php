@@ -21,7 +21,7 @@ class Worker extends Model
 
     public function team()
     {
-        return $this->belongsTo(Team::class, 'team_id', 'team_id');
+        return $this->belongsTo(Team::class, 'team_id', 'team_id')->withTrashed();
     }
 
     public function assignments()

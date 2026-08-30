@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Project;
 use App\Models\ProjectHistory;
 use App\Models\Team;
+use App\Models\TeamLeader;
 use App\Models\Worker;
 use App\Models\ProjectWorker;
 use App\Services\NotificationService;
@@ -37,7 +39,7 @@ class WorkforceController extends Controller
         $busyWorkers = $totalWorkers - $availableWorkers;
         $onLeave = 0; // Mocked
 
-        $teams = \App\Models\Team::all();
+        $teams = Team::with('category')->get();
         // Decorate teams with stats and members list
         foreach ($teams as $team) {
             $teamWorkers = $workers->where('team_id', $team->team_id);
@@ -51,7 +53,7 @@ class WorkforceController extends Controller
             $leader = null;
             $leaderWorkerObj = null;
             if ($team->team_leader) {
-                $teamLeaderObj = \App\Models\TeamLeader::find($team->team_leader);
+                $teamLeaderObj = TeamLeader::find($team->team_leader);
                 if ($teamLeaderObj) {
                     $leaderWorker = $workers->firstWhere('staff_id', $teamLeaderObj->staff_id);
                     if ($leaderWorker) {
@@ -79,6 +81,93 @@ class WorkforceController extends Controller
         ));
     }
 
+    public function storeUnit(Request $request)
+    {
+        $validated = $request->validate([
+            'unit_name'   => 'required|string|max:100|unique:team,team_name,NULL,team_id,deleted_at,NULL',
+            'description' => 'nullable|string|max:255',
+            'leader_id'   => 'nullable|exists:worker,worker_id',
+        ], [
+            'unit_name.required' => 'Unit / Section name is required.',
+            'unit_name.unique'   => 'A unit or section with this name already exists.',
+        ]);
+
+        $unitName = trim($validated['unit_name']);
+
+        // 1. Create matching Category (1-to-1 sync)
+        $category = Category::create([
+            'category_name' => $unitName,
+            'description'   => $validated['description'] ?? "Maintenance and service works for {$unitName}.",
+        ]);
+
+        // 2. Resolve team leader if selected
+        $teamLeaderId = null;
+        if (!empty($validated['leader_id'])) {
+            $worker = Worker::find($validated['leader_id']);
+            if ($worker) {
+                $leaderRecord = TeamLeader::firstOrCreate(['staff_id' => $worker->staff_id]);
+                $teamLeaderId = $leaderRecord->leader_id;
+            }
+        }
+
+        // 3. Create Team
+        $team = Team::create([
+            'team_name'    => $unitName,
+            'category_id'  => $category->category_id,
+            'team_leader'  => $teamLeaderId,
+            'member_count' => 0,
+        ]);
+
+        // If leader worker was selected, assign them to this new team
+        if (!empty($validated['leader_id'])) {
+            Worker::where('worker_id', $validated['leader_id'])->update(['team_id' => $team->team_id]);
+            $team->update(['member_count' => 1]);
+        }
+
+        // 4. Audit Log
+        \App\Models\UserLog::create([
+            'user_id'    => auth()->id(),
+            'action'     => "Admin created service unit '{$team->team_name}' and linked category '{$category->category_name}'",
+            'ip_address' => request()->ip(),
+            'created_at' => now(),
+        ]);
+
+        return redirect()->route('admin.workforce.index')->with('success', "Unit '{$team->team_name}' and its linked category were successfully created.");
+    }
+
+    public function destroyUnit($teamId)
+    {
+        $team = Team::findOrFail($teamId);
+        $teamName = $team->team_name;
+
+        // 1. Soft-delete linked Category
+        if ($team->category_id) {
+            $category = Category::find($team->category_id);
+            if ($category) {
+                $category->delete();
+            }
+        } else {
+            $cat = Category::where('category_name', $team->team_name)->first();
+            if ($cat) $cat->delete();
+        }
+
+        // 2. Unassign workers in this team
+        Worker::where('team_id', $team->team_id)->update(['team_id' => null]);
+
+        // 3. Soft-delete Team
+        $team->delete();
+
+        // 4. Audit Log
+        \App\Models\UserLog::create([
+            'user_id'    => auth()->id(),
+            'action'     => "Admin soft-deleted service unit '{$teamName}' and its linked category",
+            'ip_address' => request()->ip(),
+            'created_at' => now(),
+        ]);
+
+        return redirect()->route('admin.workforce.index')->with('success', "Unit '{$teamName}' was safely deleted. Existing requests with this category remain intact.");
+    }
+
     public function assign(Request $request)
     {
         $validated = $request->validate([
@@ -100,29 +189,28 @@ class WorkforceController extends Controller
                 'date_assigned' => now()->toDateString(),
             ]);
 
-            // Mark worker as unavailable
-            $worker->update(['is_available' => false]);
+            // Mark worker as busy / update availability
+            $worker->recalculateAvailability();
 
             // Notify worker
-            $this->notifications->workerAssigned(
-                $worker->staff->user_id,
-                $project->request?->title ?? "Project #{$project->project_id}",
-                $project->project_id
-            );
+            $this->notifications->workerAssigned($worker, $project);
         }
 
-        // Update project status to Assigned
-        ProjectHistory::create([
-            'project_id'      => $project->project_id,
-            'previous_status' => $project->current_status,
-            'current_status'  => 'Assigned',
-            'updated_at'      => now(),
-            'updated_by'      => auth()->id(),
-        ]);
+        // Transition project to In Progress if it was pending
+        if ($project->current_status === 'Pending') {
+            ProjectHistory::create([
+                'project_id'      => $project->project_id,
+                'previous_status' => 'Pending',
+                'current_status'  => 'In Progress',
+                'remarks'         => 'Workers deployed by GSO Admin',
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+        }
 
         \App\Models\UserLog::create([
             'user_id'    => auth()->id(),
-            'action'     => "Admin assigned workers to project #{$project->project_id}",
+            'action'     => "Admin assigned " . count($validated['worker_ids']) . " worker(s) to project #{$project->project_id}",
             'ip_address' => request()->ip(),
             'created_at' => now(),
         ]);
@@ -131,34 +219,32 @@ class WorkforceController extends Controller
             ->with('success', 'Workers assigned successfully.');
     }
 
-    public function makeTeamLeader(Request $request, int $workerId)
+    public function makeTeamLeader(Request $request, $workerId)
     {
         $worker = Worker::findOrFail($workerId);
-        $team = $worker->team;
-        
-        if (!$team) {
-            return redirect()->back()->with('error', 'Worker is not assigned to any team.');
+
+        if (!$worker->team_id) {
+            return back()->with('error', 'Worker must belong to a team first.');
         }
 
-        // Create or get TeamLeader entry for this staff
-        $teamLeader = \App\Models\TeamLeader::firstOrCreate([
-            'staff_id' => $worker->staff_id
+        // Find or create TeamLeader record for this worker's staff_id
+        $teamLeader = TeamLeader::firstOrCreate([
+            'staff_id' => $worker->staff_id,
         ]);
 
-        // Set the team's leader
-        $team->update([
-            'team_leader' => $teamLeader->leader_id
-        ]);
+        // Assign to the worker's team
+        $team = Team::findOrFail($worker->team_id);
+        $team->update(['team_leader' => $teamLeader->leader_id]);
 
         \App\Models\UserLog::create([
             'user_id'    => auth()->id(),
-            'action'     => "Admin promoted worker #{$workerId} to Team Leader of {$team->team_name}",
+            'action'     => "Admin assigned {$worker->staff->user->first_name} {$worker->staff->user->last_name} as leader of {$team->team_name}",
             'ip_address' => request()->ip(),
             'created_at' => now(),
         ]);
 
         return redirect()->route('admin.workforce.index')
-            ->with('success', 'Worker has been promoted to Team Leader of ' . $team->team_name);
+            ->with('success', "{$worker->staff->user->first_name} {$worker->staff->user->last_name} is now the leader of {$team->team_name}.");
     }
 
     public function assignTeam(Request $request, int $workerId)
