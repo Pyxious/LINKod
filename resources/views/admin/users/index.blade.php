@@ -78,14 +78,15 @@
                     <div class="text-xs text-[#47658F] dark:text-gray-400">New Users</div>
                 </div>
                 <select id="trendPeriodSelect" class="bg-gray-100 dark:bg-zinc-800 border-none px-3 py-1.5 rounded-md text-xs font-semibold text-gray-700 dark:text-gray-300 outline-none cursor-pointer">
-                    <option value="month" selected>This Month</option>
-                    <option value="week">This Week</option>
+                    <option value="month" selected>This Month (by Week)</option>
+                    <option value="week">This Week (by Day)</option>
+                    <option value="year">This Year (by Month)</option>
                 </select>
             </div>
             <div class="relative h-[220px]">
                 <canvas id="trendBar"></canvas>
             </div>
-            <div id="trendPeriodLabel" class="text-center text-[11px] text-gray-400 mt-2 font-bold">{{ strtoupper(now()->format('F Y')) }}</div>
+            <div id="trendPeriodLabel" class="text-center text-[11px] text-gray-400 mt-2 font-bold">{{ strtoupper(now()->format('F Y')) }} (WEEK 1 - 5)</div>
         </div>
     </div>
 
@@ -437,13 +438,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const trendCanvas = document.getElementById('trendBar');
         if (trendCanvas) {
             const weeklyData = {
-                labels: {!! json_encode(array_keys($weeklyTrends ?? ['Mon'=>1,'Tue'=>2,'Wed'=>0,'Thu'=>1,'Fri'=>1,'Sat'=>0,'Sun'=>0])) !!},
-                data: {!! json_encode(array_values($weeklyTrends ?? [1,2,0,1,1,0,0])) !!}
+                labels: {!! json_encode(array_keys($weeklyTrends ?? ['Mon'=>0,'Tue'=>0,'Wed'=>0,'Thu'=>0,'Fri'=>0,'Sat'=>0,'Sun'=>0])) !!},
+                data: {!! json_encode(array_values($weeklyTrends ?? [0,0,0,0,0,0,0])) !!}
             };
 
             const monthlyData = {
-                labels: {!! json_encode(array_keys($monthlyTrends ?? ['Week 1'=>2,'Week 2'=>1,'Week 3'=>1,'Week 4'=>1,'Week 5'=>0])) !!},
-                data: {!! json_encode(array_values($monthlyTrends ?? [2,1,1,1,0])) !!}
+                labels: {!! json_encode(array_keys($monthlyTrends ?? ['Week 1'=>0,'Week 2'=>0,'Week 3'=>0,'Week 4'=>0,'Week 5'=>0])) !!},
+                data: {!! json_encode(array_values($monthlyTrends ?? [0,0,0,0,0])) !!}
+            };
+
+            const yearlyData = {
+                labels: {!! json_encode(array_keys($yearlyTrends ?? ['Jan'=>0,'Feb'=>0,'Mar'=>0,'Apr'=>0,'May'=>0,'Jun'=>0,'Jul'=>0,'Aug'=>0,'Sep'=>0,'Oct'=>0,'Nov'=>0,'Dec'=>0])) !!},
+                data: {!! json_encode(array_values($yearlyTrends ?? [0,0,0,0,0,0,0,0,0,0,0,0])) !!}
             };
 
             const trendChart = new Chart(trendCanvas, {
@@ -502,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            // Toggle Event Listener for "This Week" / "This Month"
+            // Toggle Event Listener for "This Month" / "This Week" / "This Year"
             const periodSelect = document.getElementById('trendPeriodSelect');
             const periodLabel = document.getElementById('trendPeriodLabel');
             if (periodSelect) {
@@ -510,11 +516,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (this.value === 'week') {
                         trendChart.data.labels = weeklyData.labels;
                         trendChart.data.datasets[0].data = weeklyData.data;
-                        if (periodLabel) periodLabel.textContent = 'THIS WEEK';
+                        if (periodLabel) periodLabel.textContent = 'THIS WEEK (MON - SUN)';
+                    } else if (this.value === 'year') {
+                        trendChart.data.labels = yearlyData.labels;
+                        trendChart.data.datasets[0].data = yearlyData.data;
+                        if (periodLabel) periodLabel.textContent = 'YEAR {{ now()->format("Y") }} (JAN - DEC)';
                     } else {
                         trendChart.data.labels = monthlyData.labels;
                         trendChart.data.datasets[0].data = monthlyData.data;
-                        if (periodLabel) periodLabel.textContent = '{{ strtoupper(now()->format('F Y')) }}';
+                        if (periodLabel) periodLabel.textContent = '{{ strtoupper(now()->format('F Y')) }} (WEEK 1 - 5)';
                     }
                     trendChart.update();
                 });

@@ -94,7 +94,7 @@ class RequestController extends Controller
                 'location'       => 'required|string|max:255',
                 'complexity'     => 'nullable|in:low,medium,high',
                 'urgency'        => 'nullable|in:low,medium,high',
-                'attachment'     => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+                'attachment'     => ['nullable', 'file', new \App\Rules\SecureFileUpload(['pdf', 'jpg', 'jpeg', 'png'], 5120)],
             ], [
                 'client_email.ends_with' => 'The client email address must be an official Bicol University email ending with @bicol-u.edu.ph.',
                 'client_email.email'     => 'Please enter a valid email address.',

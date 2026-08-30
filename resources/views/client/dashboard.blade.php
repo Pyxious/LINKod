@@ -325,10 +325,43 @@
                     <style>
                         .box-bg { fill: #ffffff !important; stroke: #94a3b8 !important; stroke-width: 1.5; stroke-dasharray: 4,4; rx: 10px; }
                         .line-blue { stroke: #2563eb !important; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-                        .title-orange { fill: #c2410c !important; font-weight: 800; font-size: 10px; text-anchor: middle; letter-spacing: 0.3px; }
                         .name-bold { fill: #0f172a !important; font-weight: 800; font-size: 11px; text-anchor: middle; }
                         .sub-gray { fill: #64748b !important; font-weight: 500; font-size: 10px; text-anchor: middle; }
+
+                        /* Section headers (Reverted to original darker orange #c2410c) */
+                        .title-section-orange { fill: #c2410c !important; font-weight: 800; font-size: 9.5px; text-anchor: start; letter-spacing: 0.2px; }
+
+                        /* Sub-service titles (Lighter Orange #E89449) */
+                        .title-service-orange { fill: #E89449 !important; font-weight: 800; font-size: 9px; text-anchor: start; letter-spacing: 0.2px; }
+
+                        /* Carpentry Service title (Fitted Lighter Orange #E89449) */
+                        .title-carpentry-orange { fill: #E89449 !important; font-weight: 800; font-size: 6.8px; text-anchor: start; letter-spacing: -0.2px; }
+
+                        /* Left-aligned styles for boxes with avatar */
+                        .name-bold-left { fill: #0f172a !important; font-weight: 800; font-size: 11px; text-anchor: start; }
+                        .sub-gray-left { fill: #64748b !important; font-weight: 500; font-size: 9.5px; text-anchor: start; }
+                        .avatar-border { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; }
                     </style>
+
+                    <defs>
+                        <!-- Circular Clip Paths for Member Photos -->
+                        <clipPath id="clip-padilla"><circle cx="475" cy="237.5" r="16" /></clipPath>
+                        <clipPath id="clip-londonio1"><circle cx="34" cy="305" r="16" /></clipPath>
+                        <clipPath id="clip-bernales"><circle cx="324" cy="305" r="16" /></clipPath>
+                        <clipPath id="clip-dimaano"><circle cx="614" cy="305" r="16" /></clipPath>
+                        
+                        <clipPath id="clip-londonio2"><circle cx="162" cy="369" r="14.5" /></clipPath>
+                        <clipPath id="clip-madrona"><circle cx="412" cy="369" r="14.5" /></clipPath>
+                        
+                        <clipPath id="clip-maraya"><circle cx="162" cy="429" r="14.5" /></clipPath>
+                        <clipPath id="clip-laneta"><circle cx="412" cy="429" r="14.5" /></clipPath>
+                        
+                        <clipPath id="clip-banares"><circle cx="162" cy="489" r="14.5" /></clipPath>
+                        <clipPath id="clip-borje"><circle cx="412" cy="489" r="14.5" /></clipPath>
+                        
+                        <clipPath id="clip-bonaobra"><circle cx="162" cy="549" r="14.5" /></clipPath>
+                        <clipPath id="clip-bumalay"><circle cx="412" cy="549" r="14.5" /></clipPath>
+                    </defs>
 
                     <!-- CONNECTING LINES (Rendered cleanly below boxes) -->
                     
@@ -410,31 +443,39 @@
                     <!-- 4. REY A. PADILLA -->
                     <g>
                         <rect x="450" y="215" width="250" height="45" class="box-bg" />
-                        <text x="575" y="234" class="name-bold">REY A. PADILLA</text>
-                        <text x="575" y="248" class="sub-gray">Head, General Services Office</text>
+                        <circle cx="475" cy="237.5" r="17.5" class="avatar-border" />
+                        <image x="459" y="221.5" width="32" height="32" href="{{ asset('images/org/PADILLA.jpg') }}" clip-path="url(#clip-padilla)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="500" y="233" class="name-bold-left">REY A. PADILLA</text>
+                        <text x="500" y="247" class="sub-gray-left">Head, General Services Office</text>
                     </g>
 
                     <!-- COLUMN 1: FACILITIES MAINTENANCE SECTION -->
                     <g>
                         <rect x="10" y="280" width="230" height="50" class="box-bg" />
-                        <text x="125" y="297" class="title-orange">FACILITIES MAINTENANCE SECTION</text>
-                        <text x="125" y="311" class="name-bold">DIOGENES L. LONDONIO</text>
-                        <text x="125" y="322" class="sub-gray">PERSON-IN-CHARGE</text>
+                        <circle cx="34" cy="305" r="17.5" class="avatar-border" />
+                        <image x="18" y="289" width="32" height="32" href="{{ asset('images/org/LONDONIO.jpg') }}" clip-path="url(#clip-londonio1)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="57" y="297" class="title-section-orange">FACILITIES MAINTENANCE SECTION</text>
+                        <text x="57" y="311" class="name-bold-left">DIOGENES L. LONDONIO</text>
+                        <text x="57" y="322" class="sub-gray-left">PERSON-IN-CHARGE</text>
                     </g>
 
                     <!-- COLUMN 2: MA. KYLA NICOLE N. BERNALES -->
                     <g>
                         <rect x="300" y="280" width="230" height="50" class="box-bg" />
-                        <text x="415" y="304" class="name-bold">MA. KYLA NICOLE N. BERNALES</text>
-                        <text x="415" y="318" class="sub-gray">Clerical Staff</text>
+                        <circle cx="324" cy="305" r="17.5" class="avatar-border" />
+                        <image x="308" y="289" width="32" height="32" href="{{ asset('images/org/BERNALES.jpg') }}" clip-path="url(#clip-bernales)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="348" y="303" class="name-bold-left">MA. KYLA NICOLE N. BERNALES</text>
+                        <text x="348" y="317" class="sub-gray-left">Clerical Staff</text>
                     </g>
 
                     <!-- COLUMN 3: JANITORIAL SERVICES SECTION -->
                     <g>
                         <rect x="590" y="280" width="230" height="50" class="box-bg" />
-                        <text x="705" y="297" class="title-orange">JANITORIAL SERVICES SECTION</text>
-                        <text x="705" y="311" class="name-bold">ERNIE B. DIMAANO</text>
-                        <text x="705" y="322" class="sub-gray">PERSON-IN-CHARGE</text>
+                        <circle cx="614" cy="305" r="17.5" class="avatar-border" />
+                        <image x="598" y="289" width="32" height="32" href="{{ asset('images/org/DIMAANO.jpg') }}" clip-path="url(#clip-dimaano)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="637" y="297" class="title-section-orange">JANITORIAL SERVICES SECTION</text>
+                        <text x="637" y="311" class="name-bold-left">ERNIE B. DIMAANO</text>
+                        <text x="637" y="322" class="sub-gray-left">PERSON-IN-CHARGE</text>
                     </g>
 
                     <!-- COLUMN 4: CAMPUS/UNIT GSO SUPPORT STAFF -->
@@ -452,49 +493,65 @@
                     <!-- SUB PAIR 1: CARPENTRY -->
                     <g>
                         <rect x="140" y="345" width="230" height="48" class="box-bg" />
-                        <text x="255" y="360" class="title-orange">CARPENTRY / MASONRY / ELEC. SERVICES</text>
-                        <text x="255" y="373" class="name-bold">DIOGENES L. LONDONIO</text>
-                        <text x="255" y="384" class="sub-gray">Team Leader</text>
+                        <circle cx="162" cy="369" r="16" class="avatar-border" />
+                        <image x="147.5" y="354.5" width="29" height="29" href="{{ asset('images/org/LONDONIO.jpg') }}" clip-path="url(#clip-londonio2)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="183" y="359" class="title-carpentry-orange">CARPENTRY / MASONRY / ELEC. SERVICES</text>
+                        <text x="183" y="372" class="name-bold-left" font-size="10.5px">DIOGENES L. LONDONIO</text>
+                        <text x="183" y="383" class="sub-gray-left" font-size="9px">Team Leader</text>
 
                         <rect x="390" y="345" width="190" height="48" class="box-bg" />
-                        <text x="485" y="368" class="name-bold">REYNANTE MADRONA</text>
-                        <text x="485" y="381" class="sub-gray">(SKILLED WORKER)</text>
+                        <circle cx="412" cy="369" r="16" class="avatar-border" />
+                        <image x="397.5" y="354.5" width="29" height="29" href="{{ asset('images/org/MADRONA.jpg') }}" clip-path="url(#clip-madrona)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="433" y="367" class="name-bold-left">REYNANTE MADRONA</text>
+                        <text x="433" y="380" class="sub-gray-left">(SKILLED WORKER)</text>
                     </g>
 
                     <!-- SUB PAIR 2: PLUMBING -->
                     <g>
                         <rect x="140" y="405" width="230" height="48" class="box-bg" />
-                        <text x="255" y="420" class="title-orange">PLUMBING SERVICES</text>
-                        <text x="255" y="433" class="name-bold">SONNY B. MARAYA</text>
-                        <text x="255" y="444" class="sub-gray">Team Leader</text>
+                        <circle cx="162" cy="429" r="16" class="avatar-border" />
+                        <image x="147.5" y="414.5" width="29" height="29" href="{{ asset('images/org/MARAYA.jpg') }}" clip-path="url(#clip-maraya)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="183" y="419" class="title-service-orange">PLUMBING SERVICES</text>
+                        <text x="183" y="432" class="name-bold-left">SONNY B. MARAYA</text>
+                        <text x="183" y="443" class="sub-gray-left">Team Leader</text>
 
                         <rect x="390" y="405" width="190" height="48" class="box-bg" />
-                        <text x="485" y="428" class="name-bold">FIDEL LANETA</text>
-                        <text x="485" y="441" class="sub-gray">(SKILLED WORKER)</text>
+                        <circle cx="412" cy="429" r="16" class="avatar-border" />
+                        <image x="397.5" y="414.5" width="29" height="29" href="{{ asset('images/org/LLANETA.jpg') }}" clip-path="url(#clip-laneta)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="433" y="427" class="name-bold-left">FIDEL LLANETA</text>
+                        <text x="433" y="440" class="sub-gray-left">(SKILLED WORKER)</text>
                     </g>
 
                     <!-- SUB PAIR 3: PAINTING -->
                     <g>
                         <rect x="140" y="465" width="230" height="48" class="box-bg" />
-                        <text x="255" y="480" class="title-orange">PAINTING SERVICES</text>
-                        <text x="255" y="493" class="name-bold">JACOB JUAN N. BAÑARES</text>
-                        <text x="255" y="504" class="sub-gray">Team Leader</text>
+                        <circle cx="162" cy="489" r="16" class="avatar-border" />
+                        <image x="147.5" y="474.5" width="29" height="29" href="{{ asset('images/org/BAÑARES.jpg') }}" clip-path="url(#clip-banares)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="183" y="479" class="title-service-orange">PAINTING SERVICES</text>
+                        <text x="183" y="492" class="name-bold-left">JACOB JUAN N. BAÑARES</text>
+                        <text x="183" y="503" class="sub-gray-left">Team Leader</text>
 
                         <rect x="390" y="465" width="190" height="48" class="box-bg" />
-                        <text x="485" y="488" class="name-bold">GEORGE BORJE</text>
-                        <text x="485" y="501" class="sub-gray">(SKILLED WORKER)</text>
+                        <circle cx="412" cy="489" r="16" class="avatar-border" />
+                        <image x="397.5" y="474.5" width="29" height="29" href="{{ asset('images/org/BORJE.jpg') }}" clip-path="url(#clip-borje)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="433" y="487" class="name-bold-left">GEORGE BORJE</text>
+                        <text x="433" y="500" class="sub-gray-left">(SKILLED WORKER)</text>
                     </g>
 
                     <!-- SUB PAIR 4: LANDSCAPING -->
                     <g>
                         <rect x="140" y="525" width="230" height="48" class="box-bg" />
-                        <text x="255" y="540" class="title-orange">LANDSCAPING SERVICES</text>
-                        <text x="255" y="553" class="name-bold">SAMUEL C. BONAOBRA</text>
-                        <text x="255" y="564" class="sub-gray">Team Leader</text>
+                        <circle cx="162" cy="549" r="16" class="avatar-border" />
+                        <image x="147.5" y="534.5" width="29" height="29" href="{{ asset('images/org/BONAOBRA.jpg') }}" clip-path="url(#clip-bonaobra)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="183" y="539" class="title-service-orange">LANDSCAPING SERVICES</text>
+                        <text x="183" y="552" class="name-bold-left">SAMUEL C. BONAOBRA</text>
+                        <text x="183" y="563" class="sub-gray-left">Team Leader</text>
 
                         <rect x="390" y="525" width="190" height="48" class="box-bg" />
-                        <text x="485" y="548" class="name-bold">WILFREDO BUMALAY</text>
-                        <text x="485" y="561" class="sub-gray">(SKILLED WORKER)</text>
+                        <circle cx="412" cy="549" r="16" class="avatar-border" />
+                        <image x="397.5" y="534.5" width="29" height="29" href="{{ asset('images/org/BUMALAY.jpg') }}" clip-path="url(#clip-bumalay)" preserveAspectRatio="xMidYMid slice" />
+                        <text x="433" y="547" class="name-bold-left">WILFREDO BUMALAY</text>
+                        <text x="433" y="560" class="sub-gray-left">(SKILLED WORKER)</text>
                     </g>
 
                 </svg>

@@ -7,69 +7,144 @@ use App\Models\User;
 use App\Models\Staff;
 use App\Models\Worker;
 use App\Models\Client;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::query();
+        // Sort Filter (recently added/joined, oldest, name)
+        $sort = $request->query('sort', 'recent');
 
-        // Filter by role
+        // Base query — apply role filter at DB level (unencrypted column, safe)
+        $query = User::with('latestLog');
+
         if ($request->filled('role')) {
             $query->where('role', $request->role);
         }
 
-        // Search by name or email
+        // ── Search (Fix: first_name, last_name, email_account are AES-256 encrypted)
+        // LIKE queries on encrypted ciphertext always return 0 results.
+        // Solution: load all matching-role users, decrypt in PHP, then filter by search term.
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('first_name', 'LIKE', "%{$search}%")
-                  ->orWhere('last_name', 'LIKE', "%{$search}%")
-                  ->orWhere('email_account', 'LIKE', "%{$search}%");
+            $search = strtolower(trim($request->search));
+            $emailHash = hash('sha256', $search); // exact email match via hash index
+
+            // Fetch all users for in-memory search (paginate after filtering)
+            $allUsers = $query->get();
+
+            $filtered = $allUsers->filter(function (User $user) use ($search, $emailHash) {
+                // Match by SHA-256 hash for exact email lookup
+                if ($user->getAttributes()['email_hash'] === $emailHash) {
+                    return true;
+                }
+                // Match decrypted name fields (partial, case-insensitive)
+                $fullName = strtolower("{$user->first_name} {$user->last_name}");
+                if (str_contains($fullName, $search)) {
+                    return true;
+                }
+                // Match decrypted email (partial)
+                if (str_contains(strtolower($user->email_account ?? ''), $search)) {
+                    return true;
+                }
+                return false;
             });
-        }
 
-        // Sort Filter (recently added/joined, oldest, name)
-        $sort = $request->query('sort', 'recent');
-        if ($sort === 'oldest') {
-            $query->orderBy('user_id', 'asc');
-        } elseif ($sort === 'name') {
-            $query->orderBy('first_name', 'asc')->orderBy('last_name', 'asc');
-        } else { // default 'recent'
-            $query->orderBy('user_id', 'desc');
-        }
+            // Apply sort on filtered collection
+            $filtered = match($sort) {
+                'oldest' => $filtered->sortBy('user_id'),
+                'name'   => $filtered->sortBy(fn($u) => strtolower("{$u->first_name} {$u->last_name}")),
+                default  => $filtered->sortByDesc('user_id'),
+            };
 
-        $users = $query->with('latestLog')->paginate(15)->appends($request->query());
+            // Manual pagination of collection
+            $page       = $request->query('page', 1);
+            $perPage    = 15;
+            $users      = new \Illuminate\Pagination\LengthAwarePaginator(
+                $filtered->forPage($page, $perPage)->values(),
+                $filtered->count(),
+                $perPage,
+                $page,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        } else {
+            // No search — safe to sort at DB level for non-encrypted columns
+            $query = match($sort) {
+                'oldest' => $query->orderBy('user_id', 'asc'),
+                'name'   => $query->orderBy('user_id', 'asc'), // can't ORDER BY encrypted columns; fallback to ID
+                default  => $query->orderBy('user_id', 'desc'),
+            };
+
+            $users = $query->paginate(15)->appends($request->query());
+        }
 
         $totalUsers   = User::count();
         $totalAdmins  = User::where('role', 'admin')->count();
         $totalWorkers = User::where('role', 'worker')->count();
         $totalClients = User::where('role', 'client')->count();
 
-        // Chart Data (Weekly & Monthly Registration Trends)
-        $weeklyTrends = [
-            'Mon' => 1,
-            'Tue' => 2,
-            'Wed' => 0,
-            'Thu' => 1,
-            'Fri' => 1,
-            'Sat' => 0,
-            'Sun' => 0,
-        ];
+        // ── Real Registration Trends (Week, Month, Year) ───────────────────
+        $allUsersForTrends = User::with('staff')->get();
+        $firstLogs = \App\Models\UserLog::selectRaw('user_id, MIN(created_at) as first_log_date')
+            ->groupBy('user_id')
+            ->pluck('first_log_date', 'user_id');
 
-        $monthlyTrends = [
-            'Week 1' => 2,
-            'Week 2' => 1,
-            'Week 3' => 1,
-            'Week 4' => 1,
-            'Week 5' => 0,
-        ];
+        $userRegistrationDates = [];
+        foreach ($allUsersForTrends as $u) {
+            if (isset($firstLogs[$u->user_id]) && $firstLogs[$u->user_id]) {
+                $userRegistrationDates[] = Carbon::parse($firstLogs[$u->user_id]);
+            } elseif ($u->staff?->date_hired) {
+                $userRegistrationDates[] = Carbon::parse($u->staff->date_hired);
+            } else {
+                $userRegistrationDates[] = Carbon::parse('2026-07-27');
+            }
+        }
+
+        // 1. Weekly: breakdown by day (Mon–Sun) for the current week
+        $startOfWeek  = now()->startOfWeek(Carbon::MONDAY);
+        $endOfWeek    = now()->endOfWeek(Carbon::SUNDAY);
+        $dayLabels    = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        $weeklyTrends = array_fill_keys($dayLabels, 0);
+
+        foreach ($userRegistrationDates as $date) {
+            if ($date->between($startOfWeek, $endOfWeek)) {
+                $dayName = $date->format('D');
+                if (isset($weeklyTrends[$dayName])) {
+                    $weeklyTrends[$dayName]++;
+                }
+            }
+        }
+
+        // 2. Monthly: breakdown by week of month (Week 1–5) for current month
+        $monthlyTrends = ['Week 1' => 0, 'Week 2' => 0, 'Week 3' => 0, 'Week 4' => 0, 'Week 5' => 0];
+
+        foreach ($userRegistrationDates as $date) {
+            if ($date->isSameMonth(now()) && $date->isSameYear(now())) {
+                $dayOfMonth = $date->day;
+                $weekNum = min(5, (int) ceil($dayOfMonth / 7));
+                $monthlyTrends["Week {$weekNum}"]++;
+            }
+        }
+
+        // 3. Yearly: breakdown by month (Jan–Dec) for current year
+        $monthLabels  = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        $yearlyTrends = array_fill_keys($monthLabels, 0);
+
+        foreach ($userRegistrationDates as $date) {
+            if ($date->isSameYear(now())) {
+                $monthName = $date->format('M');
+                if (isset($yearlyTrends[$monthName])) {
+                    $yearlyTrends[$monthName]++;
+                }
+            }
+        }
 
         $trends = $monthlyTrends;
 
         return view('admin.users.index', compact(
-            'users', 'totalUsers', 'totalAdmins', 'totalWorkers', 'totalClients', 'trends', 'weeklyTrends', 'monthlyTrends'
+            'users', 'totalUsers', 'totalAdmins', 'totalWorkers', 'totalClients',
+            'trends', 'weeklyTrends', 'monthlyTrends', 'yearlyTrends'
         ));
     }
 

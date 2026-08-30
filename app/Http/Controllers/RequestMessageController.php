@@ -17,7 +17,7 @@ class RequestMessageController extends Controller
     {
         $validated = $request->validate([
             'message'    => 'required|string|max:2000',
-            'attachment' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf|max:10240',
+            'attachment' => ['nullable', 'file', new \App\Rules\SecureFileUpload(['jpeg', 'png', 'jpg', 'webp', 'pdf'], 10240)],
         ]);
 
         $serviceRequest = ServiceRequest::with([
