@@ -31,8 +31,10 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
     Route::post('/requests/{id}/reject', [RequestController::class, 'reject'])->name('requests.reject')->middleware('throttle:10,1');
     Route::post('/requests/{id}/verify', [RequestController::class, 'verifyCompletion'])->name('requests.verify')->middleware('throttle:10,1');
 
-    // Workforce
+    // Workforce / Units
     Route::get('/workforce',        [WorkforceController::class, 'index'])->name('workforce.index');
+    Route::post('/workforce/teams', [WorkforceController::class, 'storeUnit'])->name('workforce.store-unit')->middleware('throttle:10,1');
+    Route::delete('/workforce/teams/{teamId}', [WorkforceController::class, 'destroyUnit'])->name('workforce.destroy-unit')->middleware('throttle:10,1');
     Route::post('/workforce/assign',[WorkforceController::class, 'assign'])->name('workforce.assign');
     Route::post('/workforce/{worker_id}/make-leader', [WorkforceController::class, 'makeTeamLeader'])->name('workforce.make-leader');
     Route::post('/workforce/{worker_id}/assign-team', [WorkforceController::class, 'assignTeam'])->name('workforce.assign-team');
