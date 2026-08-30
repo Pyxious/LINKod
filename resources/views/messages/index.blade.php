@@ -358,11 +358,26 @@
                                     <p class="whitespace-pre-line">{{ $msg->message }}</p>
 
                                     @if($msg->attachment)
+                                        @php
+                                            $isImg = Str::endsWith(strtolower($msg->attachment), ['.jpg', '.jpeg', '.png', '.webp']);
+                                            $attachUrl = Storage::url($msg->attachment);
+                                        @endphp
                                         <div class="mt-2 pt-2 border-t border-gray-300 dark:border-zinc-600">
-                                            <a href="{{ Storage::url($msg->attachment) }}" target="_blank" class="inline-flex items-center gap-1.5 font-bold text-[11px] text-[#0033a0] dark:text-blue-400 hover:underline">
-                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                                View Attachment
-                                            </a>
+                                            @if($isImg)
+                                                <div class="rounded-xl overflow-hidden cursor-pointer group/img relative border border-gray-300 dark:border-zinc-600"
+                                                     onclick="window.openMessageLightbox('{{ $attachUrl }}', 'Image Attachment', false)">
+                                                    <img src="{{ $attachUrl }}" alt="Attachment" class="max-h-48 w-auto max-w-full rounded-xl object-contain bg-black/5 dark:bg-black/20 hover:opacity-90 transition">
+                                                    <div class="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition flex items-center justify-center text-white text-[11px] font-bold gap-1">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                        <span>Click to view</span>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <div onclick="window.openMessageLightbox('{{ $attachUrl }}', 'Document Attachment', true)" class="inline-flex items-center gap-1.5 font-bold text-[11px] text-[#0033a0] dark:text-blue-400 hover:underline cursor-pointer">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                                    <span>View Document</span>
+                                                </div>
+                                            @endif
                                         </div>
                                     @endif
                                 </div>
@@ -453,41 +468,139 @@
             @endif
 
         </div>
-
     </div>
-
 </div>
+
+<!-- Message Lightbox Modal -->
+<div id="messageLightboxModal" class="fixed inset-0 z-[9999] hidden items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-sm" onclick="window.closeMessageLightbox()">
+    <div class="relative max-w-4xl w-full max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 flex flex-col items-center" onclick="event.stopPropagation()">
+        <div class="w-full flex items-center justify-between py-3 px-5 bg-zinc-800 text-white border-b border-zinc-700 shrink-0">
+            <span id="messageLightboxTitle" class="text-xs font-bold uppercase tracking-wider text-gray-200 truncate max-w-md">Attachment Preview</span>
+            <div class="flex items-center gap-3 shrink-0">
+                <a id="messageLightboxDownload" href="#" download class="text-xs text-blue-400 hover:text-blue-300 font-semibold inline-flex items-center gap-1.5 px-2.5 py-1 bg-zinc-700/60 hover:bg-zinc-700 rounded-lg transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>Download</span>
+                </a>
+                <button type="button" onclick="window.closeMessageLightbox()" class="p-1.5 text-gray-400 hover:text-white hover:bg-zinc-700 rounded-lg transition" title="Close (Esc)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="w-full p-4 flex items-center justify-center overflow-auto max-h-[80vh] bg-black/60">
+            <img id="messageLightboxImg" src="" alt="Attachment" class="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-lg hidden">
+            <iframe id="messageLightboxIframe" src="" class="w-full h-[75vh] rounded-lg border-0 bg-white hidden"></iframe>
+        </div>
+    </div>
+</div>
+@endsection
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const feed = document.getElementById('chatFeedContainer');
-    const inner = document.getElementById('chatMessagesInner') || feed;
-    const form = document.getElementById('chatMessageForm');
+window.renderAttachmentHtml = function(attachUrl, isSelf) {
+    if (!attachUrl) return '';
+    const url = (attachUrl.startsWith('http') || attachUrl.startsWith('/') || attachUrl.startsWith('data:')) ? attachUrl : '/storage/' + attachUrl;
+    const isImg = /\.(jpe?g|png|webp|gif|bmp|svg)($|\?)/i.test(url) || url.startsWith('data:image') || url.startsWith('blob:');
 
-    if (!feed || !inner) return;
+    if (isImg) {
+        return `
+            <div class="mt-2 pt-2 border-t border-gray-300 dark:border-zinc-600">
+                <div class="rounded-xl overflow-hidden cursor-pointer group/img relative border border-gray-300 dark:border-zinc-600 max-w-xs"
+                     onclick="window.openMessageLightbox('${url}', 'Image Attachment', false)">
+                    <img src="${url}" alt="Attachment" class="w-full max-h-48 object-cover rounded-xl bg-black/5 dark:bg-black/20 hover:opacity-90 transition block">
+                    <div class="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition flex items-center justify-center text-white text-[11px] font-bold gap-1.5 backdrop-blur-[1px]">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        <span>Click to expand</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        return `
+            <div class="mt-2 pt-2 border-t border-gray-300 dark:border-zinc-600">
+                <div onclick="window.openMessageLightbox('${url}', 'Document Attachment', true)" class="inline-flex items-center gap-1.5 font-bold text-[11px] text-[#0033a0] dark:text-blue-400 hover:underline cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                    <span>View Attachment (PDF)</span>
+                </div>
+            </div>
+        `;
+    }
+};
+
+window.openMessageLightbox = function(url, title = 'Attachment', isPdf = false) {
+    if (!url) return;
+    const modal = document.getElementById('messageLightboxModal');
+    const titleEl = document.getElementById('messageLightboxTitle');
+    const downloadEl = document.getElementById('messageLightboxDownload');
+    const imgEl = document.getElementById('messageLightboxImg');
+    const iframeEl = document.getElementById('messageLightboxIframe');
+    if (!modal) return;
+
+    if (titleEl) titleEl.textContent = title;
+    if (downloadEl) downloadEl.href = url;
+
+    const isImage = !isPdf && (/\.(jpe?g|png|webp|gif|bmp|svg)($|\?)/i.test(url) || url.startsWith('data:image') || url.startsWith('blob:'));
+
+    if (isImage) {
+        if (imgEl) {
+            imgEl.src = url;
+            imgEl.classList.remove('hidden');
+        }
+        if (iframeEl) {
+            iframeEl.src = '';
+            iframeEl.classList.add('hidden');
+        }
+    } else {
+        if (iframeEl) {
+            iframeEl.src = url;
+            iframeEl.classList.remove('hidden');
+        }
+        if (imgEl) {
+            imgEl.src = '';
+            imgEl.classList.add('hidden');
+        }
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+};
+
+window.closeMessageLightbox = function() {
+    const modal = document.getElementById('messageLightboxModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        const imgEl = document.getElementById('messageLightboxImg');
+        const iframeEl = document.getElementById('messageLightboxIframe');
+        if (imgEl) imgEl.src = '';
+        if (iframeEl) iframeEl.src = '';
+        document.body.style.overflow = '';
+    }
+};
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') window.closeMessageLightbox();
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const feed = document.getElementById('chatMessagesFeed');
+    const inner = document.getElementById('chatMessagesInner') || feed;
+    const activeRequestId = feed ? feed.getAttribute('data-request-id') : null;
+    const currentUserId = parseInt(feed ? (feed.getAttribute('data-current-user-id') || 0) : 0);
+    const currentUserRole = feed ? (feed.getAttribute('data-current-user-role') || 'client') : 'client';
+    const clientUserId = parseInt(feed ? (feed.getAttribute('data-client-user-id') || 0) : 0);
+    const clientName = feed ? (feed.getAttribute('data-client-name') || 'Client') : 'Client';
+    const markReadUrl = feed ? feed.getAttribute('data-mark-read-url') : null;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
     function scrollToBottom() {
         if (!feed) return;
         feed.scrollTop = feed.scrollHeight;
-        requestAnimationFrame(function() {
-            feed.scrollTop = feed.scrollHeight;
-        });
-        setTimeout(function() {
-            if (feed) feed.scrollTop = feed.scrollHeight;
-        }, 80);
+        requestAnimationFrame(() => { if (feed) feed.scrollTop = feed.scrollHeight; });
+        setTimeout(() => { if (feed) feed.scrollTop = feed.scrollHeight; }, 100);
     }
 
     scrollToBottom();
-
-    const activeRequestId = feed.getAttribute('data-request-id') || "{{ $selectedRequest ? $selectedRequest->request_id : '' }}";
-    const currentUserId = parseInt(feed.getAttribute('data-current-user-id') || "{{ auth()->id() }}");
-    const currentUserRole = feed.getAttribute('data-current-user-role') || "{{ auth()->user()->role }}";
-    const currentUserName = feed.getAttribute('data-current-user-name') || "You";
-    const clientUserId = parseInt(feed.getAttribute('data-client-user-id') || 0);
-    const clientName = feed.getAttribute('data-client-name') || 'Client Requestor';
-    const markReadUrl = feed.getAttribute('data-mark-read-url');
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
     function getStatusBadgeHtml(status) {
         if (status === 'sending') {
@@ -531,6 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function markSentMessagesAsSeen() {
+        if (!inner) return;
         const selfMessages = inner.querySelectorAll('[data-is-self="true"]');
         selfMessages.forEach(el => {
             const statusContainer = el.querySelector('[data-message-status]');
@@ -552,10 +666,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }).catch(() => {});
     }
 
-    // Supabase Realtime Listener for Instant Messages & Seen updates
-    function initRealtimeMessages() {
+    function initRealtimeChat() {
         if (!activeRequestId || !window.supabaseClient) {
-            setTimeout(initRealtimeMessages, 200);
+            setTimeout(initRealtimeChat, 200);
             return;
         }
 
@@ -571,50 +684,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 (payload) => {
                     const newMsg = payload.new;
-                    if (!newMsg) return;
+                    if (!newMsg || parseInt(newMsg.sender_id) === currentUserId) return;
+                    if (inner.querySelector(`[data-message-id="${newMsg.message_id}"]`)) return;
 
-                    if (parseInt(newMsg.sender_id) !== currentUserId) {
-                        if (inner.querySelector(`[data-message-id="${newMsg.message_id}"]`)) return;
+                    const emptyNotice = document.getElementById('chatEmptyNotice') || inner.querySelector('.text-center.py-12');
+                    if (emptyNotice) emptyNotice.remove();
 
-                        const emptyNotice = document.getElementById('chatEmptyNotice') || inner.querySelector('.text-center.py-12');
-                        if (emptyNotice) emptyNotice.remove();
+                    const isFromClient = (parseInt(newMsg.sender_id) === clientUserId);
+                    const senderName = isFromClient ? clientName : (currentUserRole === 'client' ? 'GSO Staff / Admin' : 'Staff / Worker');
+                    const senderRole = isFromClient ? 'CLIENT' : (currentUserRole === 'client' ? 'ADMIN' : 'STAFF');
+                    const roleClass = isFromClient ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-700';
 
-                        const isFromClient = (parseInt(newMsg.sender_id) === clientUserId);
-                        const senderName = isFromClient ? clientName : (currentUserRole === 'client' ? 'GSO Staff / Admin' : 'Staff / Worker');
-                        const senderRole = isFromClient ? 'CLIENT' : (currentUserRole === 'client' ? 'ADMIN' : 'STAFF');
-                        const roleClass = isFromClient ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-700';
+                    const escMsg = (newMsg.message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const attachHtml = window.renderAttachmentHtml(newMsg.attachment, false);
 
-                        const escMsg = (newMsg.message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                        const attachHtml = newMsg.attachment ? `
-                            <div class="mt-2 pt-2 border-t border-gray-300 dark:border-zinc-600">
-                                <a href="${newMsg.attachment.startsWith('/') ? newMsg.attachment : '/storage/' + newMsg.attachment}" target="_blank" class="inline-flex items-center gap-1.5 font-bold text-[11px] text-[#0033a0] dark:text-blue-400 hover:underline">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                    View Attachment
-                                </a>
-                            </div>
-                        ` : '';
-
-                        const wrapper = document.createElement('div');
-                        wrapper.className = 'flex flex-col items-start transition-all duration-300 animate-fadeIn';
-                        wrapper.setAttribute('data-message-id', newMsg.message_id);
-                        wrapper.setAttribute('data-is-self', 'false');
-                        wrapper.innerHTML = `
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-[10px] font-extrabold text-gray-600 dark:text-gray-300">${senderName}</span>
-                                <span class="px-1.5 py-0.5 text-[9px] font-bold rounded ${roleClass}">${senderRole}</span>
-                                <span class="text-[10px] text-gray-400">Just now</span>
-                            </div>
-                            <div class="max-w-md p-4 rounded-2xl text-xs font-medium leading-relaxed shadow-xs bg-[#e5e5e5] dark:bg-zinc-800 text-slate-900 dark:text-gray-100">
-                                <p class="whitespace-pre-line">${escMsg}</p>
-                                ${attachHtml}
-                            </div>
-                        `;
-                        inner.appendChild(wrapper);
-                        scrollToBottom();
-
-                        // Mark read automatically
-                        triggerMarkAsRead();
-                    }
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'flex flex-col items-start transition-all duration-300 animate-fadeIn';
+                    wrapper.setAttribute('data-message-id', newMsg.message_id);
+                    wrapper.setAttribute('data-is-self', 'false');
+                    wrapper.innerHTML = `
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-[10px] font-extrabold text-gray-600 dark:text-gray-300">${senderName}</span>
+                            <span class="px-1.5 py-0.5 text-[9px] font-bold rounded ${roleClass}">${senderRole}</span>
+                            <span class="text-[10px] text-gray-400">Just now</span>
+                        </div>
+                        <div class="max-w-md p-4 rounded-2xl text-xs font-medium leading-relaxed shadow-xs bg-[#e5e5e5] dark:bg-zinc-800 text-slate-900 dark:text-gray-100">
+                            <p class="whitespace-pre-line">${escMsg}</p>
+                            ${attachHtml}
+                        </div>
+                    `;
+                    inner.appendChild(wrapper);
+                    scrollToBottom();
+                    triggerMarkAsRead();
                 }
             )
             .on(
@@ -634,43 +735,41 @@ document.addEventListener('DOMContentLoaded', function() {
             )
             .subscribe();
     }
-    initRealtimeMessages();
+    initRealtimeChat();
 
+    // Handle AJAX form submission for smooth local feel
+    const form = document.getElementById('chatMessageForm');
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             const input = form.querySelector('input[name="message"]');
-            if (!input || !input.value.trim()) return;
-
-            const textValue = input.value.trim();
             const fileInput = form.querySelector('input[type="file"]');
-            const fileAttached = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0].name : null;
-
             const submitBtn = document.getElementById('chatSubmitBtn');
             const submitIcon = document.getElementById('chatSubmitIcon');
             const submitSpinner = document.getElementById('chatSubmitSpinner');
 
-            // Optimistic Message Rendering
-            const tempId = 'temp-chat-' + Date.now();
+            const textValue = input ? input.value.trim() : '';
+            const hasFile = fileInput && fileInput.files && fileInput.files[0];
+            const fileAttached = hasFile ? fileInput.files[0].name : null;
+            const filePreview = (hasFile && fileInput.files[0].type.startsWith('image/')) ? URL.createObjectURL(fileInput.files[0]) : '';
+
+            if (!textValue && !fileAttached) return;
+
+            const tempId = 'temp-' + Date.now();
             const emptyNotice = document.getElementById('chatEmptyNotice') || inner.querySelector('.text-center.py-12');
             if (emptyNotice) emptyNotice.remove();
 
             const myRole = currentUserRole.toUpperCase();
             let roleClass = 'bg-blue-100 text-blue-800';
             if (myRole === 'ADMIN') roleClass = 'bg-purple-100 text-purple-700';
-            if (myRole === 'WORKER') roleClass = 'bg-amber-100 text-amber-800';
+            if (myRole === 'WORKER') roleClass = 'bg-amber-100 text-amber-700';
 
             const escMsg = textValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            const optAttachHtml = fileAttached ? `
-                <div class="mt-2 pt-2 border-t border-gray-400/40 text-[11px] font-semibold text-slate-800 dark:text-gray-200 flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                    <span>${fileAttached}</span>
-                </div>
-            ` : '';
+            const optAttachHtml = hasFile ? window.renderAttachmentHtml(filePreview || fileAttached, true) : '';
 
             const optWrapper = document.createElement('div');
             optWrapper.id = tempId;
-            optWrapper.className = 'flex flex-col items-end transition-all duration-300';
+            optWrapper.className = 'flex flex-col items-end transition-all duration-300 animate-fadeIn';
             optWrapper.setAttribute('data-is-self', 'true');
             optWrapper.innerHTML = `
                 <div class="flex items-center gap-2 mb-1">
@@ -689,7 +788,7 @@ document.addEventListener('DOMContentLoaded', function() {
             scrollToBottom();
 
             const formData = new FormData(form);
-            input.value = '';
+            if (input) input.value = '';
             if (fileInput) fileInput.value = '';
             const attachBadge = form.querySelector('.attach-badge');
             if (attachBadge) attachBadge.classList.add('hidden');
@@ -706,10 +805,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Accept': 'application/json'
                 }
             })
-            .then(res => {
-                if (!res.ok) throw new Error('HTTP error ' + res.status);
-                return res.json();
-            })
+            .then(res => res.json())
             .then(data => {
                 if (data.success && data.message) {
                     const msg = data.message;
@@ -719,14 +815,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         const bubble = optWrapper.querySelector('.max-w-md');
                         if (bubble) {
                             const existingAttach = bubble.querySelector('.border-t');
-                            const attachLinkHtml = `
-                                <div class="mt-2 pt-2 border-t border-gray-300 dark:border-zinc-600">
-                                    <a href="${msg.attachment}" target="_blank" class="inline-flex items-center gap-1.5 font-bold text-[11px] text-[#0033a0] dark:text-blue-400 hover:underline">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                        View Attachment
-                                    </a>
-                                </div>
-                            `;
+                            const attachLinkHtml = window.renderAttachmentHtml(msg.attachment, true);
                             if (existingAttach) {
                                 existingAttach.outerHTML = attachLinkHtml;
                             } else {
@@ -744,8 +833,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (statusEl) statusEl.outerHTML = getStatusBadgeHtml('failed');
                 }
             })
-            .catch(err => {
-                console.error('AJAX message submission error:', err);
+            .catch(() => {
                 const statusEl = optWrapper.querySelector('[data-message-status]');
                 if (statusEl) statusEl.outerHTML = getStatusBadgeHtml('failed');
             })
@@ -759,5 +847,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
-
-@endsection
