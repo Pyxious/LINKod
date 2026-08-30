@@ -18,7 +18,7 @@ class TaskProgressController extends Controller
                 'completion_type'  => 'nullable|string|max:150',
                 'nature_of_work'   => 'nullable|string|max:150',
                 'recommendation'   => 'nullable|string|max:1000',
-                'proof'            => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
+                'proof'            => ['nullable', 'file', new \App\Rules\SecureFileUpload(['jpg', 'jpeg', 'png', 'webp', 'pdf'], 10240)],
             ]);
 
             $worker  = auth()->user()->staff?->worker;
