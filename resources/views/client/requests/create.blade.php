@@ -53,6 +53,7 @@
 
         <form x-data="{
             submitting: false,
+            viewPreviewModal: false,
             selectedCategoryId: '{{ $preselectedCatId ?? "" }}',
             selectedCategoryName: '',
             selectedCampus: '',
@@ -841,10 +842,10 @@
                             <div class="flex items-center gap-3 min-w-0">
                                 <!-- Image Preview Thumbnail or PDF Icon -->
                                 <template x-if="isImage && filePreviewUrl">
-                                    <img :src="filePreviewUrl" alt="Preview" class="w-12 h-12 object-cover rounded-lg border border-blue-200 dark:border-blue-800 shadow-xs shrink-0">
+                                    <img :src="filePreviewUrl" alt="Preview" @click="viewPreviewModal = true" class="w-12 h-12 object-cover rounded-lg border border-blue-200 dark:border-blue-800 shadow-xs shrink-0 cursor-pointer hover:opacity-80 transition" title="Click to view full photo">
                                 </template>
                                 <template x-if="!isImage">
-                                    <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/60 text-[#0033a0] dark:text-blue-300 rounded-lg flex items-center justify-center font-black text-xs uppercase shrink-0">
+                                    <div @click="viewPreviewModal = true" class="w-12 h-12 bg-blue-100 dark:bg-blue-900/60 text-[#0033a0] dark:text-blue-300 rounded-lg flex items-center justify-center font-black text-xs uppercase shrink-0 cursor-pointer hover:opacity-80 transition" title="Click to preview document">
                                         DOC
                                     </div>
                                 </template>
@@ -855,11 +856,54 @@
                                 </div>
                             </div>
 
-                            <button type="button" 
-                                    @click="removeFile()" 
-                                    class="px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-lg transition border border-red-200 dark:border-red-800/80 shrink-0">
-                                ✕ Remove
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <template x-if="filePreviewUrl">
+                                    <button type="button" 
+                                            @click="viewPreviewModal = true" 
+                                            class="px-3 py-1.5 text-xs font-bold text-[#0033a0] dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 dark:hover:bg-blue-800/60 rounded-lg transition border border-blue-200 dark:border-blue-800 shrink-0 inline-flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        Preview
+                                    </button>
+                                </template>
+                                <button type="button" 
+                                        @click="removeFile()" 
+                                        class="px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-lg transition border border-red-200 dark:border-red-800/80 shrink-0">
+                                    ✕ Remove
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Uploaded File Preview Modal (Popup without leaving page) -->
+                        <div x-show="viewPreviewModal" 
+                             x-cloak 
+                             class="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4" 
+                             @keydown.escape.window="viewPreviewModal = false">
+                            <div class="bg-white dark:bg-zinc-900 rounded-2xl max-w-3xl w-full max-h-[90vh] shadow-2xl relative flex flex-col border border-gray-200 dark:border-zinc-800 overflow-hidden" 
+                                 @click.away="viewPreviewModal = false">
+                                <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-zinc-800 bg-gray-50/80 dark:bg-zinc-800/80">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <svg class="w-4 h-4 text-[#0033a0] dark:text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate" x-text="fileName || 'Attachment Preview'"></span>
+                                    </div>
+                                    <button type="button" @click="viewPreviewModal = false" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+                                <div class="p-4 flex items-center justify-center overflow-auto max-h-[75vh] bg-zinc-950/40">
+                                    <template x-if="isImage && filePreviewUrl">
+                                        <img :src="filePreviewUrl" alt="Full Preview" class="max-h-[70vh] w-auto max-w-full object-contain rounded-lg shadow-md">
+                                    </template>
+                                    <template x-if="!isImage && filePreviewUrl">
+                                        <iframe :src="filePreviewUrl" class="w-full h-[70vh] rounded-lg border-0 bg-white"></iframe>
+                                    </template>
+                                    <template x-if="!filePreviewUrl">
+                                        <div class="text-center py-12 text-gray-400 text-xs">
+                                            <p>Document selected: <span class="font-bold text-white" x-text="fileName"></span></p>
+                                            <p class="text-[11px] text-gray-500 mt-1">Ready for submission.</p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- WebCam Camera Snapshot Modal -->

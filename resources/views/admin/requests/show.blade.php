@@ -304,51 +304,60 @@
                     <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ $serviceRequest->location }}</div>
                 </div>
             </div>
-        @endif
-
-        <!-- Supporting Attachment (if any) -->
+                <!-- Supporting Attachment (if any) -->
         @if($serviceRequest->attachment)
+            @php
+                $isImg = Str::endsWith(strtolower($serviceRequest->attachment), ['.jpg', '.jpeg', '.png', '.webp']);
+                $attachUrl = Storage::url($serviceRequest->attachment);
+            @endphp
             <div class="mt-6 border-t border-gray-100 dark:border-zinc-800 pt-5" x-data="{ attModal: false }">
                 <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Attachment / Photo Evidence</div>
-                @if(Str::endsWith(strtolower($serviceRequest->attachment), ['.jpg', '.jpeg', '.png', '.webp']))
-                    <div @click="attModal = true" 
-                         class="inline-flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl hover:border-[#0033a0] transition group cursor-pointer">
-                        <img src="{{ Storage::url($serviceRequest->attachment) }}" alt="Attachment" class="w-14 h-14 object-cover rounded-lg border border-gray-200">
-                        <div>
-                            <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-[#0033a0] transition">Click to View Photo</div>
-                            <div class="text-[11px] text-gray-400">Click to preview in popup modal</div>
+                <div @click="attModal = true" 
+                     class="inline-flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl hover:border-[#0033a0] transition group cursor-pointer">
+                    @if($isImg)
+                        <img src="{{ $attachUrl }}" alt="Attachment" class="w-14 h-14 object-cover rounded-lg border border-gray-200 dark:border-zinc-700">
+                    @else
+                        <div class="w-14 h-14 bg-blue-100 dark:bg-blue-950 text-[#0033a0] dark:text-blue-300 rounded-lg flex items-center justify-center font-black text-xs">PDF</div>
+                    @endif
+                    <div>
+                        <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-[#0033a0] dark:group-hover:text-blue-400 transition flex items-center gap-1.5">
+                            <span>View Attachment</span>
+                            <svg class="w-3.5 h-3.5 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                         </div>
+                        <div class="text-[11px] text-gray-400">Click to preview in popup modal</div>
                     </div>
+                </div>
 
-                    <!-- Lightbox Modal for Supporting Attachment -->
-                    <div x-show="attModal" 
-                         x-cloak 
-                         class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs"
-                         @click.outside="attModal = false" 
-                         @keydown.escape.window="attModal = false">
-                        <div class="relative max-w-4xl w-full max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 flex flex-col items-center">
-                            <div class="w-full flex items-center justify-between py-3 px-5 bg-zinc-800 text-white border-b border-zinc-700">
-                                <span class="text-xs font-bold uppercase tracking-wider text-gray-200">Client Supporting Photo Evidence</span>
+                <!-- Lightbox Modal for Supporting Attachment -->
+                <div x-show="attModal" 
+                     x-cloak 
+                     class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs"
+                     @click.outside="attModal = false" 
+                     @keydown.escape.window="attModal = false">
+                    <div class="relative max-w-4xl w-full max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 flex flex-col items-center">
+                        <div class="w-full flex items-center justify-between py-3 px-5 bg-zinc-800 text-white border-b border-zinc-700">
+                            <span class="text-xs font-bold uppercase tracking-wider text-gray-200">Supporting Attachment</span>
+                            <div class="flex items-center gap-3">
+                                <a href="{{ $attachUrl }}" download class="text-xs text-blue-400 hover:text-blue-300 font-semibold inline-flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    Download
+                                </a>
                                 <button type="button" @click="attModal = false" class="p-1.5 text-gray-400 hover:text-white hover:bg-zinc-700 rounded-lg transition">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             </div>
-                            <div class="w-full p-4 flex items-center justify-center overflow-auto max-h-[80vh] bg-black/50">
-                                <img src="{{ Storage::url($serviceRequest->attachment) }}" alt="Attachment" class="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-lg">
-                            </div>
+                        </div>
+                        <div class="w-full p-4 flex items-center justify-center overflow-auto max-h-[80vh] bg-black/50">
+                            @if($isImg)
+                                <img src="{{ $attachUrl }}" alt="Attachment" class="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-lg">
+                            @else
+                                <iframe src="{{ $attachUrl }}" class="w-full h-[75vh] rounded-lg border-0 bg-white"></iframe>
+                            @endif
                         </div>
                     </div>
-                @else
-                    <a href="{{ Storage::url($serviceRequest->attachment) }}" target="_blank" class="inline-flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl hover:border-[#0033a0] transition group">
-                        <div class="w-12 h-12 bg-blue-100 text-[#0033a0] rounded-lg flex items-center justify-center font-bold text-xs">PDF</div>
-                        <div>
-                            <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-[#0033a0] transition">Download Document ↗</div>
-                            <div class="text-[11px] text-gray-400">Click to open original file</div>
-                        </div>
-                    </a>
-                @endif
+                </div>
             </div>
-        @endif
+        @endif    @endif
     </div>
 
     <!-- Bill of Materials (BOM) Section Card (Direct Pricing & Approval in Request Page) -->

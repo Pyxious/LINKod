@@ -82,17 +82,57 @@
 
             
             @if($req->attachment)
-                <div class="mt-6 border-t border-gray-100 dark:border-zinc-800 pt-6">
+                @php
+                    $isImg = Str::endsWith(strtolower($req->attachment), ['.jpg', '.jpeg', '.png', '.webp']);
+                    $attachUrl = Storage::url($req->attachment);
+                @endphp
+                <div class="mt-6 border-t border-gray-100 dark:border-zinc-800 pt-6" x-data="{ attModal: false }">
                     <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 mb-3">Supporting Documents</h3>
-                    <a href="{{ Storage::url($req->attachment) }}" target="_blank" class="inline-flex items-center gap-3 p-3 border border-gray-200 dark:border-zinc-700 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition w-full max-w-sm">
-                        <div class="bg-blue-50 dark:bg-blue-950 text-[#0038A8] dark:text-blue-400 w-10 h-10 rounded-lg flex items-center justify-center shrink-0">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                        </div>
+                    <div @click="attModal = true" class="inline-flex items-center gap-3 p-3 border border-gray-200 dark:border-zinc-700 rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-800 transition w-full max-w-sm cursor-pointer group">
+                        @if($isImg)
+                            <img src="{{ $attachUrl }}" alt="Attachment" class="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-zinc-700 shrink-0">
+                        @else
+                            <div class="bg-blue-50 dark:bg-blue-950 text-[#0038A8] dark:text-blue-400 w-12 h-12 rounded-lg flex items-center justify-center font-black text-xs shrink-0">
+                                PDF
+                            </div>
+                        @endif
                         <div class="min-w-0">
-                            <div class="text-sm font-semibold text-gray-700 dark:text-gray-200 truncate">Attachment</div>
-                            <div class="text-xs text-gray-500">Click to view file</div>
+                            <div class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#0038A8] dark:group-hover:text-blue-400 transition flex items-center gap-1.5">
+                                <span>View Attachment</span>
+                                <svg class="w-3.5 h-3.5 text-[#0038A8] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            </div>
+                            <div class="text-xs text-gray-500">Click to preview in popup modal</div>
                         </div>
-                    </a>
+                    </div>
+
+                    <!-- Lightbox Modal for Supporting Attachment -->
+                    <div x-show="attModal" 
+                         x-cloak 
+                         class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs"
+                         @click.outside="attModal = false" 
+                         @keydown.escape.window="attModal = false">
+                        <div class="relative max-w-4xl w-full max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 flex flex-col items-center">
+                            <div class="w-full flex items-center justify-between py-3 px-5 bg-zinc-800 text-white border-b border-zinc-700">
+                                <span class="text-xs font-bold uppercase tracking-wider text-gray-200">Supporting Attachment</span>
+                                <div class="flex items-center gap-3">
+                                    <a href="{{ $attachUrl }}" download class="text-xs text-blue-400 hover:text-blue-300 font-semibold inline-flex items-center gap-1">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                        Download
+                                    </a>
+                                    <button type="button" @click="attModal = false" class="p-1.5 text-gray-400 hover:text-white hover:bg-zinc-700 rounded-lg transition">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="w-full p-4 flex items-center justify-center overflow-auto max-h-[80vh] bg-black/50">
+                                @if($isImg)
+                                    <img src="{{ $attachUrl }}" alt="Attachment" class="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-lg">
+                                @else
+                                    <iframe src="{{ $attachUrl }}" class="w-full h-[75vh] rounded-lg border-0 bg-white"></iframe>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
                 </div>
             @endif
         </div>

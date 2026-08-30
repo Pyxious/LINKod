@@ -13,8 +13,8 @@ class RequestTable extends Component
     public $search = '';
     public $priority = '';
     public $status = '';
-    public $sortField = 'submitted_at';
-    public $sortDirection = 'desc';
+    public $sortField = '';
+    public $sortDirection = 'asc';
 
     protected $queryString = ['search', 'priority', 'status', 'sortField', 'sortDirection'];
 
@@ -30,7 +30,7 @@ class RequestTable extends Component
             $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
         } else {
             $this->sortField = $field;
-            $this->sortDirection = in_array($field, ['request_id', 'submitted_at']) ? 'desc' : 'asc';
+            $this->sortDirection = 'asc';
         }
         $this->resetPage();
     }
@@ -99,14 +99,19 @@ class RequestTable extends Component
         }
 
         if ($this->sortField === 'priority') {
-            $dir = strtoupper($this->sortDirection) === 'ASC' ? 'ASC' : 'DESC';
+            $dir = strtoupper($this->sortDirection) === 'DESC' ? 'DESC' : 'ASC';
             $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END {$dir}")
                   ->orderBy('submitted_at', 'asc')
                   ->orderBy('request_id', 'asc');
-        } elseif (in_array($this->sortField, ['request_id', 'submitted_at', 'title', 'campus', 'location'])) {
+        } elseif ($this->sortField === 'submitted_at') {
+            $dateDir = strtoupper($this->sortDirection) === 'DESC' ? 'DESC' : 'ASC';
+            $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END ASC")
+                  ->orderBy('submitted_at', $dateDir)
+                  ->orderBy('request_id', $dateDir);
+        } elseif (in_array($this->sortField, ['request_id', 'title', 'campus', 'location'])) {
             $query->orderBy($this->sortField, $this->sortDirection);
         } else {
-            // Default: High Priority at top (FCFS), Medium & Low below (FCFS regardless of med/low)
+            // Default queue: High Priority at top (FCFS), Medium & Low below (FCFS regardless of med/low)
             $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END ASC")
                   ->orderBy('submitted_at', 'asc')
                   ->orderBy('request_id', 'asc');

@@ -32,6 +32,11 @@
     <form action="{{ route('admin.requests.store') }}" method="POST" enctype="multipart/form-data" 
         x-data="{
             submitting: false,
+            viewPreviewModal: false,
+            fileName: '',
+            fileSizeFormatted: '',
+            filePreviewUrl: '',
+            isImage: false,
             selectedCategoryId: '{{ $preselectedCatId ?? "" }}',
             selectedCategoryName: '',
             selectedCampus: '',
@@ -285,6 +290,12 @@
                 if (file) {
                     this.fileName = file.name;
                     this.fileSizeFormatted = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+                    this.isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(file.name);
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.filePreviewUrl = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
                 }
             }
         }"
@@ -643,13 +654,56 @@
                             <span class="text-xs text-gray-400 mt-1">PDF, PNG, JPG up to 5MB</span>
                         </label>
                         <template x-if="fileName">
-                            <div class="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md text-xs text-[#1a3c8f] dark:text-blue-300 font-medium inline-flex items-center gap-2">
-                                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                <span x-text="fileName"></span> (<span x-text="fileSizeFormatted"></span>)
+                            <div class="mt-3 p-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-[#1a3c8f] dark:text-blue-300 font-medium flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <template x-if="isImage && filePreviewUrl">
+                                        <img :src="filePreviewUrl" alt="Preview" @click="viewPreviewModal = true" class="w-10 h-10 object-cover rounded-md border border-blue-300 dark:border-blue-700 shrink-0 cursor-pointer hover:opacity-80 transition" title="Click to view full photo">
+                                    </template>
+                                    <template x-if="!isImage">
+                                        <svg class="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    </template>
+                                    <div class="text-left truncate">
+                                        <span class="font-bold block truncate" x-text="fileName"></span>
+                                        <span class="text-[10px] text-gray-500 dark:text-gray-400" x-text="fileSizeFormatted"></span>
+                                    </div>
+                                </div>
+                                <template x-if="filePreviewUrl">
+                                    <button type="button" @click="viewPreviewModal = true" class="px-3 py-1 bg-white dark:bg-zinc-800 border border-blue-300 dark:border-blue-700 text-[#1a3c8f] dark:text-blue-300 rounded-md text-xs font-bold hover:bg-blue-50 dark:hover:bg-zinc-700 transition shrink-0 flex items-center gap-1">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        Preview
+                                    </button>
+                                </template>
                             </div>
                         </template>
                     </div>
                     @error('attachment') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+
+                    <!-- Uploaded File Preview Modal (Popup) -->
+                    <div x-show="viewPreviewModal" 
+                         x-cloak 
+                         class="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4" 
+                         @keydown.escape.window="viewPreviewModal = false">
+                        <div class="bg-white dark:bg-zinc-900 rounded-2xl max-w-3xl w-full max-h-[90vh] shadow-2xl relative flex flex-col border border-gray-200 dark:border-zinc-800 overflow-hidden" 
+                             @click.away="viewPreviewModal = false">
+                            <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-zinc-800 bg-gray-50/80 dark:bg-zinc-800/80">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <svg class="w-4 h-4 text-[#1a3c8f] dark:text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    <span class="text-xs font-bold text-gray-900 dark:text-white truncate" x-text="fileName || 'Attachment Preview'"></span>
+                                </div>
+                                <button type="button" @click="viewPreviewModal = false" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                            <div class="p-4 flex items-center justify-center overflow-auto max-h-[75vh] bg-zinc-950/40">
+                                <template x-if="isImage && filePreviewUrl">
+                                    <img :src="filePreviewUrl" alt="Full Preview" class="max-h-[70vh] w-auto max-w-full object-contain rounded-lg shadow-md">
+                                </template>
+                                <template x-if="!isImage && filePreviewUrl">
+                                    <iframe :src="filePreviewUrl" class="w-full h-[70vh] rounded-lg border-0 bg-white"></iframe>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
