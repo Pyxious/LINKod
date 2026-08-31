@@ -30,7 +30,7 @@
             </span>
         </div>
 
-        <form id="reportForm" action="{{ route('admin.reports.export') }}" method="POST" onsubmit="handleExportSubmit(event)" class="space-y-6">
+        <form id="reportForm" action="{{ route('admin.reports.export') }}" method="POST" onsubmit="handleExportSubmit()" class="space-y-6">
             @csrf
             <input type="hidden" name="report_type" id="reportType" value="Accomplishment Report">
             
@@ -435,17 +435,10 @@
         previewContainer.innerHTML = previewHTML;
     }
 
-    function handleExportSubmit(e) {
+    function handleExportSubmit() {
         const btn = document.getElementById('exportBtn');
         if (!btn) return;
-        
-        // Prevent rapid duplicate clicks during cooldown
-        if (btn.dataset.cooldown === 'true') {
-            if (e) { e.preventDefault(); }
-            return false;
-        }
 
-        btn.dataset.cooldown = 'true';
         const originalHTML = `
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             <span>Export Excel Sheet (.xlsx)</span>
@@ -456,16 +449,14 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span>Generating & Downloading...</span>
+            <span>Downloading...</span>
         `;
-        btn.classList.add('opacity-75', 'cursor-wait');
+        btn.classList.add('opacity-80');
 
-        // 2.5 second cooldown timer, then restore button state
         setTimeout(() => {
             btn.innerHTML = originalHTML;
-            btn.classList.remove('opacity-75', 'cursor-wait');
-            btn.dataset.cooldown = 'false';
-        }, 2500);
+            btn.classList.remove('opacity-80');
+        }, 1500);
     }
 
     document.addEventListener('DOMContentLoaded', function() {

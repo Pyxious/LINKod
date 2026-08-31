@@ -285,12 +285,13 @@ class ReportController extends Controller
         ]);
 
         $spreadsheet = new Spreadsheet();
+        $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
         $sheet = $spreadsheet->getActiveSheet();
 
         // 1. Header (A to G columns)
         $sheet->mergeCells('A2:G2');
         $sheet->setCellValue('A2', "{$year} ACCOMPLISHMENT REPORT");
-        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(16)->setName('Times New Roman');
+        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(14)->setName('Times New Roman');
         $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $sheet->mergeCells('A4:G4');
@@ -314,7 +315,7 @@ class ReportController extends Controller
 
         $sheet->mergeCells('A6:G6');
         $sheet->setCellValue('A6', $monthRange);
-        $sheet->getStyle('A6')->getFont()->setBold(true)->setSize(12)->setName('Arial');
+        $sheet->getStyle('A6')->getFont()->setBold(true)->setSize(11)->setName('Arial');
         $sheet->getStyle('A6')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         // 2. Table Headers
@@ -335,9 +336,9 @@ class ReportController extends Controller
         $sheet->setCellValue('F9', 'COMPLETION');
 
         $sheet->mergeCells('G8:G9');
-        $sheet->setCellValue('G8', "CLIENTELE\nSATISFACTION\nRATING");
+        $sheet->setCellValue('G8', "CLIENTELE\nSATISFACTION");
         
-        $sheet->getStyle('A8:G9')->getFont()->setBold(true);
+        $sheet->getStyle('A8:G9')->getFont()->setBold(true)->setSize(10)->setName('Arial');
         $sheet->getStyle('A8:G9')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('A8:G9')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
         $sheet->getStyle('A8:G9')->getAlignment()->setWrapText(true);
@@ -440,9 +441,11 @@ class ReportController extends Controller
             $sheet->setCellValue('F'.$row, $completionDate);
             $sheet->setCellValue('G'.$row, $ratingVal);
             
+            $sheet->getStyle('A'.$row.':G'.$row)->getFont()->setSize(10)->setName('Arial');
             $sheet->getStyle('A'.$row.':G'.$row)->getAlignment()->setWrapText(true);
             $sheet->getStyle('A'.$row.':G'.$row)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
             $sheet->getStyle('A'.$row.':B'.$row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('C'.$row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
             $sheet->getStyle('D'.$row.':G'.$row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('A'.$row.':G'.$row)->applyFromArray($styleArray);
             
@@ -504,17 +507,17 @@ class ReportController extends Controller
         $sheet->setCellValue('A' . ($notedRow + 5), "Administrative Services Division");
         $sheet->getStyle('A' . ($notedRow + 5))->getFont()->setSize(10)->setName('Arial');
 
-        // Adjust column widths and A4 page setup
-        $sheet->getColumnDimension('A')->setWidth(18);
-        $sheet->getColumnDimension('B')->setWidth(22);
-        $sheet->getColumnDimension('C')->setWidth(42);
-        $sheet->getColumnDimension('D')->setWidth(15);
-        $sheet->getColumnDimension('E')->setWidth(15);
+        // Adjust column widths for clean Portrait A4 Print layout
+        $sheet->getColumnDimension('A')->setWidth(14.5);
+        $sheet->getColumnDimension('B')->setWidth(17.5);
+        $sheet->getColumnDimension('C')->setWidth(30);
+        $sheet->getColumnDimension('D')->setWidth(12.5);
+        $sheet->getColumnDimension('E')->setWidth(12.5);
         $sheet->getColumnDimension('F')->setWidth(15);
-        $sheet->getColumnDimension('G')->setWidth(18);
+        $sheet->getColumnDimension('G')->setWidth(15);
 
         $sheet->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4);
-        $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
+        $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_PORTRAIT);
         $sheet->getPageSetup()->setFitToWidth(1);
         $sheet->getPageSetup()->setFitToHeight(0);
 
