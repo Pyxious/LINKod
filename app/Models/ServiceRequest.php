@@ -113,6 +113,44 @@ class ServiceRequest extends Model
      */
     public function scopeRecurring($query)
     {
+        $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            return $query->whereIn('request_id', function($sub) {
+                $sub->select('r1.request_id')
+                    ->from('request as r1')
+                    ->join('request as r2', function($join) {
+                        $join->whereRaw("EXTRACT(MONTH FROM r1.submitted_at) = EXTRACT(MONTH FROM r2.submitted_at)")
+                             ->whereRaw("EXTRACT(YEAR FROM r1.submitted_at) = EXTRACT(YEAR FROM r2.submitted_at)")
+                             ->whereRaw("(
+                                 LOWER(TRIM(r1.description)) = LOWER(TRIM(r2.description))
+                                 OR (LENGTH(r1.description) >= 6 AND LOWER(SUBSTRING(TRIM(r1.description) FROM 1 FOR 25)) = LOWER(SUBSTRING(TRIM(r2.description) FROM 1 FOR 25)))
+                                 OR (LENGTH(r1.title) >= 4 AND LOWER(TRIM(r1.title)) = LOWER(TRIM(r2.title)))
+                             )");
+                    })
+                    ->groupBy('r1.request_id')
+                    ->havingRaw('COUNT(r2.request_id) >= 4');
+            });
+        }
+
+        if ($driver === 'sqlite') {
+            return $query->whereIn('request_id', function($sub) {
+                $sub->select('r1.request_id')
+                    ->from('request as r1')
+                    ->join('request as r2', function($join) {
+                        $join->whereRaw("strftime('%Y-%m', r1.submitted_at) = strftime('%Y-%m', r2.submitted_at)")
+                             ->whereRaw("(
+                                 LOWER(TRIM(r1.description)) = LOWER(TRIM(r2.description))
+                                 OR (LENGTH(r1.description) >= 6 AND LOWER(SUBSTR(TRIM(r1.description), 1, 25)) = LOWER(SUBSTR(TRIM(r2.description), 1, 25)))
+                                 OR (LENGTH(r1.title) >= 4 AND LOWER(TRIM(r1.title)) = LOWER(TRIM(r2.title)))
+                             )");
+                    })
+                    ->groupBy('r1.request_id')
+                    ->havingRaw('COUNT(r2.request_id) >= 4');
+            });
+        }
+
+        // MySQL / MariaDB
         return $query->whereIn('request_id', function($sub) {
             $sub->select('r1.request_id')
                 ->from('request as r1')
