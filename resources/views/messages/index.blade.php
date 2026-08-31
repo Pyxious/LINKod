@@ -130,7 +130,7 @@
                                         <span class="px-1.5 py-0.2 text-[9px] font-extrabold rounded uppercase tracking-wider bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 border border-red-200 dark:border-red-800">
                                             Cancelled
                                         </span>
-                                    @else
+                                    @elseif(!$isClientPortal)
                                         <span class="px-1.5 py-0.5 text-[9px] font-extrabold rounded uppercase tracking-wider {{ strtolower($req->priority ?? 'low') === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : (strtolower($req->priority ?? 'low') === 'medium' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300') }}">
                                             {{ $req->priority ?? $req->urgency ?? 'Low' }}
                                         </span>
@@ -227,9 +227,6 @@
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="text-base sm:text-lg font-black text-white tracking-wide">
                                         {{ $selectedReqCode }}
-                                    </span>
-                                    <span class="px-2 py-0.5 text-[10px] font-extrabold rounded-md uppercase tracking-wider {{ strtolower($selectedRequest->priority ?? 'low') === 'high' ? 'bg-red-500 text-white' : (strtolower($selectedRequest->priority ?? 'low') === 'medium' ? 'bg-amber-400 text-slate-900 font-black' : 'bg-blue-300 text-slate-900 font-bold') }}">
-                                        {{ $selectedRequest->priority ?? 'Medium' }}
                                     </span>
                                     @if($isCancelled)
                                         <span class="px-2 py-0.5 text-[10px] font-extrabold rounded-md bg-red-500/30 text-red-100 border border-red-400/40 flex items-center gap-1">

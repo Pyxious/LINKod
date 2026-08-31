@@ -24,10 +24,8 @@
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm space-y-6">
             <!-- Unit Header -->
             <div class="flex items-center gap-3.5">
-                <div class="w-12 h-12 bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400 rounded-xl flex items-center justify-center font-bold text-lg shrink-0 border border-blue-100 dark:border-blue-900">
-                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                    </svg>
+                <div class="w-12 h-12 bg-blue-50/80 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400 rounded-xl flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900 p-2 overflow-hidden shadow-2xs">
+                    <img src="{{ $team->icon_url }}" alt="{{ $team->team_name }}" class="w-8 h-8 object-contain">
                 </div>
                 <div class="min-w-0">
                     <h3 class="font-bold text-slate-900 dark:text-white text-base sm:text-lg leading-tight truncate">{{ $team->team_name }}</h3>
