@@ -479,13 +479,17 @@
         <main class="p-4 sm:p-7 flex-1">
             @unless(View::hasSection('hide_alerts'))
                 @if(session('success'))
-                    <div class="bg-green-100 border border-green-300 text-green-800 px-4 py-3 rounded-lg mb-6 text-sm">
-                        {{ session('success') }}
+                    <div id="global-flash-success" class="mb-6 flex items-center gap-3 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-300 px-5 py-3.5 rounded-xl shadow-2xs">
+                        <svg class="w-5 h-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        <span class="text-sm font-medium flex-1">{{ session('success') }}</span>
+                        <button type="button" onclick="document.getElementById('global-flash-success')?.remove()" class="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-200 cursor-pointer">✕</button>
                     </div>
                 @endif
                 @if(session('error'))
-                    <div class="bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg mb-6 text-sm">
-                        {{ session('error') }}
+                    <div id="global-flash-error" class="mb-6 flex items-center gap-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 px-5 py-3.5 rounded-xl shadow-2xs">
+                        <svg class="w-5 h-5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                        <span class="text-sm font-medium flex-1">{{ session('error') }}</span>
+                        <button type="button" onclick="document.getElementById('global-flash-error')?.remove()" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 cursor-pointer">✕</button>
                     </div>
                 @endif
             @endunless

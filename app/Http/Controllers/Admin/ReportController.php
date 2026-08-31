@@ -95,14 +95,23 @@ class ReportController extends Controller
 
                 $catName = strtolower($req->category->category_name ?? '');
                 $prefix = match(true) {
-                    str_contains($catName, 'landscaping') => 'LS',
-                    str_contains($catName, 'janitorial') => 'JS',
-                    str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+                    str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') || str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'CMS',
                     str_contains($catName, 'plumbing') => 'PLS',
-                    str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
                     str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                    str_contains($catName, 'janitorial') => 'JS',
+                    str_contains($catName, 'landscaping') => 'LS',
                     str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                     default => 'REQ'
+                };
+
+                $categoryOrder = match($prefix) {
+                    'CMS' => 1,
+                    'PLS' => 2,
+                    'PAINT' => 3,
+                    'JS' => 4,
+                    'LS' => 5,
+                    'MAN' => 6,
+                    default => 7
                 };
 
                 return [
@@ -110,6 +119,7 @@ class ReportController extends Controller
                     'category_id' => $req->category_id,
                     'category_name' => $req->category->category_name ?? 'General Maintenance',
                     'prefix' => $prefix,
+                    'category_order' => $categoryOrder,
                     'title' => $req->title,
                     'description' => $req->description,
                     'location' => $req->location ?? 'N/A',
@@ -120,7 +130,17 @@ class ReportController extends Controller
                     'rating' => $ratingVal,
                     'current_status' => 'Completed',
                 ];
-            });
+            })
+            ->sort(function($a, $b) {
+                if ($a['category_order'] !== $b['category_order']) {
+                    return $a['category_order'] <=> $b['category_order'];
+                }
+                if ($a['submitted_at'] !== $b['submitted_at']) {
+                    return strcmp($a['submitted_at'] ?? '', $b['submitted_at'] ?? '');
+                }
+                return $a['request_id'] <=> $b['request_id'];
+            })
+            ->values();
 
         // Fetch real generated reports history from UserLog
         $recentReports = UserLog::with('user')
@@ -188,7 +208,44 @@ class ReportController extends Controller
             $query->where('category_id', $categoryId);
         }
 
-        $serviceRequests = $query->orderBy('submitted_at', 'asc')->orderBy('request_id', 'asc')->get();
+        $serviceRequests = $query->get()
+            ->sort(function($a, $b) {
+                $catA = strtolower($a->category->category_name ?? '');
+                $catB = strtolower($b->category->category_name ?? '');
+
+                $orderA = match(true) {
+                    str_contains($catA, 'carpentry') || str_contains($catA, 'masonry') || str_contains($catA, 'electrical') || str_contains($catA, 'mechanical') => 1,
+                    str_contains($catA, 'plumbing') => 2,
+                    str_contains($catA, 'painting') || str_contains($catA, 'paint') => 3,
+                    str_contains($catA, 'janitorial') => 4,
+                    str_contains($catA, 'landscaping') => 5,
+                    str_contains($catA, 'manpower') || str_contains($catA, 'event') => 6,
+                    default => 7
+                };
+
+                $orderB = match(true) {
+                    str_contains($catB, 'carpentry') || str_contains($catB, 'masonry') || str_contains($catB, 'electrical') || str_contains($catB, 'mechanical') => 1,
+                    str_contains($catB, 'plumbing') => 2,
+                    str_contains($catB, 'painting') || str_contains($catB, 'paint') => 3,
+                    str_contains($catB, 'janitorial') => 4,
+                    str_contains($catB, 'landscaping') => 5,
+                    str_contains($catB, 'manpower') || str_contains($catB, 'event') => 6,
+                    default => 7
+                };
+
+                if ($orderA !== $orderB) {
+                    return $orderA <=> $orderB;
+                }
+
+                $dateA = $a->submitted_at ? $a->submitted_at->timestamp : 0;
+                $dateB = $b->submitted_at ? $b->submitted_at->timestamp : 0;
+                if ($dateA !== $dateB) {
+                    return $dateA <=> $dateB;
+                }
+
+                return $a->request_id <=> $b->request_id;
+            })
+            ->values();
 
         // Audit Log
         UserLog::create([
@@ -272,12 +329,11 @@ class ReportController extends Controller
         foreach ($serviceRequests as $req) {
             $catName = strtolower($req->category->category_name ?? '');
             $prefix = match(true) {
-                str_contains($catName, 'landscaping') => 'LS',
-                str_contains($catName, 'janitorial') => 'JS',
-                str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+                str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') || str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'CMS',
                 str_contains($catName, 'plumbing') => 'PLS',
-                str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
                 str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                str_contains($catName, 'janitorial') => 'JS',
+                str_contains($catName, 'landscaping') => 'LS',
                 str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                 default => 'REQ'
             };
@@ -368,17 +424,16 @@ class ReportController extends Controller
         $sheet->getPageSetup()->setFitToWidth(1);
         $sheet->getPageSetup()->setFitToHeight(0);
 
-        // Download Response
-        $writer = new Xlsx($spreadsheet);
-
+        // Download Response via clean binary stream
         $cleanCatName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $categoryName);
         $fileName = "{$year}_Accomplishment_Report_{$cleanCatName}_" . str_replace(' ', '_', $monthRange) . '.xlsx';
-        
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment;filename="' . $fileName . '"');
-        header('Cache-Control: max-age=0');
 
-        $writer->save('php://output');
-        exit;
+        $tempFile = tempnam(sys_get_temp_dir(), 'linkod_report_') . '.xlsx';
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
     }
 }

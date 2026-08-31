@@ -10,12 +10,30 @@
     <meta name="supabase-url" content="{{ config('services.supabase.url') }}">
     <meta name="supabase-anon-key" content="{{ config('services.supabase.anon_key') }}">
     
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#0033a0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/LINKOD logo.png') }}">
+    
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Tailwind & Livewire -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if(file_exists(public_path('build/manifest.json')))
+        @php
+            $manifestData = json_decode(@file_get_contents(public_path('build/manifest.json')), true) ?? [];
+            $compiledCss = $manifestData['resources/css/app.css']['file'] ?? null;
+        @endphp
+        @if($compiledCss && file_exists(public_path('hot')))
+            <!-- Offline Fallback Stylesheet for Dev -->
+            <link rel="stylesheet" href="{{ asset('build/' . $compiledCss) }}">
+        @endif
+    @endif
     @livewireStyles
     
     <style>
@@ -393,7 +411,8 @@
             <a href="{{ route('worker.job-orders.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('worker.job-orders.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
                 <img src="{{ asset('images/REQUESTS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Job Orders">
-                Job Orders
+                <span>Job Orders</span>
+                <span data-offline-sync-badge class="hidden ml-auto bg-amber-500 text-slate-900 text-[10px] font-black px-1.5 py-0.2 rounded-full">0</span>
             </a>
 
             <!-- Unit / Team -->
@@ -496,6 +515,20 @@
 
     <!-- Main Content Container -->
     <div class="md:ml-56 flex-1 flex flex-col min-h-screen w-full">
+        <!-- Offline & Sync Status Banner -->
+        <div id="linkod-offline-banner" class="hidden bg-amber-400 dark:bg-amber-500 text-slate-900 px-4 py-2.5 shadow-sm text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 sticky top-0 md:top-0 z-30 transition-all border-b border-amber-500">
+            <div class="flex items-center gap-2 min-w-0">
+                <svg class="w-5 h-5 shrink-0 text-slate-900 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 4.243a9 9 0 01-2.828-5.657m0 0l2.828 2.828M3 3l18 18M9.879 9.879a3 3 0 004.242 4.242"/>
+                </svg>
+                <span data-offline-text class="truncate">You are working offline. Changes are saved locally and will auto-sync when online.</span>
+            </div>
+            <button type="button" id="linkod-sync-now-btn" onclick="window.LINKodOffline && window.LINKodOffline.syncOutbox()" class="hidden shrink-0 bg-slate-900 hover:bg-black text-white px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <span>Sync Now</span>
+            </button>
+        </div>
+
         <main class="p-4 sm:p-7 flex-1">
             @unless(View::hasSection('hide_alerts'))
                 @if(session('success'))
@@ -515,6 +548,7 @@
     </div>
 
     @livewireScripts
+    <script src="{{ asset('js/worker-offline.js') }}"></script>
     <script>
         // Set initial icon state on load
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {

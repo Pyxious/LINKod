@@ -42,28 +42,7 @@
                 @else bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 @endif">
                 {{ $project->current_status }}
             </span>
-        </h1>
     </div>
-    
-    @if(in_array($project->current_status, ['Completed', 'Pending Verification']) || !empty($project->recommendation))
-    <div>
-        @if(!empty($project->recommendation))
-            <button disabled 
-                    type="button" 
-                    class="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-zinc-700 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold cursor-not-allowed flex items-center gap-2 shadow-xs select-none opacity-80"
-                    title="Preventive Maintenance Report has already been submitted.">
-                <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                <span>Maintenance Report Submitted</span>
-            </button>
-        @else
-            <a href="{{ route('worker.maintenance.create', $project->project_id) }}" 
-               class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 shadow-sm cursor-pointer">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                <span>Submit Maintenance Report</span>
-            </a>
-        @endif
-    </div>
-    @endif
 </div>
 
 
@@ -260,237 +239,577 @@
         @php
             $defaultNextStatus = ($project->current_status === 'In Progress') ? 'Completed' : 'In Progress';
         @endphp
-        <div class="bg-[#f0f6ff] dark:bg-blue-950/20 border border-[#1a3c8f] dark:border-blue-700 rounded-xl shadow-xs p-7"
-             x-data="{
-                 currentStatusVal: '{{ $defaultNextStatus }}',
-                 completionType: 'Full Repair',
-                 saving: false,
-                 proofFile: '',
-                 cameraActive: false,
-                 cameraStream: null,
-                 proofPreviewUrl: '',
+        <div class="bg-white dark:bg-[#1c1c1e] border-2 border-[#1a3c8f]/30 dark:border-blue-700/60 rounded-2xl shadow-sm p-6 sm:p-7"
+             x-data="workerTaskProgress({{ $project->project_id }}, '{{ $defaultNextStatus }}', {{ json_encode($project->request->title ?? 'Project #' . $project->project_id) }}, '{{ route('worker.task-progress.sync', $project->project_id) }}')">
 
-                 handleFile(file) {
-                     if (!file) return;
-                     this.proofFile = file.name;
-                     if (file.type.startsWith('image/')) {
-                         this.proofPreviewUrl = URL.createObjectURL(file);
-                     } else {
-                         this.proofPreviewUrl = '';
-                     }
-                 },
+             <div class="flex items-center justify-between gap-3 mb-5 pb-3 border-b border-gray-100 dark:border-zinc-800">
+                 <h3 class="text-[#1a3c8f] dark:text-blue-400 font-extrabold text-lg flex items-center gap-2">
+                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                     <span>Update Task Progress</span>
+                 </h3>
+                 <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                     Action Required
+                 </span>
+             </div>
 
-                 openCamera() {
-                     this.cameraActive = true;
-                     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                         .then(stream => {
-                             this.cameraStream = stream;
-                             if (this.$refs.workerVideo) {
-                                 this.$refs.workerVideo.srcObject = stream;
-                             }
-                         })
-                         .catch(err => {
-                             alert('Camera access denied: ' + err.message);
-                             this.cameraActive = false;
-                         });
-                 },
+              <!-- Offline Success Notice (Step 1) -->
+              <div x-show="offlineSaved && !taskFinishedOffline" x-cloak class="p-4 bg-blue-50/80 dark:bg-blue-950/40 border-2 border-blue-200 dark:border-blue-800 rounded-2xl mb-5 text-slate-800 dark:text-blue-100 text-xs sm:text-sm font-semibold flex items-start sm:items-center gap-3 shadow-xs">
+                  <div class="w-7 h-7 rounded-lg bg-[#0038A8] text-white flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <span class="leading-relaxed" x-text="offlineMsg"></span>
+              </div>
 
-                 capturePhoto() {
-                     const video = this.$refs.workerVideo;
-                     if (!video) return;
-                     const canvas = document.createElement('canvas');
-                     canvas.width = video.videoWidth || 640;
-                     canvas.height = video.videoHeight || 480;
-                     const ctx = canvas.getContext('2d');
-                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              <!-- Finished Offline State Card (Step 2 Completed) -->
+              <div x-show="taskFinishedOffline" x-cloak class="p-7 bg-slate-50 dark:bg-zinc-900/80 border-2 border-emerald-500/40 dark:border-emerald-500/30 rounded-2xl text-center space-y-4 shadow-sm">
+                  <div class="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center mx-auto shadow-xs">
+                      <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  
+                  <div>
+                      <h4 class="font-extrabold text-lg text-slate-900 dark:text-white">Task Completed (Saved Locally Offline)</h4>
+                      <p class="text-xs text-slate-600 dark:text-gray-300 max-w-md mx-auto mt-1.5 leading-relaxed" x-text="offlineMsg"></p>
+                  </div>
 
-                     canvas.toBlob((blob) => {
-                         const file = new File([blob], 'proof_' + (this.currentStatusVal === 'In Progress' ? 'before_' : 'after_') + Date.now() + '.jpg', { type: 'image/jpeg' });
-                         this.handleFile(file);
-                         const container = new DataTransfer();
-                         container.items.add(file);
-                         if (this.$refs.workerFileInput) {
-                             this.$refs.workerFileInput.files = container.files;
-                         }
-                         this.closeCamera();
-                     }, 'image/jpeg', 0.85);
-                 },
-
-                 closeCamera() {
-                     if (this.cameraStream) {
-                         this.cameraStream.getTracks().forEach(track => track.stop());
-                         this.cameraStream = null;
-                     }
-                     this.cameraActive = false;
-                 },
-
-                 clearProof() {
-                     this.proofFile = '';
-                     this.proofPreviewUrl = '';
-                     if (this.$refs.workerFileInput) {
-                         this.$refs.workerFileInput.value = '';
-                     }
-                 }
-             }">
-            <h3 class="text-[#1a3c8f] dark:text-blue-400 font-bold text-lg mb-4">Update Task Progress</h3>
+                  <div class="pt-2 flex justify-center">
+                      <a href="{{ route('worker.job-orders.index') }}" 
+                         class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#0038A8] hover:bg-[#002480] text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer">
+                          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                          <span>Back to Job Orders</span>
+                      </a>
+                  </div>
+              </div>
             
-            <form action="{{ route('worker.task-progress.update', $project->project_id) }}" method="POST" enctype="multipart/form-data" class="space-y-4" @submit="saving = true">
-                @csrf
-                @method('PUT')
-                <div class="flex flex-col sm:flex-row sm:items-end gap-4">
-                    <div class="flex-1">
-                        <label class="block text-sm font-semibold text-[#1a3c8f] dark:text-blue-300 mb-2">Mark Current Status As:</label>
-                        <select name="status" x-model="currentStatusVal" class="w-full px-4 py-3 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-[#1a3c8f] focus:border-[#1a3c8f]" required>
-                            <option value="In Progress">In Progress (Working on it — Requires Before Photo)</option>
-                            <option value="Completed">Completed (Ready for Verification — Requires Photo)</option>
-                        </select>
-                    </div>
-                    <button type="submit" :disabled="saving" class="bg-[#1a3c8f] hover:bg-[#152e6e] text-white px-8 py-3 rounded-lg text-sm font-semibold transition shadow-sm shrink-0 inline-flex items-center justify-center gap-2 disabled:opacity-60">
-                        <svg x-show="saving" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span x-text="saving ? 'Saving...' : 'Save Update'">Save Update</span>
-                    </button>
-                </div>
+             <form x-show="!taskFinishedOffline" action="{{ route('worker.task-progress.update', $project->project_id) }}" method="POST" enctype="multipart/form-data" class="space-y-5" @submit="submitProgressForm($event)">
+                 @csrf
+                 @method('PUT')
 
-                <!-- When Completed: Option to select Full Repair vs Inspection & Assessment Only -->
-                <div x-show="currentStatusVal === 'Completed'" x-cloak class="mt-4 pt-4 border-t border-blue-200 dark:border-blue-900/40 space-y-3">
-                    <label class="block text-sm font-bold text-[#1a3c8f] dark:text-blue-300">
-                        Nature of Work Completed:
-                    </label>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label class="flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition"
-                               :class="completionType === 'Full Repair' ? 'border-[#1a3c8f] bg-blue-50/80 dark:bg-blue-950/40' : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'">
-                            <input type="radio" name="completion_type" value="Full Repair" x-model="completionType" class="mt-1 text-[#1a3c8f] focus:ring-[#1a3c8f]">
-                            <div>
-                                <div class="text-xs font-bold text-slate-900 dark:text-white">Direct Repair / Maintenance Done</div>
-                                <div class="text-[11px] text-gray-500 mt-0.5">Physical repair, installation, or maintenance work was executed on site.</div>
-                            </div>
-                        </label>
+                 <!-- Status Selector -->
+                 <div>
+                     <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2">
+                         Mark Current Status As <span class="text-red-500">*</span>:
+                     </label>
+                     <select name="status" x-model="currentStatusVal" class="w-full px-4 py-3 border border-gray-300 dark:border-zinc-700 rounded-xl text-sm font-semibold bg-gray-50 dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-[#1a3c8f] focus:border-[#1a3c8f] transition" required>
+                         <option value="In Progress">In Progress (Currently working — Requires Before-Work Photo)</option>
+                         <option value="Completed">Completed (Ready for Verification — Requires After-Work Photo)</option>
+                     </select>
+                 </div>
 
-                        <label class="flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition"
-                               :class="completionType === 'Inspection Only' ? 'border-[#1a3c8f] bg-blue-50/80 dark:bg-blue-950/40' : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'">
-                            <input type="radio" name="completion_type" value="Inspection Only" x-model="completionType" class="mt-1 text-[#1a3c8f] focus:ring-[#1a3c8f]">
-                            <div>
-                                <div class="text-xs font-bold text-slate-900 dark:text-white">Inspection &amp; Assessment Only</div>
-                                <div class="text-[11px] text-gray-500 mt-0.5">Site visited and inspected; findings evaluated (e.g. no repair needed or referred to contractor).</div>
-                            </div>
-                        </label>
-                    </div>
+                 <!-- Completed Options (Full Repair vs Inspection Only) -->
+                 <div x-show="currentStatusVal === 'Completed'" x-cloak class="pt-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
+                     <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                         Nature of Work Executed:
+                     </label>
+                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                         <label class="flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition"
+                                :class="completionType === 'Full Repair' ? 'border-[#1a3c8f] bg-blue-50/70 dark:bg-blue-950/40' : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'">
+                             <input type="radio" name="completion_type" value="Full Repair" x-model="completionType" class="mt-1 text-[#1a3c8f] focus:ring-[#1a3c8f]">
+                             <div>
+                                 <div class="text-xs font-bold text-slate-900 dark:text-white">Direct Repair / Maintenance Done</div>
+                                 <div class="text-[11px] text-gray-500 mt-0.5">Physical repair, replacement, or maintenance executed.</div>
+                             </div>
+                         </label>
 
-                    <!-- Inspection / Completion Findings Note -->
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                            <span x-show="completionType === 'Inspection Only'">Inspection Findings &amp; Recommendation (Optional):</span>
-                            <span x-show="completionType === 'Full Repair'">Work Notes / Remarks (Optional):</span>
-                        </label>
-                        <textarea name="recommendation" 
-                                  rows="2" 
-                                  class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-[#1a3c8f] focus:border-[#1a3c8f]"
-                                  :placeholder="completionType === 'Inspection Only' ? 'e.g. Inspected site; outlet circuit breaker tripped and reset, or referred for PDMO major overhaul.' : 'e.g. Replaced 4 fluorescent light bulbs and tested electrical lines.'"></textarea>
-                    </div>
-                </div>
-                
-                <div class="mt-4 pt-4 border-t border-blue-100 dark:border-blue-900/40">
-                    <label class="block text-sm font-semibold text-[#1a3c8f] dark:text-blue-300 mb-1">
-                        <span x-show="currentStatusVal === 'In Progress'">Attach Before-Work Photo <span class="text-red-500 font-bold">(Required)</span>:</span>
-                        <span x-show="currentStatusVal === 'Completed' && completionType === 'Full Repair'">Attach After-Work Photo / Proof of Completion <span class="text-red-500 font-bold">(Required)</span>:</span>
-                        <span x-show="currentStatusVal === 'Completed' && completionType === 'Inspection Only'">Attach Site Inspection Photo / Proof <span class="text-red-500 font-bold">(Required)</span>:</span>
-                    </label>
+                         <label class="flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition"
+                                :class="completionType === 'Inspection Only' ? 'border-[#1a3c8f] bg-blue-50/70 dark:bg-blue-950/40' : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'">
+                             <input type="radio" name="completion_type" value="Inspection Only" x-model="completionType" class="mt-1 text-[#1a3c8f] focus:ring-[#1a3c8f]">
+                             <div>
+                                 <div class="text-xs font-bold text-slate-900 dark:text-white">Inspection &amp; Assessment Only</div>
+                                 <div class="text-[11px] text-gray-500 mt-0.5">Site inspected and assessed without direct physical repairs.</div>
+                             </div>
+                         </label>
+                     </div>
 
-                    <p class="text-xs text-gray-500 mb-3" x-text="currentStatusVal === 'In Progress' ? 'Upload a photo showing the initial condition before starting work.' : (completionType === 'Inspection Only' ? 'Upload a photo taken during the site inspection.' : 'Upload a photo showing the finished repairs or cleaned site.')"></p>
-                    
-                    <!-- Hidden File Input -->
-                    <input type="file" 
-                           name="proof" 
-                           x-ref="workerFileInput" 
-                           accept="image/*,application/pdf" 
-                           @change="handleFile($event.target.files[0])" 
-                           class="hidden"
-                           required>
+                     <div>
+                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                             <span x-show="completionType === 'Inspection Only'">Inspection Findings &amp; Recommendation (Optional):</span>
+                             <span x-show="completionType === 'Full Repair'">Work Notes / Summary (Optional):</span>
+                         </label>
+                         <textarea name="recommendation" 
+                                   rows="2" 
+                                   class="w-full px-3 py-2.5 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-[#1a3c8f] focus:border-[#1a3c8f]"
+                                   :placeholder="completionType === 'Inspection Only' ? 'e.g. Inspected circuit breaker; no major wiring damage found.' : 'e.g. Replaced leaking faucet gasket and tested water pressure.'"></textarea>
+                     </div>
+                 </div>
 
-                    <!-- Option Buttons Card -->
-                    <div x-show="!proofFile" class="border-2 border-dashed border-[#1a3c8f]/30 rounded-xl p-5 text-center bg-white dark:bg-zinc-900 space-y-3">
-                        <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-                            <!-- Choose File Button -->
-                            <button type="button" 
-                                    @click="$refs.workerFileInput.click()" 
-                                    class="w-full sm:w-auto px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 transition shadow-xs inline-flex items-center justify-center gap-2">
-                                <svg class="w-4 h-4 text-[#0038A8]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                                <span>Choose Photo</span>
-                            </button>
+                 <!-- Proof Photo Upload & Camera Card -->
+                 <div class="pt-4 border-t border-gray-100 dark:border-zinc-800">
+                     <div class="flex items-center justify-between mb-2">
+                         <label class="block text-xs font-bold uppercase tracking-wider text-[#1a3c8f] dark:text-blue-300">
+                             <span x-show="currentStatusVal === 'In Progress'">Before-Work Photo <span class="text-red-500 font-black">*</span></span>
+                             <span x-show="currentStatusVal === 'Completed'">Proof of Completion Photo <span class="text-red-500 font-black">*</span></span>
+                         </label>
+                         <span class="text-[11px] text-gray-400">JPG, PNG, WEBP, PDF</span>
+                     </div>
 
-                            <span class="text-xs text-gray-400 font-semibold">or</span>
+                     <!-- Hidden File Input (Standard File Picker) -->
+                     <input type="file" 
+                            name="proof" 
+                            x-ref="workerFileInput" 
+                            accept="image/*,application/pdf" 
+                            @change="handleFile($event.target.files[0])" 
+                            class="hidden">
 
-                            <!-- Take a Pic Button -->
-                            <button type="button" 
-                                    @click="openCamera()" 
-                                    class="w-full sm:w-auto px-5 py-2.5 bg-[#0038A8] hover:bg-[#002480] text-white rounded-lg text-xs font-bold transition shadow-xs inline-flex items-center justify-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                <span>Take a Photo</span>
-                            </button>
-                        </div>
-                        <p class="text-[11px] text-gray-500">Supports JPG, PNG, WEBP images.</p>
-                    </div>
+                     <!-- Hidden Native Device Camera Input -->
+                     <input type="file" 
+                            x-ref="mobileCameraInput" 
+                            accept="image/*" 
+                            capture="environment" 
+                            @change="handleFile($event.target.files[0])" 
+                            class="hidden">
 
-                    <!-- Selected Proof Preview -->
-                    <div x-show="proofFile" x-cloak class="border border-blue-200 bg-white dark:bg-zinc-900 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <template x-if="proofPreviewUrl">
-                                <img :src="proofPreviewUrl" alt="Proof" class="w-12 h-12 object-cover rounded-lg border border-gray-200 shrink-0">
-                            </template>
-                            <template x-if="!proofPreviewUrl">
-                                <div class="w-12 h-12 bg-blue-50 text-[#0038A8] rounded-lg flex items-center justify-center font-bold text-xs shrink-0">DOC</div>
-                            </template>
-                            <div class="min-w-0">
-                                <p class="text-xs font-bold text-gray-900 dark:text-white truncate" x-text="proofFile"></p>
-                                <p class="text-[10px] text-emerald-600 font-semibold mt-0.5">Ready for upload</p>
-                            </div>
-                        </div>
-                        <button type="button" @click="clearProof()" class="px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition border border-red-200 shrink-0">
-                            ✕ Remove
-                        </button>
-                    </div>
+                     <!-- Option Buttons (When no file chosen) -->
+                     <div x-show="!proofFile" class="border-2 border-dashed border-blue-300 dark:border-blue-900/60 rounded-2xl p-6 bg-blue-50/30 dark:bg-blue-950/20 text-center">
+                         <div class="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
+                             <!-- Choose Photo / File -->
+                             <button type="button" 
+                                     @click="$refs.workerFileInput.click()" 
+                                     class="w-full sm:flex-1 px-4 py-3 bg-white dark:bg-zinc-800 border-2 border-gray-200 dark:border-zinc-700 hover:border-[#1a3c8f] dark:hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-100 hover:bg-gray-50 transition shadow-xs flex items-center justify-center gap-2 cursor-pointer">
+                                 <svg class="w-4 h-4 text-[#0038A8] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                 <span>Choose File</span>
+                             </button>
 
-                    <!-- Worker Camera Modal -->
-                    <div x-show="cameraActive" x-cloak class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-                        <div class="bg-white dark:bg-zinc-900 rounded-2xl p-6 max-w-lg w-full shadow-2xl relative flex flex-col items-center">
-                            <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-3" x-text="currentStatusVal === 'In Progress' ? 'Take Before-Work Photo' : 'Take After-Work / Completion Photo'"></h3>
+                             <span class="text-xs text-gray-400 font-bold">or</span>
+
+                             <!-- Take Photo with Camera -->
+                             <button type="button" 
+                                     @click="openCamera()" 
+                                     class="w-full sm:flex-1 px-4 py-3 bg-[#0038A8] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-2 cursor-pointer">
+                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                 <span>Snap Photo (Camera)</span>
+                             </button>
+                         </div>
+                         <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-3">
+                             <span x-show="currentStatusVal === 'In Progress'">Take or attach an initial photo before beginning work.</span>
+                             <span x-show="currentStatusVal === 'Completed'">Take or attach a proof photo of the completed repair.</span>
+                         </p>
+                     </div>
+
+                     <!-- Preview Card (When file is chosen) -->
+                     <div x-show="proofFile" x-cloak class="border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-xs">
+                         <div class="flex items-center gap-3.5 min-w-0">
+                             <template x-if="proofPreviewUrl">
+                                 <img :src="proofPreviewUrl" alt="Proof Thumbnail" class="w-16 h-20 object-cover rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0 shadow-xs">
+                             </template>
+                             <template x-if="!proofPreviewUrl">
+                                 <div class="w-16 h-20 bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center font-bold text-xs shrink-0">
+                                     PDF
+                                 </div>
+                             </template>
+                             <div class="min-w-0">
+                                 <div class="flex items-center gap-2">
+                                     <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                                     <span class="text-xs font-bold text-gray-900 dark:text-white truncate" x-text="proofFile"></span>
+                                 </div>
+                                 <p class="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold mt-1">Photo attached &amp; ready</p>
+                                 <p class="text-[10px] text-gray-400 font-mono" x-text="proofSize"></p>
+                             </div>
+                         </div>
+                         <button type="button" @click="clearProof()" class="px-3.5 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 rounded-xl transition border border-red-200 dark:border-red-800 shrink-0 cursor-pointer">
+                             ✕ Remove
+                         </button>
+                     </div>
+                 </div>
+
+                 <!-- Submit Action Button -->
+                 <div class="pt-3">
+                     <button type="submit" 
+                             :disabled="saving || taskFinishedOffline" 
+                             :class="(saving || taskFinishedOffline) ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'"
+                             class="w-full sm:w-auto bg-[#1a3c8f] hover:bg-[#152e6e] text-white px-8 py-3.5 rounded-xl text-sm font-bold transition shadow-sm flex items-center justify-center gap-2">
+                         <svg x-show="saving" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                         <span x-text="saving ? 'Saving...' : (currentStatusVal === 'In Progress' ? 'Save Before-Work & Set In Progress' : 'Save & Mark Task as Completed')"></span>
+                     </button>
+                 </div>
+             </form>
+
+              <!-- Modern Portrait Camera Modal (3:4 Ratio) -->
+              <div x-show="cameraActive" x-cloak class="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4">
+                 <div class="bg-[#18181b] border border-zinc-700 rounded-3xl p-5 max-w-sm w-full shadow-2xl relative flex flex-col items-center">
+                     <div class="flex items-center justify-between w-full mb-3 text-white">
+                         <h3 class="text-xs font-bold uppercase tracking-wider flex items-center gap-2" x-text="currentStatusVal === 'In Progress' ? 'Before-Work Photo' : 'Proof of Completion'"></h3>
+                         <button type="button" @click="flipCamera()" class="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-gray-300 hover:text-white transition text-xs font-bold flex items-center gap-1.5 cursor-pointer" title="Flip Camera">
+                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                             <span>Flip</span>
+                         </button>
+                     </div>
+
+                     <!-- In-Modal Camera Error Notification -->
+                     <div x-show="cameraError" x-cloak class="w-full mb-4 p-4 bg-red-950/40 border border-red-800/80 rounded-2xl text-center text-xs text-red-200 space-y-2">
+                         <p class="font-bold flex items-center justify-center gap-1.5">
+                             <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                             <span>Camera In Use or Blocked</span>
+                         </p>
+                         <p class="text-[11px] text-gray-300 leading-relaxed" x-text="cameraError"></p>
+                         <div class="pt-2 flex flex-col gap-2">
+                             <button type="button" @click="startStream()" class="w-full px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold transition">
+                                 🔄 Retry Camera
+                             </button>
+                             <button type="button" @click="closeCamera(); $refs.workerFileInput.click()" class="w-full px-3 py-2 bg-[#0038A8] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition">
+                                 📁 Choose Photo from Files Instead
+                             </button>
+                         </div>
+                     </div>
+
+                     <!-- Portrait Viewfinder (3:4 Ratio) -->
+                     <div x-show="!cameraError" class="w-full bg-black rounded-2xl overflow-hidden mb-4 relative aspect-[3/4] flex items-center justify-center border-2 border-zinc-700">
+                         <video x-ref="workerVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+
+                         <!-- Viewfinder Reticle Overlay -->
+                         <div class="absolute inset-4 border-2 border-white/30 rounded-xl pointer-events-none flex flex-col justify-between p-2">
+                             <div class="flex justify-between">
+                                 <span class="w-4 h-4 border-t-2 border-l-2 border-white"></span>
+                                 <span class="w-4 h-4 border-t-2 border-r-2 border-white"></span>
+                             </div>
+                             <div class="text-center">
+                                 <span class="text-[10px] font-bold text-white/75 bg-black/40 px-2 py-0.5 rounded-full">Portrait Viewfinder</span>
+                             </div>
+                             <div class="flex justify-between">
+                                 <span class="w-4 h-4 border-b-2 border-l-2 border-white"></span>
+                                 <span class="w-4 h-4 border-b-2 border-r-2 border-white"></span>
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- Shutter Action Bar -->
+                     <div class="flex items-center justify-between w-full px-4">
+                         <button type="button" @click="closeCamera()" class="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-xl text-xs font-bold transition cursor-pointer">
+                             Cancel
+                         </button>
+
+                         <!-- Big Circular Shutter Button -->
+                         <button type="button" 
+                                 x-show="!cameraError"
+                                 @click="capturePhoto()" 
+                                 class="w-14 h-14 rounded-full bg-white hover:bg-gray-100 p-1.5 transition flex items-center justify-center shadow-lg cursor-pointer" 
+                                 title="Take Photo">
+                             <div class="w-full h-full rounded-full border-2 border-zinc-900 bg-red-600 hover:bg-red-700 flex items-center justify-center transition">
+                                 <div class="w-3.5 h-3.5 rounded-full bg-white"></div>
+                             </div>
+                         </button>
+
+                         <div class="w-12"></div>
+                     </div>
+                 </div>
+             </div>
+        </div>
+        @endif
+
+        <script>
+            function workerTaskProgress(projectId, defaultNextStatus, projectTitle, syncUrl) {
+                return {
+                    currentStatusVal: defaultNextStatus || 'In Progress',
+                    completionType: 'Full Repair',
+                    saving: false,
+                    proofFile: '',
+                    proofSize: '',
+                    proofPreviewUrl: '',
+                    capturedFile: null,
+                    cameraActive: false,
+                    cameraStream: null,
+                    cameraError: '',
+                    facingMode: 'environment',
+                    offlineSaved: false,
+                    offlineMsg: '',
+                    taskFinishedOffline: false,
+
+                    handleFile(file) {
+                        if (!file) return;
+                        this.proofFile = file.name;
+                        this.proofSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+                        this.capturedFile = file;
+                        if (file.type && file.type.startsWith('image/')) {
+                            this.proofPreviewUrl = URL.createObjectURL(file);
+                        } else {
+                            this.proofPreviewUrl = '';
+                        }
+                    },
+
+                    async openCamera() {
+                        this.cameraActive = true;
+                        this.cameraError = '';
+                        await this.$nextTick();
+                        await this.startStream();
+                    },
+
+                    async startStream() {
+                        this.cameraError = '';
+                        
+                        if (this.cameraStream) {
+                            try {
+                                this.cameraStream.getTracks().forEach(t => t.stop());
+                            } catch (e) {}
+                            this.cameraStream = null;
+                        }
+
+                        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                            this.cameraError = 'Live camera is not supported in this browser. Please use "Choose File" to select a photo.';
+                            return;
+                        }
+
+                        let stream = null;
+                        try {
+                            stream = await navigator.mediaDevices.getUserMedia({
+                                video: {
+                                    width: { ideal: 1280 },
+                                    height: { ideal: 720 }
+                                },
+                                audio: false
+                            });
+                        } catch (err1) {
+                            console.warn('Initial camera attempt failed, trying fallback...', err1);
+                            try {
+                                stream = await navigator.mediaDevices.getUserMedia({
+                                    video: true,
+                                    audio: false
+                                });
+                            } catch (err2) {
+                                console.error('All camera attempts failed:', err2);
+                                this.cameraError = 'Could not access camera (' + (err2.message || 'Permission denied') + '). Please ensure camera access is allowed in browser settings, or choose a file.';
+                                return;
+                            }
+                        }
+
+                        if (stream) {
+                            this.cameraStream = stream;
+                            await this.$nextTick();
+                            const video = this.$refs.workerVideo;
+                            if (video) {
+                                video.srcObject = stream;
+                                video.muted = true;
+                                video.onloadedmetadata = async () => {
+                                    try {
+                                        await video.play();
+                                    } catch (err) {
+                                        console.warn('Autoplay prevented:', err);
+                                    }
+                                };
+                                try {
+                                    await video.play();
+                                } catch (e) {}
+                            }
+                        }
+                    },
+
+                    async flipCamera() {
+                        this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+                        await this.startStream();
+                    },
+
+                    capturePhoto() {
+                        const video = this.$refs.workerVideo;
+                        if (!video || !this.cameraStream) return;
+
+                        const vw = video.videoWidth || 640;
+                        const vh = video.videoHeight || 480;
+
+                        // Target 3:4 portrait crop
+                        const targetWidth = 720;
+                        const targetHeight = 960;
+
+                        let srcW = vw;
+                        let srcH = Math.round(vw * (4 / 3));
+                        let srcX = 0;
+                        let srcY = 0;
+
+                        if (srcH > vh) {
+                            srcH = vh;
+                            srcW = Math.round(vh * (3 / 4));
+                            srcX = Math.round((vw - srcW) / 2);
+                            srcY = 0;
+                        } else {
+                            srcY = Math.round((vh - srcH) / 2);
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = targetWidth;
+                        canvas.height = targetHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, targetWidth, targetHeight);
+
+                        canvas.toBlob((blob) => {
+                            if (!blob) return;
+                            const filename = 'proof_' + (this.currentStatusVal === 'In Progress' ? 'before_' : 'after_') + Date.now() + '.jpg';
+                            const file = new File([blob], filename, { type: 'image/jpeg' });
                             
-                            <div class="w-full bg-black rounded-xl overflow-hidden mb-4 relative aspect-video flex items-center justify-center">
-                                <video x-ref="workerVideo" autoplay playsinline class="w-full h-full object-cover"></video>
-                            </div>
+                            this.handleFile(file);
 
-                            <div class="flex items-center gap-3 w-full justify-end">
-                                <button type="button" @click="closeCamera()" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-bold transition">
-                                    Cancel
-                                </button>
-                                <button type="button" @click="capturePhoto()" class="px-5 py-2 bg-[#0038A8] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition inline-flex items-center gap-1.5 shadow-md">
-                                    <span>Snap Photo</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
-        @endif
+                            try {
+                                const dt = new DataTransfer();
+                                dt.items.add(file);
+                                if (this.$refs.workerFileInput) {
+                                    this.$refs.workerFileInput.files = dt.files;
+                                }
+                            } catch (e) {}
 
-        <!-- Submitted Preventive Maintenance Report Card -->
-        @if(!empty($project->recommendation))
-        <div class="bg-white dark:bg-[#1c1c1e] border border-emerald-300 dark:border-emerald-700/60 rounded-2xl shadow-xs p-6">
-            <div class="flex items-center justify-between mb-3 border-b border-emerald-100 dark:border-emerald-950/60 pb-3">
-                <h3 class="text-xs sm:text-sm font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                    <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <span>Submitted Preventive Maintenance Report</span>
-                </h3>
-                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
-                    Report Filed
-                </span>
-            </div>
-            <div class="text-xs text-slate-800 dark:text-gray-200 whitespace-pre-line leading-relaxed font-mono bg-gray-50 dark:bg-zinc-900/80 p-4 rounded-xl border border-gray-200 dark:border-zinc-800">
-                {{ $project->recommendation }}
-            </div>
-        </div>
-        @endif
+                            this.closeCamera();
+                        }, 'image/jpeg', 0.90);
+                    },
+
+                    closeCamera() {
+                        if (this.cameraStream) {
+                            try {
+                                this.cameraStream.getTracks().forEach(track => track.stop());
+                            } catch (e) {}
+                            this.cameraStream = null;
+                        }
+                        this.cameraActive = false;
+                        this.cameraError = '';
+                    },
+
+                    clearProof() {
+                        this.proofFile = '';
+                        this.proofSize = '';
+                        this.proofPreviewUrl = '';
+                        this.capturedFile = null;
+                        if (this.$refs.workerFileInput) {
+                            this.$refs.workerFileInput.value = '';
+                        }
+                        if (this.$refs.mobileCameraInput) {
+                            this.$refs.mobileCameraInput.value = '';
+                        }
+                    },
+
+                    async submitProgressForm(e) {
+                        // 1. ALWAYS prevent native browser POST navigation to avoid Chrome Dino offline screen
+                        if (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+
+                        // Prevent duplicate clicks if already saving or finished
+                        if (this.saving || this.taskFinishedOffline) return;
+
+                        const fileInput = this.$refs.workerFileInput;
+                        const file = (fileInput && fileInput.files && fileInput.files[0]) || this.capturedFile;
+
+                        if (!file) {
+                            alert(this.currentStatusVal === 'In Progress' ? 'A Before-Work photo is required before setting task to In Progress.' : 'An After-Work / proof of completion photo is required.');
+                            return;
+                        }
+
+                        this.saving = true;
+                        const formEl = e.target;
+                        const recVal = formEl.querySelector('textarea[name="recommendation"]')?.value || '';
+                        const submittedStatus = this.currentStatusVal;
+
+                        // 2. If currently offline, queue in IndexedDB outbox
+                        if (!navigator.onLine) {
+                            try {
+                                const payload = {
+                                    projectId: projectId,
+                                    projectTitle: projectTitle,
+                                    syncUrl: syncUrl,
+                                    status: submittedStatus,
+                                    completionType: submittedStatus === 'Completed' ? this.completionType : null,
+                                    natureOfWork: submittedStatus === 'Completed' ? (this.completionType === 'Inspection Only' ? 'Inspection & Assessment Only' : 'Direct Repair') : null,
+                                    recommendation: recVal,
+                                    photoBlob: file,
+                                    photoName: file.name,
+                                    offlinePerformedAt: new Date().toISOString(),
+                                    createdAt: new Date().toISOString()
+                                };
+
+                                if (window.LINKodOffline) {
+                                    await window.LINKodOffline.addToOutbox(payload);
+                                    if (window.LINKodOffline.showSyncToast) {
+                                        window.LINKodOffline.showSyncToast(`Saved "${submittedStatus}" offline for #${projectId}!`, 'success');
+                                    }
+                                    if (window.LINKodOffline.updateUIState) {
+                                        window.LINKodOffline.updateUIState();
+                                    }
+                                }
+
+                                this.clearProof();
+
+                                if (submittedStatus === 'In Progress') {
+                                    // Progress to step 2: Completed
+                                    this.currentStatusVal = 'Completed';
+                                    this.offlineSaved = true;
+                                    this.offlineMsg = '✓ Step 1 Saved: Marked as In Progress offline! You can now proceed with repairs. When finished, attach your After-Work photo below to mark Completed.';
+                                } else {
+                                    // Completed state
+                                    this.taskFinishedOffline = true;
+                                    this.offlineSaved = true;
+                                    this.offlineMsg = '✓ All steps completed and saved to device! Both Before and After photo proofs are safely stored and will automatically sync with the server once connected.';
+                                }
+                            } catch (err) {
+                                console.error('Error saving offline:', err);
+                                alert('Failed to save offline: ' + err.message);
+                            } finally {
+                                this.saving = false;
+                            }
+                            return;
+                        }
+
+                        // 3. If online, submit via AJAX FormData
+                        try {
+                            const formData = new FormData(formEl);
+                            if (file && (!fileInput || !fileInput.files || !fileInput.files.length)) {
+                                formData.set('proof', file, file.name);
+                            }
+
+                            const response = await fetch(formEl.action, {
+                                method: 'POST',
+                                body: formData,
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+
+                            if (response.ok) {
+                                window.location.reload();
+                            } else {
+                                throw new Error('Server returned ' + response.status);
+                            }
+                        } catch (netErr) {
+                            console.warn('Online request failed, saving offline fallback:', netErr);
+                            try {
+                                const payload = {
+                                    projectId: projectId,
+                                    projectTitle: projectTitle,
+                                    syncUrl: syncUrl,
+                                    status: submittedStatus,
+                                    completionType: submittedStatus === 'Completed' ? this.completionType : null,
+                                    natureOfWork: submittedStatus === 'Completed' ? (this.completionType === 'Inspection Only' ? 'Inspection & Assessment Only' : 'Direct Repair') : null,
+                                    recommendation: recVal,
+                                    photoBlob: file,
+                                    photoName: file.name,
+                                    offlinePerformedAt: new Date().toISOString(),
+                                    createdAt: new Date().toISOString()
+                                };
+
+                                if (window.LINKodOffline) {
+                                    await window.LINKodOffline.addToOutbox(payload);
+                                    if (window.LINKodOffline.showSyncToast) {
+                                        window.LINKodOffline.showSyncToast(`Saved "${submittedStatus}" offline for #${projectId}!`, 'success');
+                                    }
+                                    if (window.LINKodOffline.updateUIState) {
+                                        window.LINKodOffline.updateUIState();
+                                    }
+                                }
+
+                                this.clearProof();
+
+                                if (submittedStatus === 'In Progress') {
+                                    this.currentStatusVal = 'Completed';
+                                    this.offlineSaved = true;
+                                    this.offlineMsg = '✓ Connection dropped. Step 1 marked as In Progress offline! You can now attach your After-Work photo below to mark Completed.';
+                                } else {
+                                    this.taskFinishedOffline = true;
+                                    this.offlineSaved = true;
+                                    this.offlineMsg = '✓ Connection dropped. All steps completed and saved to device! Will auto-sync when online.';
+                                }
+                            } catch (fallbackErr) {
+                                alert('Submission error: ' + netErr.message);
+                            } finally {
+                                this.saving = false;
+                            }
+                        }
+                    }
+                };
+            }
+        </script>
 
         <!-- 3rd Box: Material Requisition (Optional) -->
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">

@@ -235,19 +235,23 @@
         }
         .rec-table {
             width: 100%;
-            border-collapse: collapse;
-            border: 2px solid #000;
-            min-height: 110px;
+            border-collapse: collapse !important;
+            border-spacing: 0 !important;
+            border: 1px solid #000 !important;
             margin: 3px 0 4px;
         }
         .rec-table th, .rec-table td {
-            border: 1px solid #000;
+            border: 1px solid #000 !important;
             padding: 6px 8px;
             font-size: 10.5px;
-            vertical-align: top;
         }
-        .rec-table td {
-            height: 95px;
+        .rec-table thead tr th {
+            border: 1px solid #000 !important;
+            background-color: transparent;
+            font-weight: bold;
+        }
+        .rec-table tbody tr td {
+            border: 1px solid #000 !important;
         }
 
         @media print {
@@ -652,16 +656,21 @@
         <div class="sec-divider">RECOMMENDATIONS AND WORK DETAILS</div>
         
         <table class="rec-table">
+            <colgroup>
+                <col style="width: 35%;">
+                <col style="width: 30%;">
+                <col style="width: 35%;">
+            </colgroup>
             <thead>
                 <tr>
-                    <th style="width:34%; text-align:center;">NATURE OF WORK TO BE DONE:</th>
-                    <th style="width:32%; text-align:center;">ASSIGNED PERSONNEL/STAFF</th>
-                    <th style="width:34%; text-align:center;">SUPPLIES &amp; MATERIALS NEEDED:</th>
+                    <th style="text-align:center;">NATURE OF WORK TO BE DONE:</th>
+                    <th style="text-align:center;">ASSIGNED PERSONNEL/STAFF</th>
+                    <th style="text-align:center;">SUPPLIES &amp; MATERIALS NEEDED:</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td style="display:flex; flex-direction:column; justify-content:space-between; height:100px;">
+                    <td style="vertical-align: top; position: relative; height: 95px; padding: 6px 8px 18px;">
                         <div>
                             @if($serviceRequest->project?->nature_of_work)
                                 <div style="font-size:10.5px; font-weight:bold;">{{ strtoupper($serviceRequest->project->nature_of_work) }}</div>
@@ -670,9 +679,11 @@
                                 @endif
                             @endif
                         </div>
-                        <div style="text-align:center; font-style:italic; font-size:8px; color:#555;">(Use separate sheet if needed)</div>
+                        <div style="position: absolute; bottom: 3px; left: 0; right: 0; text-align: center; font-style: italic; font-size: 8px; color: #444;">
+                            (Use separate sheet if needed)
+                        </div>
                     </td>
-                    <td style="text-align:center; vertical-align:middle;">
+                    <td style="vertical-align: middle; text-align: center; height: 95px; padding: 6px 8px;">
                         <div style="font-size:11px; font-weight:500; line-height:1.5;">
                             @if($assignedWorkers->count() > 0)
                                 @foreach($assignedWorkers as $w)
@@ -683,9 +694,20 @@
                             @endif
                         </div>
                     </td>
-                    <td style="display:flex; flex-direction:column; justify-content:space-between; height:100px;">
-                        <div></div>
-                        <div style="text-align:center; font-style:italic; font-size:8px; color:#555;">(Use separate sheet if needed)</div>
+                    <td style="vertical-align: top; position: relative; height: 95px; padding: 6px 8px 18px;">
+                        <div>
+                            @php
+                                $bomMaterials = $serviceRequest->project?->materials ?? collect();
+                            @endphp
+                            @if($bomMaterials->count() > 0)
+                                @foreach($bomMaterials->take(3) as $m)
+                                    <div style="font-size:9.5px; line-height:1.3;">&bull; {{ $m->item_description }} ({{ $m->quantity }} {{ $m->unit }})</div>
+                                @endforeach
+                            @endif
+                        </div>
+                        <div style="position: absolute; bottom: 3px; left: 0; right: 0; text-align: center; font-style: italic; font-size: 8px; color: #444;">
+                            (Use separate sheet if needed)
+                        </div>
                     </td>
                 </tr>
             </tbody>

@@ -67,6 +67,69 @@ class ServiceRequest extends Model
         return $this->latestHistory?->current_status ?? 'Submitted';
     }
 
+    /**
+     * Check if this request is recurring (4+ requests with same/similar description within the same month)
+     */
+    public function getIsRecurringAttribute(): bool
+    {
+        return $this->recurring_count >= 4;
+    }
+
+    /**
+     * Get total count of requests with the same or similar description in the same calendar month
+     */
+    public function getRecurringCountAttribute(): int
+    {
+        $rawDesc = trim($this->description ?? $this->title ?? '');
+        if (!$this->submitted_at || empty($rawDesc)) {
+            return 1;
+        }
+
+        // If JSON manpower details, get core text
+        if (str_starts_with($rawDesc, '{') && str_ends_with($rawDesc, '}')) {
+            $parsed = json_decode($rawDesc, true);
+            $rawDesc = $parsed['general_description'] ?? $parsed['activity_title'] ?? $this->title ?? $rawDesc;
+        }
+
+        $date = $this->submitted_at;
+        $cleanDesc = trim(strtolower($rawDesc));
+        $prefix = substr($cleanDesc, 0, min(30, strlen($cleanDesc)));
+
+        return static::whereMonth('submitted_at', $date->month)
+            ->whereYear('submitted_at', $date->year)
+            ->where(function($q) use ($cleanDesc, $prefix) {
+                $q->whereRaw('LOWER(TRIM(description)) = ?', [$cleanDesc])
+                  ->orWhereRaw('LOWER(TRIM(title)) = ?', [$cleanDesc]);
+                if (strlen($prefix) >= 5) {
+                    $q->orWhereRaw('LOWER(description) LIKE ?', ["%{$prefix}%"])
+                      ->orWhereRaw('LOWER(title) LIKE ?', ["%{$prefix}%"]);
+                }
+            })
+            ->count();
+    }
+
+    /**
+     * Scope to filter recurring requests (where same/similar description appears >= 4 times in the same month)
+     */
+    public function scopeRecurring($query)
+    {
+        return $query->whereIn('request_id', function($sub) {
+            $sub->select('r1.request_id')
+                ->from('request as r1')
+                ->join('request as r2', function($join) {
+                    $join->whereRaw('MONTH(r1.submitted_at) = MONTH(r2.submitted_at)')
+                         ->whereRaw('YEAR(r1.submitted_at) = YEAR(r2.submitted_at)')
+                         ->whereRaw('(
+                             LOWER(TRIM(r1.description)) = LOWER(TRIM(r2.description))
+                             OR (LENGTH(r1.description) >= 6 AND LOWER(LEFT(TRIM(r1.description), 25)) = LOWER(LEFT(TRIM(r2.description), 25)))
+                             OR (LENGTH(r1.title) >= 4 AND LOWER(TRIM(r1.title)) = LOWER(TRIM(r2.title)))
+                         )');
+                })
+                ->groupBy('r1.request_id')
+                ->havingRaw('COUNT(r2.request_id) >= 4');
+        });
+    }
+
     public function getManpowerDetailsAttribute(): array
     {
         $desc = $this->description ?? '';
