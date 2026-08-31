@@ -30,7 +30,7 @@
             </span>
         </div>
 
-        <form id="reportForm" action="{{ route('admin.reports.export') }}" method="POST" onsubmit="handleExportSubmit()" class="space-y-6">
+        <form id="reportForm" action="{{ route('admin.reports.export') }}" method="POST" onsubmit="handleExportSubmit(event)" class="space-y-6">
             @csrf
             <input type="hidden" name="report_type" id="reportType" value="Accomplishment Report">
             
@@ -435,28 +435,77 @@
         previewContainer.innerHTML = previewHTML;
     }
 
-    function handleExportSubmit() {
+    async function handleExportSubmit(e) {
+        if (e) {
+            e.preventDefault();
+        }
+
         const btn = document.getElementById('exportBtn');
-        if (!btn) return;
+        const form = document.getElementById('reportForm');
+        if (!btn || !form) return;
 
         const originalHTML = `
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             <span>Export Excel Sheet (.xlsx)</span>
         `;
 
+        // Loading state
+        btn.disabled = true;
         btn.innerHTML = `
             <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span>Downloading...</span>
+            <span>Generating & Downloading...</span>
         `;
-        btn.classList.add('opacity-80');
+        btn.classList.add('opacity-75', 'cursor-wait');
 
-        setTimeout(() => {
+        try {
+            const formData = new FormData(form);
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]')?.value || '{{ csrf_token() }}'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Export download failed');
+            }
+
+            const blob = await response.blob();
+            
+            // Extract filename from response headers or fallback
+            let filename = 'Accomplishment_Report.xlsx';
+            const disposition = response.headers.get('Content-Disposition');
+            if (disposition && disposition.indexOf('filename=') !== -1) {
+                const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                if (matches != null && matches[1]) {
+                    filename = matches[1].replace(/['"]/g, '');
+                }
+            }
+
+            const blobUrl = window.URL.createObjectURL(blob);
+            const tempLink = document.createElement('a');
+            tempLink.href = blobUrl;
+            tempLink.setAttribute('download', filename);
+            document.body.appendChild(tempLink);
+            tempLink.click();
+            document.body.removeChild(tempLink);
+            window.URL.revokeObjectURL(blobUrl);
+
+        } catch (err) {
+            console.error('Export download error:', err);
+            // Fallback native submit
+            form.submit();
+        } finally {
+            // Restore button immediately so user can click repeatedly without page refresh
+            btn.disabled = false;
             btn.innerHTML = originalHTML;
-            btn.classList.remove('opacity-80');
-        }, 1500);
+            btn.classList.remove('opacity-75', 'cursor-wait');
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
