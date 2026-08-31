@@ -194,37 +194,208 @@
                 
                 <!-- Request Specifications Card -->
                 <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
-                    <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 mb-4 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Service Request Specifications
-                    </h2>
+                    @php
+                        $catName = strtolower($request->category->category_name ?? '');
+                        $isManpower = str_contains($catName, 'manpower') || str_contains($catName, 'event');
+                        $m = $request->manpower_details ?? [];
+                    @endphp
 
-                    <!-- Description -->
-                    <div class="mb-6">
-                        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Description</div>
-                        <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl text-slate-800 dark:text-gray-200 text-xs sm:text-sm leading-relaxed border border-gray-100 dark:border-zinc-700 whitespace-pre-line">
-                            {{ $request->display_description ?: 'No detailed description provided.' }}
-                        </div>
-
+                    <div class="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-3 mb-5">
+                        <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span>Request Details &amp; Specifications</span>
+                        </h2>
+                        @if($isManpower)
+                            <span class="px-2.5 py-0.5 bg-blue-50 text-[#0033a0] dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-full text-xs font-bold">
+                                Manpower Services
+                            </span>
+                        @endif
                     </div>
 
-                    <!-- Details Grid -->
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
-                            <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Category</div>
-                            <div class="text-xs font-bold text-slate-900 dark:text-white">{{ $request->category->category_name ?? 'General' }}</div>
+                    @if($isManpower)
+                        <!-- Top Details Grid for Manpower: Category, Campus, Location -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Service Category</div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white">{{ $request->category->category_name ?? 'Manpower' }}</div>
+                            </div>
+
+                            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Campus</div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white">{{ $request->campus ?? 'BU Main' }}</div>
+                            </div>
+
+                            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Office / Location</div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ $request->location }}</div>
+                            </div>
                         </div>
 
-                        <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
-                            <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Campus</div>
-                            <div class="text-xs font-bold text-slate-900 dark:text-white">{{ $request->campus ?? 'BU Main' }}</div>
+                        <!-- Manpower Request Breakdown (Separate Themed Boxes) -->
+                        <div class="space-y-3.5 mb-2">
+                            <!-- 1. Activity / Event Overview Box -->
+                            <div class="bg-blue-50/60 dark:bg-zinc-800/60 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                                <div class="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                                    <div class="text-[11px] font-bold text-[#0033a0] dark:text-blue-300 uppercase tracking-wider">
+                                        Activity / Event
+                                    </div>
+                                    @if(!empty($m['event_date']))
+                                        <span class="px-2.5 py-0.5 bg-blue-100 dark:bg-blue-950 text-[#0033a0] dark:text-blue-300 rounded-md text-[11px] font-bold">
+                                            Event Date: {{ $m['event_date'] }}
+                                        </span>
+                                    @endif
+                                </div>
+                                <div class="text-sm font-bold text-slate-900 dark:text-white">
+                                    {{ $m['activity_title'] ?: $request->title }}
+                                </div>
+                            </div>
+
+                            <!-- 2. Preparation Box (if provided) -->
+                            @if(!empty($m['prep_details']))
+                                @php
+                                    $prepTimeStr = (!empty($m['prep_regular']) ? ('Regular Time: ' . ($m['prep_regular_time'] ?? '8:00 - 12:00 / 1:00 - 5:00')) : '') 
+                                                 . (!empty($m['prep_overtime']) ? ((!empty($m['prep_regular']) ? ' • ' : '') . 'Overtime: ' . ($m['prep_overtime_time'] ?? '5:00 PM onwards')) : '');
+                                @endphp
+                                <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                                    <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                                        <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                            Preparation
+                                        </div>
+                                        @if(!empty($m['prep_date']) || $prepTimeStr)
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                @if(!empty($m['prep_date']))
+                                                    <span class="px-2 py-0.5 bg-gray-200/80 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded text-[10.5px] font-bold">
+                                                        {{ $m['prep_date'] }}
+                                                    </span>
+                                                @endif
+                                                @if($prepTimeStr)
+                                                    <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-100 dark:border-blue-900 rounded text-[10.5px] font-semibold">
+                                                        {{ $prepTimeStr }}
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                                        {{ $m['prep_details'] }}
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- 3. Event Assistance Box (if provided) -->
+                            @if(!empty($m['assistance_details']))
+                                @php
+                                    $assistTimeStr = (!empty($m['assistance_regular']) ? ('Regular Time: ' . ($m['assistance_regular_time'] ?? '8:00 - 12:00 / 1:00 - 5:00')) : '') 
+                                                   . (!empty($m['assistance_overtime']) ? ((!empty($m['assistance_regular']) ? ' • ' : '') . 'Overtime: ' . ($m['assistance_overtime_time'] ?? '5:00 PM onwards')) : '');
+                                @endphp
+                                <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                                    <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                                        <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                            Event Assistance
+                                        </div>
+                                        @if(!empty($m['assistance_date']) || $assistTimeStr)
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                @if(!empty($m['assistance_date']))
+                                                    <span class="px-2 py-0.5 bg-gray-200/80 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded text-[10.5px] font-bold">
+                                                        {{ $m['assistance_date'] }}
+                                                    </span>
+                                                @endif
+                                                @if($assistTimeStr)
+                                                    <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-100 dark:border-blue-900 rounded text-[10.5px] font-semibold">
+                                                        {{ $assistTimeStr }}
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                                        {{ $m['assistance_details'] }}
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- 4. Clearing / Teardown Box (if provided) -->
+                            @if(!empty($m['clearing_details']))
+                                @php
+                                    $clearTimeStr = (!empty($m['clearing_regular']) ? ('Regular Time: ' . ($m['clearing_regular_time'] ?? '8:00 - 12:00 / 1:00 - 5:00')) : '') 
+                                                  . (!empty($m['clearing_overtime']) ? ((!empty($m['clearing_regular']) ? ' • ' : '') . 'Overtime: ' . ($m['clearing_overtime_time'] ?? '5:00 PM onwards')) : '');
+                                @endphp
+                                <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                                    <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                                        <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                            Clearing / Teardown
+                                        </div>
+                                        @if(!empty($m['clearing_date']) || $clearTimeStr)
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                @if(!empty($m['clearing_date']))
+                                                    <span class="px-2 py-0.5 bg-gray-200/80 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded text-[10.5px] font-bold">
+                                                        {{ $m['clearing_date'] }}
+                                                    </span>
+                                                @endif
+                                                @if($clearTimeStr)
+                                                    <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-100 dark:border-blue-900 rounded text-[10.5px] font-semibold">
+                                                        {{ $clearTimeStr }}
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                                        {{ $m['clearing_details'] }}
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- 5. Additional Notes Box (if provided) -->
+                            @if(!empty($m['additional_notes']))
+                                <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                                    <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                                        Additional Notes &amp; Special Instructions
+                                    </div>
+                                    <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                                        {{ $m['additional_notes'] }}
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if(!empty($m['general_description']))
+                                <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                                    <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                                        General Description
+                                    </div>
+                                    <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                                        {{ $m['general_description'] }}
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    @else
+                        <!-- Standard Description Box (Non-Manpower) -->
+                        <div class="mb-6">
+                            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Description</div>
+                            <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl text-slate-800 dark:text-gray-200 text-xs sm:text-sm leading-relaxed border border-gray-100 dark:border-zinc-700 whitespace-pre-line">
+                                {{ $request->display_description ?: 'No detailed description provided.' }}
+                            </div>
                         </div>
 
-                        <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
-                            <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Office / Location</div>
-                            <div class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ $request->location }}</div>
+                        <!-- Details Grid (Non-Manpower) -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Category</div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white">{{ $request->category->category_name ?? 'General' }}</div>
+                            </div>
+
+                            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Campus</div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white">{{ $request->campus ?? 'BU Main' }}</div>
+                            </div>
+
+                            <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Office / Location</div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ $request->location }}</div>
+                            </div>
                         </div>
-                    </div>
+                    @endif
 
                     <!-- Supporting Attachment -->
                     @if($request->attachment)

@@ -114,14 +114,32 @@ class ReportController extends Controller
                     default => 7
                 };
 
+                $isManpower = $prefix === 'MAN' || str_contains($catName, 'manpower') || str_contains($catName, 'event');
+                $verifiedWork = $req->project?->nature_of_work;
+                $hasVerifiedWork = $verifiedWork && !in_array(trim($verifiedWork), ['Completed', 'Repair & Maintenance Done', 'Direct Repair', '']);
+
+                if ($isManpower) {
+                    $taskTitle = $hasVerifiedWork ? $verifiedWork : $req->title;
+                    $taskDesc = null;
+                } else {
+                    $taskTitle = $req->title;
+                    if ($hasVerifiedWork && $verifiedWork !== $req->title) {
+                        $taskDesc = $verifiedWork;
+                    } elseif ($req->display_description) {
+                        $taskDesc = $req->display_description;
+                    } else {
+                        $taskDesc = null;
+                    }
+                }
+
                 return [
                     'request_id' => $req->request_id,
                     'category_id' => $req->category_id,
                     'category_name' => $req->category->category_name ?? 'General Maintenance',
                     'prefix' => $prefix,
                     'category_order' => $categoryOrder,
-                    'title' => $req->title,
-                    'description' => $req->description,
+                    'title' => $taskTitle,
+                    'description' => $taskDesc,
                     'location' => $req->location ?? 'N/A',
                     'submitted_at' => $req->submitted_at ? Carbon::parse($req->submitted_at)->format('Y-m-d') : null,
                     'request_date_formatted' => $req->submitted_at ? Carbon::parse($req->submitted_at)->format('n/j/Y') : '',
@@ -399,9 +417,19 @@ class ReportController extends Controller
                 $ratingVal = ($r == (int)$r) ? (string)(int)$r : number_format($r, 1);
             }
 
-            $taskDetails = $req->title;
-            if ($req->description) {
-                $taskDetails .= "\n" . $req->description;
+            $isManpower = $prefix === 'MAN' || str_contains($catName, 'manpower') || str_contains($catName, 'event');
+            $verifiedWork = $req->project?->nature_of_work;
+            $hasVerifiedWork = $verifiedWork && !in_array(trim($verifiedWork), ['Completed', 'Repair & Maintenance Done', 'Direct Repair', '']);
+
+            if ($isManpower) {
+                $taskDetails = $hasVerifiedWork ? $verifiedWork : $req->title;
+            } else {
+                $taskDetails = $req->title;
+                if ($hasVerifiedWork && $verifiedWork !== $req->title) {
+                    $taskDetails .= "\n" . $verifiedWork;
+                } elseif ($req->display_description) {
+                    $taskDetails .= "\n" . $req->display_description;
+                }
             }
 
             $sheet->setCellValue('A'.$row, $reqNum);
