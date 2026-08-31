@@ -40,7 +40,9 @@
     <!-- Status Filter Dropdown & Search Input -->
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
         <input type="hidden" name="priority" value="{{ $priorityFilter }}">
+        <input type="hidden" name="direction" value="{{ $direction ?? 'asc' }}">
 
+        <!-- Status Filter Dropdown -->
         <select name="status" onchange="this.form.submit()" class="px-3.5 py-2 rounded-xl border border-[#0038A8]/30 dark:border-zinc-700 text-[#0038A8] dark:text-blue-400 bg-white dark:bg-zinc-900 text-xs font-bold outline-none cursor-pointer shadow-2xs w-full sm:w-auto">
             <option value="" {{ empty($statusFilter) || $statusFilter === 'active' ? 'selected' : '' }}>Active Tasks Only</option>
             <option value="Completed" {{ $statusFilter === 'Completed' ? 'selected' : '' }}>Completed Tasks</option>
@@ -49,6 +51,7 @@
             <option value="all" {{ $statusFilter === 'all' ? 'selected' : '' }}>All Tasks</option>
         </select>
 
+        <!-- Search Input -->
         <div class="relative flex-1 sm:flex-initial">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#0038A8] dark:text-blue-400">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -66,7 +69,7 @@
     if ($statusFilter === 'In Progress') {
         $tableTasks = $inProgressTasks;
         $showInProgressBox = false;
-    } elseif ($statusFilter === 'Completed') {
+    } elseif ($statusFilter === 'Completed' || $statusFilter === 'all' || $statusFilter === 'Pending' || ($sort && $sort !== 'priority')) {
         $tableTasks = $assignments;
         $showInProgressBox = false;
     } else {
@@ -280,11 +283,60 @@
             <thead>
                 <tr class="bg-gray-50/80 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 text-[#042B74] dark:text-blue-400 text-xs uppercase tracking-wider font-bold">
                     <th class="px-6 py-4">Queue #</th>
-                    <th class="px-6 py-4">Requisition No.</th>
-                    <th class="px-6 py-4">Title / Location</th>
-                    <th class="px-6 py-4">Priority</th>
-                    <th class="px-6 py-4">Assigned Date</th>
-                    <th class="px-6 py-4">Status</th>
+                    <th class="px-6 py-4">
+                        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['sort' => 'req_no', 'direction' => (($sort === 'req_no' && ($direction ?? 'asc') === 'asc') ? 'desc' : 'asc')])) }}" class="inline-flex items-center gap-1.5 hover:text-blue-600 transition">
+                            <span>Requisition No.</span>
+                            @if(($sort ?? '') === 'req_no')
+                                <span class="text-blue-600 font-extrabold">{{ ($direction ?? 'asc') === 'asc' ? '▲' : '▼' }}</span>
+                            @else
+                                <span class="text-gray-300 dark:text-zinc-600">↕</span>
+                            @endif
+                        </a>
+                    </th>
+                    <th class="px-6 py-4">
+                        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['sort' => ($sort === 'title_asc' ? 'title_desc' : 'title_asc')])) }}" class="inline-flex items-center gap-1.5 hover:text-blue-600 transition">
+                            <span>Title / Location</span>
+                            @if(($sort ?? '') === 'title_asc')
+                                <span class="text-blue-600 font-extrabold">▲</span>
+                            @elseif(($sort ?? '') === 'title_desc')
+                                <span class="text-blue-600 font-extrabold">▼</span>
+                            @else
+                                <span class="text-gray-300 dark:text-zinc-600">↕</span>
+                            @endif
+                        </a>
+                    </th>
+                    <th class="px-6 py-4">
+                        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['sort' => 'priority', 'direction' => (($sort === 'priority' && ($direction ?? 'asc') === 'asc') ? 'desc' : 'asc')])) }}" class="inline-flex items-center gap-1.5 hover:text-blue-600 transition">
+                            <span>Priority</span>
+                            @if(($sort ?? 'priority') === 'priority')
+                                <span class="text-blue-600 font-extrabold">{{ ($direction ?? 'asc') === 'asc' ? '▲' : '▼' }}</span>
+                            @else
+                                <span class="text-gray-300 dark:text-zinc-600">↕</span>
+                            @endif
+                        </a>
+                    </th>
+                    <th class="px-6 py-4">
+                        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['sort' => ($sort === 'date_asc' ? 'date_desc' : 'date_asc')])) }}" class="inline-flex items-center gap-1.5 hover:text-blue-600 transition">
+                            <span>Assigned Date</span>
+                            @if(($sort ?? '') === 'date_asc')
+                                <span class="text-blue-600 font-extrabold">▲</span>
+                            @elseif(($sort ?? '') === 'date_desc')
+                                <span class="text-blue-600 font-extrabold">▼</span>
+                            @else
+                                <span class="text-gray-300 dark:text-zinc-600">↕</span>
+                            @endif
+                        </a>
+                    </th>
+                    <th class="px-6 py-4">
+                        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['sort' => 'status', 'direction' => (($sort === 'status' && ($direction ?? 'asc') === 'asc') ? 'desc' : 'asc')])) }}" class="inline-flex items-center gap-1.5 hover:text-blue-600 transition">
+                            <span>Status</span>
+                            @if(($sort ?? '') === 'status')
+                                <span class="text-blue-600 font-extrabold">{{ ($direction ?? 'asc') === 'asc' ? '▲' : '▼' }}</span>
+                            @else
+                                <span class="text-gray-300 dark:text-zinc-600">↕</span>
+                            @endif
+                        </a>
+                    </th>
                     <th class="px-6 py-4 text-right">Action</th>
                 </tr>
             </thead>
