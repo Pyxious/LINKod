@@ -1000,7 +1000,27 @@
                 <form action="{{ route('admin.requests.verify', $serviceRequest->request_id) }}" method="POST" class="space-y-4">
                     @csrf
                     
-                    @if($isWorkerInspectionOnly)
+                    @if($isManpower)
+                        <!-- Work Details / Nature of Work written on paper (MANDATORY FOR MANPOWER) -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider">
+                                    Accomplished Manpower Work Details (Written on Paper):
+                                </label>
+                                <span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-amber-300 dark:border-amber-800">
+                                    Required for Manpower
+                                </span>
+                            </div>
+                            <textarea name="work_details" 
+                                      rows="3" 
+                                      required
+                                      placeholder="Type what was accomplished as written on the returned paper (e.g. Grass cutting, ground preparation, and event assistance completed)..."
+                                      class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border-2 border-blue-400 dark:border-blue-600 rounded-xl text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0] shadow-2xs font-medium">{{ $serviceRequest->project?->nature_of_work && $serviceRequest->project->nature_of_work !== 'Repair & Maintenance Done' ? $serviceRequest->project->nature_of_work : ($serviceRequest->project?->recommendation ?? '') }}</textarea>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                This input will be recorded as the official <strong>Task Details</strong> for this job on the Accomplishment Report.
+                            </p>
+                        </div>
+                    @elseif($isWorkerInspectionOnly)
                         <input type="hidden" name="nature_of_work" value="Inspection & Assessment Only">
                         <!-- Inspection Findings from Paper -->
                         <div>

@@ -526,7 +526,14 @@ class RequestController extends Controller
     public function verifyCompletion(Request $request, int $id)
     {
         try {
-            $serviceRequest = ServiceRequest::with('project')->findOrFail($id);
+            $serviceRequest = ServiceRequest::with(['project', 'category'])->findOrFail($id);
+
+            $catName = strtolower($serviceRequest->category->category_name ?? '');
+            $isManpower = str_contains($catName, 'manpower') || str_contains($catName, 'event');
+
+            if ($isManpower && empty(trim((string)$request->input('work_details')))) {
+                return redirect()->back()->with('error', 'Accomplished manpower work details are required before verifying and completing this request.');
+            }
 
             // Update Project Details
             if ($serviceRequest->project) {
