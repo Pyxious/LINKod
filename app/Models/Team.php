@@ -29,4 +29,18 @@ class Team extends Model
     {
         return $this->hasMany(Worker::class, 'team_id', 'team_id');
     }
+
+    public function getIconUrlAttribute(): string
+    {
+        $name = strtolower($this->team_name ?? '');
+        return match(true) {
+            str_contains($name, 'carpentry') || str_contains($name, 'masonry') || str_contains($name, 'electrical') || str_contains($name, 'mechanical') || str_contains($name, 'cms') => asset('images/units/CMS.png'),
+            str_contains($name, 'plumbing') => asset('images/units/Plumbing.png'),
+            str_contains($name, 'painting') || str_contains($name, 'paint') => asset('images/units/Painting.png'),
+            str_contains($name, 'janitor') || str_contains($name, 'js') || str_contains($name, 'clean') => asset('images/units/JS.png'),
+            str_contains($name, 'manpower') || str_contains($name, 'event') => asset('images/units/Manpower.png'),
+            str_contains($name, 'landscap') || str_contains($name, 'grass') || str_contains($name, 'garden') => asset('images/units/Landscaping.png'),
+            default => asset('images/units/CMS.png')
+        };
+    }
 }

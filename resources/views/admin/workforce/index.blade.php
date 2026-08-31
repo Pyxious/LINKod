@@ -47,18 +47,8 @@
                     @php
                         $teamNameLower = strtolower($team->team_name);
                     @endphp
-                    <div class="w-12 h-12 bg-blue-50 dark:bg-zinc-800 border border-blue-100 dark:border-zinc-700 rounded-xl flex items-center justify-center shrink-0 shadow-2xs">
-                        @if(str_contains($teamNameLower, 'plumb'))
-                            <svg class="w-6 h-6 text-[#0038A8] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.12a2 2 0 01-1.022-.547l-1.07-1.07a2 2 0 010-2.828l1.07-1.07a2 2 0 010 2.828l-1.07 1.07z"/></svg>
-                        @elseif(str_contains($teamNameLower, 'paint'))
-                            <svg class="w-6 h-6 text-[#0038A8] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
-                        @elseif(str_contains($teamNameLower, 'janitor'))
-                            <svg class="w-6 h-6 text-[#0038A8] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-                        @elseif(str_contains($teamNameLower, 'manpower') || str_contains($teamNameLower, 'landscaping'))
-                            <svg class="w-6 h-6 text-[#0038A8] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        @else
-                            <svg class="w-6 h-6 text-[#0038A8] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.9 6.91a2.12 2.12 0 01-3-3l6.91-6.9a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
-                        @endif
+                    <div class="w-12 h-12 bg-blue-50/80 dark:bg-zinc-800 border border-blue-100 dark:border-zinc-700 rounded-xl flex items-center justify-center shrink-0 shadow-2xs p-2 overflow-hidden">
+                        <img src="{{ $team->icon_url }}" alt="{{ $team->team_name }}" class="w-8 h-8 object-contain">
                     </div>
                     <div class="min-w-0">
                         <h3 class="text-[#042B74] dark:text-white text-base font-bold leading-tight truncate">{{ $team->team_name }}</h3>
@@ -368,8 +358,8 @@
                         <label class="team-option-label flex items-center gap-4 p-3.5 rounded-xl border border-gray-200 dark:border-zinc-800 cursor-pointer hover:border-[#0038A8] hover:bg-blue-50/50 transition-all has-[:checked]:border-[#0038A8] has-[:checked]:bg-blue-50/50"
                             data-team-id="{{ $team->team_id }}">
                             <input type="radio" name="team_id" value="{{ $team->team_id }}" class="sr-only team-radio">
-                            <div class="w-9 h-9 rounded-lg bg-blue-100 dark:bg-zinc-800 flex items-center justify-center text-lg shrink-0">
-                                {{ $team->icon }}
+                            <div class="w-9 h-9 rounded-lg bg-blue-50/80 dark:bg-zinc-800 border border-blue-100 dark:border-zinc-700 flex items-center justify-center shrink-0 p-1.5 overflow-hidden">
+                                <img src="{{ $team->icon_url }}" alt="{{ $team->team_name }}" class="w-6 h-6 object-contain">
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="text-xs font-bold text-gray-900 dark:text-white">{{ $team->team_name }}</div>
