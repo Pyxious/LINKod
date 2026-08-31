@@ -117,8 +117,7 @@ class DashboardController extends Controller
         // Notifications
         $user = auth()->user();
         $notifications = $user ? $user->notifications()->latest('sent_at')->take(10)->get() : collect();
-        $unreadCount   = $user ? $user->notifications()->where('is_read', false)->count() : 0;
-
+        $unreadCount = $user ? $user->notifications()->where('is_read', false)->count() : 0;
         return view('admin.dashboard', compact(
             'totalRequests', 'requestsToday', 'activeTasks', 'availableWorkers', 'totalWorkers',
             'availablePct', 'completionRate', 'completedThisMonth', 'taskStatus',

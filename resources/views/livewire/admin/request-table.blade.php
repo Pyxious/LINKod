@@ -42,6 +42,7 @@
                 <option value="On Hold">On Hold</option>
                 <option value="In Progress">In Progress</option>
                 <option value="Completed">Completed</option>
+                <option value="recurring">Recurring Issues</option>
                 <option value="all">All Statuses</option>
             </select>
             <div class="relative">
@@ -98,7 +99,14 @@
             <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm space-y-3">
                 <div class="flex items-center justify-between">
                     <span class="font-mono font-bold text-xs text-[#1a3c8f] dark:text-blue-400 bg-blue-50 dark:bg-zinc-800 px-2 py-0.5 rounded">{{ $reqCode }}</span>
-                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $sClass }}">{{ $s }}</span>
+                    <div class="flex items-center gap-1.5">
+                        @if($r->is_recurring)
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800" title="Recurring Problem: {{ $r->recurring_count }} similar requests this month">
+                                Recurring
+                            </span>
+                        @endif
+                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $sClass }}">{{ $s }}</span>
+                    </div>
                 </div>
                 <div>
                     <h3 class="font-bold text-sm text-gray-900 dark:text-white">{{ $r->title }}</h3>
@@ -196,7 +204,14 @@
                             };
                             $reqCode = $prefix . '-' . str_pad($r->request_id, 3, '0', STR_PAD_LEFT);
                         @endphp
-                        <span class="font-bold text-[#1a3c8f] dark:text-blue-400 text-[13px] tracking-wide">{{ $reqCode }}</span>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="font-bold text-[#1a3c8f] dark:text-blue-400 text-[13px] tracking-wide">{{ $reqCode }}</span>
+                            @if($r->is_recurring)
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800" title="Recurring Problem: {{ $r->recurring_count }} similar requests this month">
+                                    Recurring
+                                </span>
+                            @endif
+                        </div>
                         <div class="text-[11px] text-gray-600 dark:text-gray-400 font-medium">{{ $r->category->category_name ?? 'General' }}</div>
                     </td>
                     <td class="py-4 border-y border-gray-200 dark:border-zinc-800">

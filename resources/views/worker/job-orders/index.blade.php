@@ -4,10 +4,14 @@
 @section('content')
 
 <!-- Page Banner -->
-<div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-5 sm:px-8 py-5 sm:py-6 flex justify-between items-center mb-6 shadow-sm">
+<div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-5 sm:px-8 py-5 sm:py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 shadow-sm">
     <div>
         <h1 class="text-[#0033a0] dark:text-blue-400 text-xl sm:text-2xl font-bold mb-1">Job Orders & Assignments</h1>
         <p class="text-[#0033a0]/80 dark:text-gray-400 text-xs sm:text-sm font-medium">View and manage your assigned maintenance tasks.</p>
+    </div>
+    <div id="job-orders-sync-indicator" class="hidden bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs">
+        <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+        <span>Offline updates pending sync</span>
     </div>
 </div>
 

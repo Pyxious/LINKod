@@ -158,30 +158,37 @@
 
         /* Survey Table */
         .survey-table {
-            width: 90%;
-            margin: 0 auto 20px;
-            border-collapse: collapse;
-            border: 1.5px solid #000;
+            width: 100%;
+            margin: 0 0 20px 0;
+            border-collapse: collapse !important;
+            border-spacing: 0 !important;
+            border: 1px solid #000 !important;
         }
         .survey-table th, .survey-table td {
-            border: 1px solid #000;
-            padding: 6px 10px;
+            border: 1px solid #000 !important;
+            padding: 7px 8px;
             text-align: center;
-            font-size: 13px;
+            font-size: 12.5px;
+            vertical-align: middle;
         }
-        .survey-table th {
-            background-color: #fafafa;
+        .survey-table thead tr th {
+            border: 1px solid #000 !important;
+            background-color: transparent;
             font-weight: bold;
+            text-transform: uppercase;
+        }
+        .survey-table tbody tr td {
+            border: 1px solid #000 !important;
         }
         .survey-table td.function-col {
             text-align: left;
             font-weight: 500;
-            width: 55%;
+            padding-left: 12px;
         }
         .survey-table td.check-col {
-            width: 9%;
             font-size: 16px;
             font-weight: bold;
+            text-align: center;
         }
 
         /* Suggestions */
@@ -317,17 +324,25 @@
         @endphp
 
         <table class="survey-table">
+            <colgroup>
+                <col style="width: 55%;">
+                <col style="width: 9%;">
+                <col style="width: 9%;">
+                <col style="width: 9%;">
+                <col style="width: 9%;">
+                <col style="width: 9%;">
+            </colgroup>
             <thead>
                 <tr>
-                    <th rowspan="2" style="width: 55%; vertical-align: middle;">FUNCTIONS</th>
+                    <th rowspan="2" style="vertical-align: middle;">FUNCTIONS</th>
                     <th colspan="5">RATING SCALES</th>
                 </tr>
                 <tr>
-                    <th style="width: 9%;">5</th>
-                    <th style="width: 9%;">4</th>
-                    <th style="width: 9%;">3</th>
-                    <th style="width: 9%;">2</th>
-                    <th style="width: 9%;">1</th>
+                    <th>5</th>
+                    <th>4</th>
+                    <th>3</th>
+                    <th>2</th>
+                    <th>1</th>
                 </tr>
             </thead>
             <tbody>

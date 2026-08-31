@@ -74,6 +74,9 @@ class RequestTable extends Component
             $query->whereHas('latestHistory', function($q) {
                 $q->whereIn('current_status', ['In Progress', 'Pending Verification']);
             });
+        } elseif ($this->status === 'recurring') {
+            // Filter by 4+ recurring requests in category & location per month
+            $query->recurring();
         } elseif ($this->status === 'all') {
             // No status constraint - show everything
         } else {
@@ -128,14 +131,16 @@ class RequestTable extends Component
         $onHold = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'On Hold'))->count();
         $inProgress = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', ['In Progress', 'Pending Verification']))->count();
         $completed = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count();
+        $recurringCount = ServiceRequest::recurring()->count();
 
         return view('livewire.admin.request-table', [
-            'requests'      => $requests,
-            'totalRequests' => $totalRequests,
-            'submitted'     => $submitted,
-            'onHold'        => $onHold,
-            'inProgress'    => $inProgress,
-            'completed'     => $completed,
+            'requests'       => $requests,
+            'totalRequests'  => $totalRequests,
+            'submitted'      => $submitted,
+            'onHold'         => $onHold,
+            'inProgress'     => $inProgress,
+            'completed'      => $completed,
+            'recurringCount' => $recurringCount,
         ]);
     }
 
