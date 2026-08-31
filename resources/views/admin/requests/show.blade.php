@@ -435,7 +435,7 @@
                             @click="showAddMaterial = !showAddMaterial" 
                             class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 cursor-pointer">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                        <span x-text="showAddMaterial ? 'Close Form' : '+ Add Material'">+ Add Material</span>
+                        <span x-text="showAddMaterial ? 'Close Form' : 'Add Material'">Add Material</span>
                     </button>
                 </div>
             </div>

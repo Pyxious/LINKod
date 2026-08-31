@@ -255,6 +255,19 @@
         @php
             $showName = $serviceRequest->evaluation?->show_name ?? true;
             $raterName = $showName ? trim(($serviceRequest->client->user->first_name ?? '') . ' ' . ($serviceRequest->client->user->last_name ?? '')) : '';
+
+            $catName = strtolower($serviceRequest->category->category_name ?? '');
+            $reqPrefix = match(true) {
+                str_contains($catName, 'landscaping')                                        => 'LS',
+                str_contains($catName, 'janitorial')                                         => 'JS',
+                str_contains($catName, 'carpentry') || str_contains($catName, 'masonry')     => 'CMS',
+                str_contains($catName, 'plumbing')                                           => 'PLS',
+                str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                str_contains($catName, 'painting') || str_contains($catName, 'paint')        => 'PAINT',
+                str_contains($catName, 'manpower') || str_contains($catName, 'event')        => 'MAN',
+                default                                                                      => 'REQ',
+            };
+            $reqCode = $reqPrefix . '-' . str_pad($serviceRequest->request_id, 3, '0', STR_PAD_LEFT);
         @endphp
         <div class="rater-row">
             <div>
@@ -264,11 +277,19 @@
                 </span>
                 <div style="font-size: 11px; font-style: italic; padding-left: 135px; color: #333;">(Optional)</div>
             </div>
-            <div>
-                <strong>DATE:</strong>
-                <span class="date-value">
-                    {{ $serviceRequest->evaluation->rated_at ? $serviceRequest->evaluation->rated_at->format('m/d/Y') : now()->format('m/d/Y') }}
-                </span>
+            <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+                <div>
+                    <strong>REQUISITION NO.:</strong>
+                    <span class="date-value" style="min-width: 150px; font-weight: bold; text-align: center;">
+                        {{ $reqCode }}
+                    </span>
+                </div>
+                <div>
+                    <strong>DATE:</strong>
+                    <span class="date-value">
+                        {{ $serviceRequest->evaluation->rated_at ? $serviceRequest->evaluation->rated_at->format('m/d/Y') : now()->format('m/d/Y') }}
+                    </span>
+                </div>
             </div>
         </div>
 

@@ -13,46 +13,13 @@
         </p>
     </div>
 
-    <!-- Quick Report Selection Cards (8 Cards Grid - 2 per row on mobile, 4 cols on desktop) -->
-    <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        @php
-            $reportCards = [
-                ['id' => 'accomplishment-report', 'name' => 'Accomplishment Report', 'type' => 'Accomplishment Report', 'icon' => 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
-                ['id' => 'request-summary', 'name' => 'Request Summary', 'type' => 'Request Summary', 'icon' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
-                ['id' => 'unit-performance', 'name' => 'Unit Performance', 'type' => 'Unit Performance', 'icon' => 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'],
-                ['id' => 'worker-performance', 'name' => 'Worker Performance', 'type' => 'Worker Performance', 'icon' => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'],
-                ['id' => 'clientele-history', 'name' => 'Clientele History', 'type' => 'Clientele History', 'icon' => 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m3 0h1m-4-8l-2-2m0 0l-2 2m2-2v6'],
-                ['id' => 'preventive-maintenance', 'name' => 'Preventive Maintenance', 'type' => 'Preventive Maintenance', 'icon' => 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z'],
-                ['id' => 'recurring-problems', 'name' => 'Recurring Problems', 'type' => 'Recurring Problems', 'icon' => 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'],
-                ['id' => 'priority-analysis', 'name' => 'Priority Analysis', 'type' => 'Priority Analysis', 'icon' => 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6'],
-            ];
-        @endphp
-
-        @foreach($reportCards as $index => $card)
-            <div onclick="selectQuickReport('{{ $card['type'] }}')" 
-                 class="quick-report-card bg-white dark:bg-zinc-900 border rounded-xl p-3 sm:p-4 hover:border-[#0033a0] dark:hover:border-blue-500 transition shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-3.5 cursor-pointer group {{ $index === 0 ? 'border-[#0033a0] ring-2 ring-[#0033a0]/30 bg-blue-50/50 dark:bg-blue-950/20' : 'border-gray-200 dark:border-zinc-800' }}"
-                 data-report-type="{{ $card['type'] }}">
-                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg {{ $index === 0 ? 'bg-[#0033a0] text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-500' }} flex items-center justify-center group-hover:bg-[#0033a0] group-hover:text-white transition shrink-0">
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $card['icon'] }}"/>
-                    </svg>
-                </div>
-                <div class="min-w-0">
-                    <h3 class="text-xs font-bold text-slate-800 dark:text-gray-200 group-hover:text-[#0033a0] dark:group-hover:text-blue-400 transition leading-snug sm:leading-tight">
-                        {{ $card['name'] }}
-                    </h3>
-                </div>
-            </div>
-        @endforeach
-    </div>
-
     <!-- Generate / Customize Reports Card (Matches Mockup) -->
     <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm space-y-6">
         
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-lg font-black text-[#0033a0] dark:text-blue-400 tracking-tight">
-                    Generate Accomplishment & System Reports
+                    Generate Accomplishment Reports
                 </h2>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     Accomplishment reports automatically compile all finished/completed jobs for each maintenance section.
@@ -65,25 +32,11 @@
 
         <form id="reportForm" action="{{ route('admin.reports.export') }}" method="POST" onsubmit="handleExportSubmit(event)" class="space-y-6">
             @csrf
+            <input type="hidden" name="report_type" id="reportType" value="Accomplishment Report">
             
-            <!-- Row 1: Filters (Report Type, Year, Period / Semester, Date Start, Date End) -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+            <!-- Row 1: Filters (Year, Period / Semester, Date Start, Date End) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 
-                <!-- Report Type -->
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-700 dark:text-gray-300 mb-1.5">Report Type</label>
-                    <select name="report_type" id="reportType" onchange="updateLivePreview()" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]">
-                        <option value="Accomplishment Report" selected>Accomplishment Report</option>
-                        <option value="Request Summary">Request Summary</option>
-                        <option value="Unit Performance">Unit Performance</option>
-                        <option value="Worker Performance">Worker Performance</option>
-                        <option value="Clientele History">Clientele History</option>
-                        <option value="Preventive Maintenance">Preventive Maintenance</option>
-                        <option value="Recurring Problems">Recurring Problems</option>
-                        <option value="Priority Analysis">Priority Analysis</option>
-                    </select>
-                </div>
-
                 <!-- Report Year -->
                 <div>
                     <label class="block text-[11px] font-bold text-slate-700 dark:text-gray-300 mb-1.5">Report Year</label>
@@ -281,26 +234,6 @@
     function handleCustomDateInput() {
         document.getElementById('reportPeriod').value = 'custom';
         updateLivePreview();
-    }
-
-    function selectQuickReport(type) {
-        const reportTypeSelect = document.getElementById('reportType');
-        if (reportTypeSelect) {
-            reportTypeSelect.value = type;
-            updateLivePreview();
-        }
-
-        document.querySelectorAll('.quick-report-card').forEach(card => {
-            if (card.getAttribute('data-report-type') === type) {
-                card.classList.add('border-[#0033a0]', 'ring-2', 'ring-[#0033a0]/30', 'bg-blue-50/50', 'dark:bg-blue-950/20');
-                card.querySelector('div').classList.add('bg-[#0033a0]', 'text-white');
-                card.querySelector('div').classList.remove('bg-gray-100', 'dark:bg-zinc-800', 'text-gray-500');
-            } else {
-                card.classList.remove('border-[#0033a0]', 'ring-2', 'ring-[#0033a0]/30', 'bg-blue-50/50', 'dark:bg-blue-950/20');
-                card.querySelector('div').classList.remove('bg-[#0033a0]', 'text-white');
-                card.querySelector('div').classList.add('bg-gray-100', 'dark:bg-zinc-800', 'text-gray-500');
-            }
-        });
     }
 
     function resetReportForm() {

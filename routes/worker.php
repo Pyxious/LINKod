@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', '2fa', 'role:worker'])->prefix('worker')->name('worker.')->group(function () {
 
+    // Redirect /worker and /worker/ to dashboard
+    Route::redirect('/', '/worker/dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/job-orders',       [JobOrderController::class, 'index'])->name('job-orders.index');

@@ -53,11 +53,165 @@
     <div class="flex-1 min-w-0 w-full space-y-6">
         <!-- 1st Box: Issue Description & Supporting Documents -->
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">{{ $req->title ?? 'Untitled Job Order' }}</h2>
-            
-            <div class="prose prose-sm text-gray-600 dark:text-gray-300 max-w-none whitespace-pre-line">
-                {{ $req->display_description ?? 'No description provided by the client.' }}
-            </div>
+            @php
+                $catName = strtolower($req->category->category_name ?? '');
+                $isManpower = str_contains($catName, 'manpower') || str_contains($catName, 'event');
+                $m = $req->manpower_details ?? [];
+            @endphp
+
+            @if($isManpower)
+                <div class="space-y-4 mb-2">
+                    <div class="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-3">
+                        <h2 class="text-base sm:text-lg font-bold text-[#0038A8] dark:text-blue-400">Request Details &amp; Specification</h2>
+                        <span class="px-2.5 py-0.5 bg-blue-50 text-[#0038A8] dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-full text-xs font-bold">
+                            Manpower Services
+                        </span>
+                    </div>
+
+                    <!-- 1. Activity / Event Overview Box -->
+                    <div class="bg-blue-50/60 dark:bg-zinc-800/60 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
+                        <div class="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                            <div class="text-[11px] font-bold text-[#0038A8] dark:text-blue-300 uppercase tracking-wider">
+                                Activity / Event
+                            </div>
+                            @if(!empty($m['event_date']))
+                                <span class="px-2.5 py-0.5 bg-blue-100 dark:bg-blue-950 text-[#0038A8] dark:text-blue-300 rounded-md text-[11px] font-bold">
+                                    Event Date: {{ $m['event_date'] }}
+                                </span>
+                            @endif
+                        </div>
+                        <div class="text-sm font-bold text-slate-900 dark:text-white">
+                            {{ $m['activity_title'] ?: ($req->title ?? 'Activity') }}
+                        </div>
+                    </div>
+
+                    <!-- 2. Preparation Box (if provided) -->
+                    @if(!empty($m['prep_details']))
+                        @php
+                            $prepTimeStr = (!empty($m['prep_regular']) ? ('Regular Time: ' . ($m['prep_regular_time'] ?? '8:00 - 12:00 / 1:00 - 5:00')) : '') 
+                                         . (!empty($m['prep_overtime']) ? ((!empty($m['prep_regular']) ? ' • ' : '') . 'Overtime: ' . ($m['prep_overtime_time'] ?? '5:00 PM onwards')) : '');
+                        @endphp
+                        <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                            <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                                <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Preparation
+                                </div>
+                                @if(!empty($m['prep_date']) || $prepTimeStr)
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        @if(!empty($m['prep_date']))
+                                            <span class="px-2 py-0.5 bg-gray-200/80 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded text-[10.5px] font-bold">
+                                                {{ $m['prep_date'] }}
+                                            </span>
+                                        @endif
+                                        @if($prepTimeStr)
+                                            <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 border border-blue-100 dark:border-blue-900 rounded text-[10.5px] font-semibold">
+                                                {{ $prepTimeStr }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                                {{ $m['prep_details'] }}
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- 3. Event Assistance Box (if provided) -->
+                    @if(!empty($m['assistance_details']))
+                        @php
+                            $assistTimeStr = (!empty($m['assistance_regular']) ? ('Regular Time: ' . ($m['assistance_regular_time'] ?? '8:00 - 12:00 / 1:00 - 5:00')) : '') 
+                                           . (!empty($m['assistance_overtime']) ? ((!empty($m['assistance_regular']) ? ' • ' : '') . 'Overtime: ' . ($m['assistance_overtime_time'] ?? '5:00 PM onwards')) : '');
+                        @endphp
+                        <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                            <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                                <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Event Assistance
+                                </div>
+                                @if(!empty($m['assistance_date']) || $assistTimeStr)
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        @if(!empty($m['assistance_date']))
+                                            <span class="px-2 py-0.5 bg-gray-200/80 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded text-[10.5px] font-bold">
+                                                {{ $m['assistance_date'] }}
+                                            </span>
+                                        @endif
+                                        @if($assistTimeStr)
+                                            <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 border border-blue-100 dark:border-blue-900 rounded text-[10.5px] font-semibold">
+                                                {{ $assistTimeStr }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                                {{ $m['assistance_details'] }}
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- 4. Clearing / Teardown Box (if provided) -->
+                    @if(!empty($m['clearing_details']))
+                        @php
+                            $clearTimeStr = (!empty($m['clearing_regular']) ? ('Regular Time: ' . ($m['clearing_regular_time'] ?? '8:00 - 12:00 / 1:00 - 5:00')) : '') 
+                                          . (!empty($m['clearing_overtime']) ? ((!empty($m['clearing_regular']) ? ' • ' : '') . 'Overtime: ' . ($m['clearing_overtime_time'] ?? '5:00 PM onwards')) : '');
+                        @endphp
+                        <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                            <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                                <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Clearing / Teardown
+                                </div>
+                                @if(!empty($m['clearing_date']) || $clearTimeStr)
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        @if(!empty($m['clearing_date']))
+                                            <span class="px-2 py-0.5 bg-gray-200/80 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded text-[10.5px] font-bold">
+                                                {{ $m['clearing_date'] }}
+                                            </span>
+                                        @endif
+                                        @if($clearTimeStr)
+                                            <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 border border-blue-100 dark:border-blue-900 rounded text-[10.5px] font-semibold">
+                                                {{ $clearTimeStr }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                                {{ $m['clearing_details'] }}
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- 5. Additional Notes Box (if provided) -->
+                    @if(!empty($m['additional_notes']))
+                        <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                            <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                                Additional Notes &amp; Special Instructions
+                            </div>
+                            <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                                {{ $m['additional_notes'] }}
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- 6. General Description (if provided) -->
+                    @if(!empty($m['general_description']))
+                        <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
+                            <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                                General Description
+                            </div>
+                            <div class="text-xs sm:text-sm text-slate-800 dark:text-gray-200 font-medium whitespace-pre-line leading-relaxed">
+                                {{ $m['general_description'] }}
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            @else
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">{{ $req->title ?? 'Untitled Job Order' }}</h2>
+                
+                <div class="prose prose-sm text-gray-600 dark:text-gray-300 max-w-none whitespace-pre-line">
+                    {{ $req->display_description ?? 'No description provided by the client.' }}
+                </div>
+            @endif
 
             
             @if($req->attachment)
@@ -237,6 +391,8 @@
 
         <!-- 2nd Box: Update Task Progress & Attach Proofs -->
         @php
+            // On Hold = BOM submitted/approved, next step is In Progress
+            // In Progress = currently working, next step is Completed
             $defaultNextStatus = ($project->current_status === 'In Progress') ? 'Completed' : 'In Progress';
         @endphp
         <div class="bg-white dark:bg-[#1c1c1e] border-2 border-[#1a3c8f]/30 dark:border-blue-700/60 rounded-2xl shadow-sm p-6 sm:p-7"
@@ -251,6 +407,38 @@
                      Action Required
                  </span>
              </div>
+
+              @php
+                  $hasPendingBom = $project->billOfMaterials->where('date_approved', null)->isNotEmpty();
+                  $hasApprovedBom = $project->billOfMaterials->where('date_approved', '!=', null)->isNotEmpty();
+              @endphp
+
+              @if($project->current_status === 'On Hold' && $hasPendingBom)
+              {{-- BOM still awaiting admin approval — don't let worker update yet --}}
+              <div class="p-4 bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700 rounded-2xl mb-5 text-slate-800 dark:text-amber-100 text-xs sm:text-sm font-semibold flex items-start gap-3 shadow-xs">
+                  <div class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  </div>
+                  <div>
+                      <p class="font-bold text-amber-800 dark:text-amber-200 mb-0.5">Awaiting Material Approval (BOM)</p>
+                      <p class="text-amber-700 dark:text-amber-300 font-medium text-xs leading-relaxed">Your Bill of Materials request is pending admin review and pricing. You can proceed to update task progress once the BOM is approved.</p>
+                  </div>
+              </div>
+              @elseif($project->current_status === 'On Hold' && $hasApprovedBom)
+              {{-- BOM approved — show info that worker can now proceed --}}
+              <div class="p-4 bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-700 rounded-2xl mb-5 text-slate-800 dark:text-emerald-100 text-xs sm:text-sm font-semibold flex items-start gap-3 shadow-xs">
+                  <div class="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <div>
+                      <p class="font-bold text-emerald-800 dark:text-emerald-200 mb-0.5">Materials Approved — Ready to Begin</p>
+                      <p class="text-emerald-700 dark:text-emerald-300 font-medium text-xs leading-relaxed">Your BOM has been approved by admin. Take a before-work photo and set the task to In Progress to proceed.</p>
+                  </div>
+              </div>
+              @endif
+
+              @if(!($project->current_status === 'On Hold' && $hasPendingBom))
+              {{-- Only show update form if not blocked by pending BOM --}}
 
               <!-- Offline Success Notice (Step 1) -->
               <div x-show="offlineSaved && !taskFinishedOffline" x-cloak class="p-4 bg-blue-50/80 dark:bg-blue-950/40 border-2 border-blue-200 dark:border-blue-800 rounded-2xl mb-5 text-slate-800 dark:text-blue-100 text-xs sm:text-sm font-semibold flex items-start sm:items-center gap-3 shadow-xs">
@@ -492,8 +680,9 @@
                      </div>
                  </div>
              </div>
-        </div>
-        @endif
+             @endif {{-- end pending BOM check --}}
+         </div>
+         @endif
 
         <script>
             function workerTaskProgress(projectId, defaultNextStatus, projectTitle, syncUrl) {
@@ -537,7 +726,9 @@
                         
                         if (this.cameraStream) {
                             try {
-                                this.cameraStream.getTracks().forEach(t => t.stop());
+                                this.cameraStream.getTracks().forEach(t => {
+                                    t.stop();
+                                });
                             } catch (e) {}
                             this.cameraStream = null;
                         }
@@ -548,25 +739,41 @@
                         }
 
                         let stream = null;
+                        const targetFacing = this.facingMode || 'environment';
+
+                        // Attempt 1: Facing mode with ideal resolution
                         try {
                             stream = await navigator.mediaDevices.getUserMedia({
                                 video: {
+                                    facingMode: { ideal: targetFacing },
                                     width: { ideal: 1280 },
                                     height: { ideal: 720 }
                                 },
                                 audio: false
                             });
                         } catch (err1) {
-                            console.warn('Initial camera attempt failed, trying fallback...', err1);
+                            console.warn('High-res facingMode attempt failed, trying basic facingMode...', err1);
                             try {
+                                // Attempt 2: Direct facingMode
                                 stream = await navigator.mediaDevices.getUserMedia({
-                                    video: true,
+                                    video: {
+                                        facingMode: targetFacing
+                                    },
                                     audio: false
                                 });
                             } catch (err2) {
-                                console.error('All camera attempts failed:', err2);
-                                this.cameraError = 'Could not access camera (' + (err2.message || 'Permission denied') + '). Please ensure camera access is allowed in browser settings, or choose a file.';
-                                return;
+                                console.warn('Direct facingMode attempt failed, trying generic video...', err2);
+                                try {
+                                    // Attempt 3: Generic video
+                                    stream = await navigator.mediaDevices.getUserMedia({
+                                        video: true,
+                                        audio: false
+                                    });
+                                } catch (err3) {
+                                    console.error('All camera attempts failed:', err3);
+                                    this.cameraError = 'Could not access camera (' + (err3.message || 'Permission denied') + '). Please ensure camera access is allowed in browser settings, or choose a file.';
+                                    return;
+                                }
                             }
                         }
 
@@ -577,6 +784,8 @@
                             if (video) {
                                 video.srcObject = stream;
                                 video.muted = true;
+                                video.setAttribute('playsinline', 'true');
+                                video.setAttribute('autoplay', 'true');
                                 video.onloadedmetadata = async () => {
                                     try {
                                         await video.play();
@@ -592,7 +801,7 @@
                     },
 
                     async flipCamera() {
-                        this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+                        this.facingMode = (this.facingMode === 'environment') ? 'user' : 'environment';
                         await this.startStream();
                     },
 

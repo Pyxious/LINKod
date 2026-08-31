@@ -16,10 +16,12 @@ class JobOrderController extends Controller
         $statusFilter   = $request->get('status', '');
         $priorityFilter = $request->get('priority', '');
         $search         = strtolower(trim($request->get('search', '')));
+        $sort           = $request->get('sort', 'priority');
+        $direction      = strtolower($request->get('direction', 'asc'));
 
         if (!$worker) {
             $assignments = collect();
-            return view('worker.job-orders.index', compact('assignments', 'statusFilter', 'priorityFilter', 'search'));
+            return view('worker.job-orders.index', compact('assignments', 'statusFilter', 'priorityFilter', 'search', 'sort', 'direction'));
         }
 
         $allAssignments = $worker->assignments()
@@ -67,19 +69,59 @@ class JobOrderController extends Controller
             }
 
             return true;
-        })->sort(function($a, $b) {
-            $prioA = strtolower($a->project?->request?->priority ?? 'low');
-            $prioB = strtolower($b->project?->request?->priority ?? 'low');
+        })->sort(function($a, $b) use ($sort, $direction) {
+            $reqA = $a->project?->request;
+            $reqB = $b->project?->request;
+
+            // Date sorting
+            if ($sort === 'date_desc' || ($sort === 'date' && $direction === 'desc') || ($sort === 'assigned_date' && $direction === 'desc')) {
+                $dateA = $a->date_assigned ?? $a->created_at ?? '';
+                $dateB = $b->date_assigned ?? $b->created_at ?? '';
+                return strcmp((string)$dateB, (string)$dateA);
+            }
+
+            if ($sort === 'date_asc' || ($sort === 'date' && $direction === 'asc') || ($sort === 'assigned_date' && $direction === 'asc')) {
+                $dateA = $a->date_assigned ?? $a->created_at ?? '';
+                $dateB = $b->date_assigned ?? $b->created_at ?? '';
+                return strcmp((string)$dateA, (string)$dateB);
+            }
+
+            // Title sorting
+            if ($sort === 'title_asc' || ($sort === 'title' && $direction === 'asc')) {
+                return strcasecmp($reqA?->title ?? '', $reqB?->title ?? '');
+            }
+
+            if ($sort === 'title_desc' || ($sort === 'title' && $direction === 'desc')) {
+                return strcasecmp($reqB?->title ?? '', $reqA?->title ?? '');
+            }
+
+            // Requisition / Project ID sorting
+            if ($sort === 'req_no') {
+                $idA = (int)($reqA?->request_id ?? $a->project_id ?? 0);
+                $idB = (int)($reqB?->request_id ?? $b->project_id ?? 0);
+                return $direction === 'desc' ? ($idB <=> $idA) : ($idA <=> $idB);
+            }
+
+            // Status sorting
+            if ($sort === 'status') {
+                $statusA = $a->project?->current_status ?? '';
+                $statusB = $b->project?->current_status ?? '';
+                return $direction === 'desc' ? strcasecmp($statusB, $statusA) : strcasecmp($statusA, $statusB);
+            }
+
+            // Priority sorting (Default: High Priority first)
+            $prioA = strtolower($reqA?->priority ?? 'low');
+            $prioB = strtolower($reqB?->priority ?? 'low');
 
             $isHighA = ($prioA === 'high');
             $isHighB = ($prioB === 'high');
 
-            // High priority requests are always at the top
-            if ($isHighA && !$isHighB) {
-                return -1;
-            }
-            if (!$isHighA && $isHighB) {
-                return 1;
+            if ($direction === 'desc' || $sort === 'priority_asc') {
+                if (!$isHighA && $isHighB) return -1;
+                if ($isHighA && !$isHighB) return 1;
+            } else {
+                if ($isHighA && !$isHighB) return -1;
+                if (!$isHighA && $isHighB) return 1;
             }
 
             // Both High OR both Med/Low -> strictly FCFS (earliest assignment first)
@@ -93,8 +135,11 @@ class JobOrderController extends Controller
             return 0;
         })->values();
 
-        return view('worker.job-orders.index', compact('assignments', 'statusFilter', 'priorityFilter', 'search'));
-
+        return response()
+            ->view('worker.job-orders.index', compact('assignments', 'statusFilter', 'priorityFilter', 'search', 'sort', 'direction'))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', 'Sat, 01 Jan 2000 00:00:00 GMT');
     }
 
     public function show(int $projectId)
@@ -104,8 +149,10 @@ class JobOrderController extends Controller
             'request.category',
             'request.client.user',
             'billOfMaterials.material',
+            'histories',
             'latestHistory',
-            'workers'
+            'workers',
+            'approvedBy.user'
         )->findOrFail($projectId);
 
         // Ensure the worker is assigned to this project

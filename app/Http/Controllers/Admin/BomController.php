@@ -184,29 +184,6 @@ class BomController extends Controller
             }
         }
 
-        // Resume project from 'On Hold' to 'In Progress' if needed
-        if ($project->current_status === 'On Hold') {
-            $project->update(['current_status' => 'In Progress']);
-            ProjectHistory::create([
-                'project_id'      => $project->project_id,
-                'previous_status' => 'On Hold',
-                'current_status'  => 'In Progress',
-                'updated_at'      => now(),
-                'updated_by'      => auth()->id(),
-            ]);
-
-            if ($project->request) {
-                $project->request->update(['current_status' => 'In Progress']);
-                RequestHistory::create([
-                    'request_id'      => $project->request->request_id,
-                    'previous_status' => 'On Hold',
-                    'current_status'  => 'In Progress',
-                    'updated_at'      => now(),
-                    'updated_by'      => auth()->id(),
-                ]);
-            }
-        }
-
         UserLog::create([
             'user_id'    => auth()->id(),
             'action'     => "Admin priced and approved BOM for project #{$project->project_id}",

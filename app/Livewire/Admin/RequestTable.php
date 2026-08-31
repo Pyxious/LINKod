@@ -87,17 +87,46 @@ class RequestTable extends Component
         }
 
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('request_id', 'like', "%{$this->search}%")
-                  ->orWhere('title', 'like', "%{$this->search}%")
+            $searchTerm = strtolower(trim($this->search));
+
+            // Find matching client IDs by decrypting client names/emails (AES-256 encrypted columns)
+            $matchingClientUserIds = \App\Models\User::where('role', 'client')
+                ->get()
+                ->filter(function ($user) use ($searchTerm) {
+                    $fullName = strtolower("{$user->first_name} {$user->last_name}");
+                    if (str_contains($fullName, $searchTerm)) {
+                        return true;
+                    }
+                    if (str_contains(strtolower($user->email_account ?? ''), $searchTerm)) {
+                        return true;
+                    }
+                    return false;
+                })
+                ->pluck('user_id');
+
+            $matchingClientIds = \App\Models\Client::whereIn('user_id', $matchingClientUserIds)->pluck('client_id');
+
+            // Extract numeric ID if searching by code like "CMS-005" or "005"
+            $numericId = preg_replace('/\D/', '', $this->search);
+
+            $query->where(function($q) use ($matchingClientIds, $numericId) {
+                $q->where('title', 'like', "%{$this->search}%")
                   ->orWhere('location', 'like', "%{$this->search}%")
+                  ->orWhere('description', 'like', "%{$this->search}%")
                   ->orWhereHas('category', function($qCat) {
                       $qCat->where('category_name', 'like', "%{$this->search}%");
-                  })
-                  ->orWhereHas('client.user', function($q2) {
-                      $q2->where('first_name', 'like', "%{$this->search}%")
-                         ->orWhere('last_name', 'like', "%{$this->search}%");
                   });
+
+                if ($numericId !== '') {
+                    $q->orWhere('request_id', (int)$numericId)
+                      ->orWhere('request_id', 'like', "%{$numericId}%");
+                } else {
+                    $q->orWhere('request_id', 'like', "%{$this->search}%");
+                }
+
+                if ($matchingClientIds->isNotEmpty()) {
+                    $q->orWhereIn('client_id', $matchingClientIds);
+                }
             });
         }
 

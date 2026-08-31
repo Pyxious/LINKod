@@ -1,4 +1,4 @@
-const CACHE_NAME = 'linkod-worker-v9';
+const CACHE_NAME = 'linkod-worker-v10';
 const STATIC_ASSETS = [
     '/offline.html',
     '/manifest.json',
@@ -130,33 +130,28 @@ self.addEventListener('fetch', (event) => {
 
         event.respondWith(
             (async () => {
-                // Online: try network first
+                // Online: always fetch fresh from network
                 try {
-                    const networkResponse = await fetch(request);
+                    const networkResponse = await fetch(request, { cache: 'no-cache' });
                     if (networkResponse && networkResponse.status === 200) {
                         const responseToCache = networkResponse.clone();
                         const cache = await caches.open(CACHE_NAME);
-                        if (url.pathname.startsWith('/worker/job-orders') || url.pathname === '/worker/dashboard') {
-                            cache.put(request, responseToCache);
-                            cache.put(url.pathname, responseToCache.clone());
+                        // Only save unqueried base page for offline fallback
+                        if (url.pathname === '/worker/job-orders' && !url.search) {
+                            cache.put('/worker/job-orders', responseToCache);
+                        } else if (url.pathname === '/worker/dashboard') {
+                            cache.put('/worker/dashboard', responseToCache);
                         }
                     }
                     return networkResponse;
                 } catch (networkError) {
                     // Offline fallback:
-
-                    // If requesting job orders or dashboard, load cached version
                     if (url.pathname.startsWith('/worker/job-orders') || url.pathname === '/worker/dashboard') {
-                        let cachedResponse = await caches.match(request, { ignoreSearch: true });
+                        let cachedResponse = await caches.match(request);
                         if (cachedResponse) return cachedResponse;
 
-                        cachedResponse = await caches.match(url.pathname, { ignoreSearch: true });
-                        if (cachedResponse) return cachedResponse;
-
-                        if (url.pathname === '/worker/job-orders' || url.pathname.startsWith('/worker/job-orders?')) {
-                            let joMatch = await caches.match('/worker/job-orders');
-                            if (joMatch) return joMatch;
-                        }
+                        let joMatch = await caches.match('/worker/job-orders');
+                        if (joMatch) return joMatch;
                     }
 
                     // For live-only pages (Messages, Notifications, Units, Profile) or uncached pages, return offline HTML

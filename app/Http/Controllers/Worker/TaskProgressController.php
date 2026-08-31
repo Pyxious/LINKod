@@ -29,10 +29,20 @@ class TaskProgressController extends Controller
                 403
             );
 
+            $previousStatus = $project->current_status;
+
+            // Workers can only update from: Pending, On Hold (BOM approved), or In Progress
+            $allowedPreviousStatuses = ['Pending', 'On Hold', 'In Progress'];
+            if (!in_array($previousStatus, $allowedPreviousStatuses)) {
+                return redirect()->back()->with('error', "Task cannot be updated from status: {$previousStatus}.");
+            }
+
+            // Require before-work photo when moving to In Progress
             if ($validated['status'] === 'In Progress' && !$request->hasFile('proof')) {
                 return redirect()->back()->with('error', 'A Before-Work photo is required before setting task to In Progress.');
             }
 
+            // Require completion photo
             if ($validated['status'] === 'Completed' && !$request->hasFile('proof')) {
                 return redirect()->back()->with('error', 'An After-Work / proof of completion photo is required.');
             }
@@ -43,7 +53,6 @@ class TaskProgressController extends Controller
                 $proofPath = $request->file('proof')->store('proofs', $disk);
             }
 
-            $previousStatus = $project->current_status;
             $actualStatus = $validated['status'] === 'Completed' ? 'Pending Verification' : $validated['status'];
 
             // Guard against duplicate rapid clicks
@@ -76,7 +85,7 @@ class TaskProgressController extends Controller
                 'updated_by'       => auth()->id(),
             ]);
 
-            // Sync status to parent ServiceRequest so client & admin tracking updates out of 'On Hold'
+            // Sync status to parent ServiceRequest so client & admin tracking updates
             if ($project->request_id) {
                 $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
                 if ($serviceRequest) {
@@ -107,11 +116,10 @@ class TaskProgressController extends Controller
             if ($validated['status'] === 'Completed') {
                 $worker->recalculateAvailability();
 
-                
                 $notificationService = new \App\Services\NotificationService();
                 $admins = \App\Models\User::where('role', 'admin')->get();
                 $projectTitle = $project->request?->title ?? "Project #{$project->project_id}";
-                
+
                 foreach ($admins as $admin) {
                     $notificationService->taskCompleted($admin->user_id, $projectTitle, $project->request_id ?? $project->project_id);
                 }
@@ -146,6 +154,14 @@ class TaskProgressController extends Controller
                 403
             );
 
+            $previousStatus = $project->current_status;
+
+            // Workers can only update from: Pending, On Hold (BOM approved), or In Progress
+            $allowedPreviousStatuses = ['Pending', 'On Hold', 'In Progress'];
+            if (!in_array($previousStatus, $allowedPreviousStatuses)) {
+                return response()->json(['success' => false, 'message' => "Task cannot be updated from status: {$previousStatus}."], 422);
+            }
+
             if ($validated['status'] === 'In Progress' && !$request->hasFile('proof')) {
                 return response()->json(['success' => false, 'message' => 'A Before-Work photo is required before setting task to In Progress.'], 422);
             }
@@ -160,7 +176,6 @@ class TaskProgressController extends Controller
                 $proofPath = $request->file('proof')->store('proofs', $disk);
             }
 
-            $previousStatus = $project->current_status;
             $actualStatus = $validated['status'] === 'Completed' ? 'Pending Verification' : $validated['status'];
 
             // Parse offline work timestamp if provided
