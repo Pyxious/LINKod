@@ -84,7 +84,7 @@ class GoogleAuthController extends Controller
         // Generate redirect route based on role (RBAC)
         $redirectRoute = match ($user->role) {
             'admin' => 'admin.dashboard',
-            'worker' => 'portal.select',
+            'worker' => 'worker.dashboard',
             default => 'client.dashboard',
         };
 
