@@ -211,6 +211,7 @@
 <script>
     // Real finished requests from database for Accomplishment Reports Live Preview
     const completedDbRequests = @json($previewRequests);
+    const teamLeadersMap = @json($teamLeaders ?? []);
 
     function handlePeriodChange() {
         const year = document.getElementById('reportYear').value || new Date().getFullYear();
@@ -271,6 +272,15 @@
         const categoryOpt = document.getElementById('categoryId');
         const categoryId  = categoryOpt.value;
         const categoryName = categoryId ? (categoryOpt.options[categoryOpt.selectedIndex]?.text || 'MAINTENANCE SECTION') : 'ALL SERVICE UNITS';
+
+        let leaderName = 'GSO MAINTENANCE TEAM LEADERS';
+        let sectionName = 'General Services Office';
+        if (categoryId && teamLeadersMap[categoryId]) {
+            leaderName = teamLeadersMap[categoryId].leader_name || 'TEAM LEADER';
+            sectionName = teamLeadersMap[categoryId].section_name || categoryName;
+        } else if (categoryName && categoryName !== 'ALL SERVICE UNITS') {
+            sectionName = categoryName;
+        }
 
         const previewContainer = document.getElementById('reportPreviewContent');
 
@@ -392,6 +402,33 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Signatories Block (Matches BU Official Format) -->
+                <div class="mt-8 pt-4 space-y-6 text-left text-xs text-black dark:text-gray-200 border-t border-gray-100 dark:border-zinc-800">
+                    <!-- Prepared By -->
+                    <div class="space-y-0.5">
+                        <div class="text-[11px] text-gray-600 dark:text-gray-400">Prepared By:</div>
+                        <div class="pt-3 font-black uppercase text-xs tracking-wide text-black dark:text-white">${leaderName}</div>
+                        <div class="text-[11px] text-gray-700 dark:text-gray-300">Team Leader</div>
+                        <div class="text-[11px] text-gray-700 dark:text-gray-300">${sectionName}</div>
+                    </div>
+
+                    <!-- Certified True and Correct -->
+                    <div class="space-y-0.5">
+                        <div class="text-[11px] text-gray-600 dark:text-gray-400">Certified True and Correct:</div>
+                        <div class="pt-3 font-black uppercase text-xs tracking-wide text-black dark:text-white">REY A. PADILLA</div>
+                        <div class="text-[11px] text-gray-700 dark:text-gray-300">Administrative Officer I</div>
+                        <div class="text-[11px] text-gray-700 dark:text-gray-300">Head, General Services Office</div>
+                    </div>
+
+                    <!-- Noted By -->
+                    <div class="space-y-0.5">
+                        <div class="text-[11px] text-gray-600 dark:text-gray-400">Noted By:</div>
+                        <div class="pt-3 font-black uppercase text-xs tracking-wide text-black dark:text-white">MA. MYRA A. CAPARAS</div>
+                        <div class="text-[11px] text-gray-700 dark:text-gray-300">Acting Chief Administrative Officer for</div>
+                        <div class="text-[11px] text-gray-700 dark:text-gray-300">Administrative Services Division</div>
+                    </div>
+                </div>
             </div>
         `;
 
@@ -401,7 +438,19 @@
     function handleExportSubmit(e) {
         const btn = document.getElementById('exportBtn');
         if (!btn) return;
-        const originalContent = btn.innerHTML;
+        
+        // Prevent rapid duplicate clicks during cooldown
+        if (btn.dataset.cooldown === 'true') {
+            if (e) { e.preventDefault(); }
+            return false;
+        }
+
+        btn.dataset.cooldown = 'true';
+        const originalHTML = `
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span>Export Excel Sheet (.xlsx)</span>
+        `;
+
         btn.innerHTML = `
             <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -409,11 +458,14 @@
             </svg>
             <span>Generating & Downloading...</span>
         `;
-        btn.classList.add('opacity-80', 'pointer-events-none');
+        btn.classList.add('opacity-75', 'cursor-wait');
+
+        // 2.5 second cooldown timer, then restore button state
         setTimeout(() => {
-            btn.innerHTML = originalContent;
-            btn.classList.remove('opacity-80', 'pointer-events-none');
-        }, 2000);
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('opacity-75', 'cursor-wait');
+            btn.dataset.cooldown = 'false';
+        }, 2500);
     }
 
     document.addEventListener('DOMContentLoaded', function() {

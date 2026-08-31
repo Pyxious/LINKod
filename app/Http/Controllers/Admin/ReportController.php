@@ -151,10 +151,21 @@ class ReportController extends Controller
             ->latest('created_at')
             ->paginate(10);
 
+        // Map category ID to Team Leader info for live preview signatories
+        $teamLeaders = \App\Models\Team::with('leader.staff.user', 'category')->get()->mapWithKeys(function($t) {
+            $u = $t->leader?->staff?->user;
+            $name = $u ? strtoupper(trim($u->first_name . ' ' . $u->last_name)) : 'TEAM LEADER';
+            $secName = $t->category?->category_name ?? $t->team_name;
+            return [$t->category_id => [
+                'leader_name'  => $name,
+                'section_name' => $secName,
+            ]];
+        });
+
         return view('admin.reports.index', compact(
             'totalRequests', 'totalProjects', 'avgRating',
             'availableWorkers', 'requestsByPriority', 'requestsByCategory',
-            'categories', 'workers', 'previewRequests', 'recentReports'
+            'categories', 'workers', 'previewRequests', 'recentReports', 'teamLeaders'
         ));
     }
 
@@ -409,6 +420,61 @@ class ReportController extends Controller
             
             $row++;
         }
+
+        // 4. Signatures Section (Prepared By, Certified True and Correct, Noted By)
+        $teamLeaderName = 'GSO MAINTENANCE TEAM LEADERS';
+        $teamSectionName = 'General Services Office';
+        if ($categoryId) {
+            $team = \App\Models\Team::where('category_id', $categoryId)->with('leader.staff.user')->first();
+            if ($team && $team->leader?->staff?->user) {
+                $u = $team->leader->staff->user;
+                $teamLeaderName = strtoupper(trim($u->first_name . ' ' . $u->last_name));
+                $teamSectionName = $category ? $category->category_name : $team->team_name;
+            }
+        }
+
+        $sigRow = $row + 2;
+
+        // Prepared By:
+        $sheet->setCellValue('A' . $sigRow, "Prepared By:");
+        $sheet->getStyle('A' . $sigRow)->getFont()->setSize(10)->setName('Arial');
+
+        $sheet->setCellValue('A' . ($sigRow + 3), $teamLeaderName);
+        $sheet->getStyle('A' . ($sigRow + 3))->getFont()->setBold(true)->setSize(11)->setName('Arial');
+
+        $sheet->setCellValue('A' . ($sigRow + 4), "Team Leader");
+        $sheet->getStyle('A' . ($sigRow + 4))->getFont()->setSize(10)->setName('Arial');
+
+        $sheet->setCellValue('A' . ($sigRow + 5), $teamSectionName);
+        $sheet->getStyle('A' . ($sigRow + 5))->getFont()->setSize(10)->setName('Arial');
+
+        // Certified True and Correct:
+        $certRow = $sigRow + 7;
+        $sheet->setCellValue('A' . $certRow, "Certified True and Correct:");
+        $sheet->getStyle('A' . $certRow)->getFont()->setSize(10)->setName('Arial');
+
+        $sheet->setCellValue('A' . ($certRow + 3), "REY A. PADILLA");
+        $sheet->getStyle('A' . ($certRow + 3))->getFont()->setBold(true)->setSize(11)->setName('Arial');
+
+        $sheet->setCellValue('A' . ($certRow + 4), "Administrative Officer I");
+        $sheet->getStyle('A' . ($certRow + 4))->getFont()->setSize(10)->setName('Arial');
+
+        $sheet->setCellValue('A' . ($certRow + 5), "Head, General Services Office");
+        $sheet->getStyle('A' . ($certRow + 5))->getFont()->setSize(10)->setName('Arial');
+
+        // Noted By:
+        $notedRow = $certRow + 7;
+        $sheet->setCellValue('A' . $notedRow, "Noted By:");
+        $sheet->getStyle('A' . $notedRow)->getFont()->setSize(10)->setName('Arial');
+
+        $sheet->setCellValue('A' . ($notedRow + 3), "MA. MYRA A. CAPARAS");
+        $sheet->getStyle('A' . ($notedRow + 3))->getFont()->setBold(true)->setSize(11)->setName('Arial');
+
+        $sheet->setCellValue('A' . ($notedRow + 4), "Acting Chief Administrative Officer for");
+        $sheet->getStyle('A' . ($notedRow + 4))->getFont()->setSize(10)->setName('Arial');
+
+        $sheet->setCellValue('A' . ($notedRow + 5), "Administrative Services Division");
+        $sheet->getStyle('A' . ($notedRow + 5))->getFont()->setSize(10)->setName('Arial');
 
         // Adjust column widths and A4 page setup
         $sheet->getColumnDimension('A')->setWidth(18);
