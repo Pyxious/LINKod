@@ -301,12 +301,12 @@
                     <!-- Before Photo Card -->
                     <div class="bg-gray-50/70 dark:bg-zinc-800/40 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex flex-col justify-between">
                         <div>
-                            <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-[10.5px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shrink-0">
                                     BEFORE WORK PHOTO
                                 </span>
                                 @if($beforeHistory)
-                                    <span class="text-[10px] text-gray-400 font-medium">{{ \Carbon\Carbon::parse($beforeHistory->updated_at)->format('M d, Y h:i A') }}</span>
+                                    <span class="text-[10px] text-gray-400 font-medium whitespace-nowrap shrink-0">{{ \Carbon\Carbon::parse($beforeHistory->updated_at)->format('M d, Y h:i A') }}</span>
                                 @endif
                             </div>
 
@@ -332,12 +332,12 @@
                     <!-- After Photo Card -->
                     <div class="bg-gray-50/70 dark:bg-zinc-800/40 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex flex-col justify-between">
                         <div>
-                            <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-[10.5px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shrink-0">
                                     AFTER WORK PHOTO (COMPLETION)
                                 </span>
                                 @if($afterHistory)
-                                    <span class="text-[10px] text-gray-400 font-medium">{{ \Carbon\Carbon::parse($afterHistory->updated_at)->format('M d, Y h:i A') }}</span>
+                                    <span class="text-[10px] text-gray-400 font-medium whitespace-nowrap shrink-0">{{ \Carbon\Carbon::parse($afterHistory->updated_at)->format('M d, Y h:i A') }}</span>
                                 @endif
                             </div>
 

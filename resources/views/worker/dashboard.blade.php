@@ -4,9 +4,6 @@
 @section('content')
 
 @php
-    $pendingCount = $assignments->filter(fn($a) => $a->project && $a->project->current_status === 'Pending')->count();
-    $inProgressCount = $assignments->filter(fn($a) => $a->project && $a->project->current_status === 'In Progress')->count();
-    $completedCount = $assignments->filter(fn($a) => $a->project && $a->project->current_status === 'Completed')->count();
     $worker = auth()->user()->staff?->worker;
     $teamName = $worker?->team?->team_name ?? 'General Services Office';
 @endphp
@@ -47,7 +44,7 @@
             <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-1 sm:mb-2">Completed Today</div>
             <div class="text-xs text-gray-500"><span class="text-emerald-500 font-bold">Great job!</span></div>
         </div>
-        <div class="text-[#1a3c8f] dark:text-white text-3xl font-extrabold leading-none sm:mt-2">{{ $completedCount }}</div>
+        <div class="text-[#1a3c8f] dark:text-white text-3xl font-extrabold leading-none sm:mt-2">{{ $completedTodayCount ?? 0 }}</div>
     </div>
 </div>
 

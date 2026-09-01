@@ -145,10 +145,7 @@
         <table class="w-full text-left border-separate" style="border-spacing: 0 8px;">
             <thead>
                 <tr>
-                    <th class="w-10 px-4 pb-2 border-b-2 border-slate-300">
-                        <input type="checkbox" class="rounded border-gray-300 text-[#1a3c8f] focus:ring-[#1a3c8f]">
-                    </th>
-                    <th wire:click="sortBy('request_id')" class="text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300 dark:border-zinc-800 cursor-pointer select-none hover:text-blue-600 transition">
+                    <th wire:click="sortBy('request_id')" class="px-4 text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300 dark:border-zinc-800 cursor-pointer select-none hover:text-blue-600 transition">
                         Requisition No.
                         @if($sortField === 'request_id')
                             <span class="ml-0.5 text-blue-600">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -187,9 +184,6 @@
                 @forelse($requests as $r)
                 <tr class="bg-white dark:bg-[#1c1c1e] hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition shadow-xs group">
                     <td class="px-4 py-4 border-y border-l border-gray-200 dark:border-zinc-800 rounded-l-lg">
-                        <input type="checkbox" class="rounded border-gray-300 text-[#1a3c8f] focus:ring-[#1a3c8f]">
-                    </td>
-                    <td class="py-4 border-y border-gray-200 dark:border-zinc-800">
                         @php
                             $catName = strtolower($r->category->category_name ?? '');
                             $prefix = match(true) {
@@ -281,7 +275,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="9" class="text-center py-8 text-gray-500">No requests found matching your filters.</td>
+                    <td colspan="8" class="text-center py-8 text-gray-500">No requests found matching your filters.</td>
                 </tr>
                 @endforelse
             </tbody>
