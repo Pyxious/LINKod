@@ -40,6 +40,29 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/profile/2fa/enable', [\App\Http\Controllers\ProfileController::class, 'enable2fa'])->name('profile.2fa.enable')->middleware('throttle:6,1');
     Route::post('/profile/2fa/disable', [\App\Http\Controllers\ProfileController::class, 'disable2fa'])->name('profile.2fa.disable')->middleware('throttle:6,1');
 });
+// ── Storage Asset Serving (Works seamlessly on Laravel Cloud / Docker without symlink) ──
+Route::get('/storage/{path}', function (string $path) {
+    // 1. Check in public storage disk
+    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
+        return \Illuminate\Support\Facades\Storage::disk('public')->response($path);
+    }
+    // 2. Check in local storage disk
+    if (\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($path);
+    }
+    // 3. Direct filesystem check in storage/app/public
+    $publicPath = storage_path('app/public/' . $path);
+    if (file_exists($publicPath)) {
+        return response()->file($publicPath);
+    }
+    // 4. Direct filesystem check in storage/app
+    $directPath = storage_path('app/' . $path);
+    if (file_exists($directPath)) {
+        return response()->file($directPath);
+    }
+    abort(404);
+})->where('path', '.*')->name('storage.serve');
+
 // ── Unauthorized ─────────────────────────────────────────────────────
 Route::get('/unauthorized', fn() => view('errors.unauthorized'))->name('unauthorized');
 
