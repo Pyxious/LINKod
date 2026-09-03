@@ -34,11 +34,19 @@
 <body x-data="{ sidebarOpen: false }" class="bg-[#f0f4f8] dark:bg-[#111111] text-slate-800 dark:text-gray-200 antialiased flex flex-col md:flex-row min-h-screen transition-colors duration-200">
     
     @php
-        $navNotifications = auth()->check() ? auth()->user()->notifications()->latest('sent_at')->take(20)->get() : collect();
-        $navUnreadCount = auth()->check() ? auth()->user()->notifications()->where('is_read', false)->count() : 0;
-        $navRequestUnreadCount = auth()->check() ? auth()->user()->notifications()->where('type', '!=', 'new_message')->where('is_read', false)->count() : 0;
-        $navMessageUnreadCount = auth()->check() ? auth()->user()->notifications()->where('type', 'new_message')->where('is_read', false)->count() : 0;
-        $adminUnreadMessagesCount = auth()->check() ? \App\Models\RequestMessage::where('is_read', false)->where('sender_id', '!=', auth()->id())->count() : 0;
+        if (auth()->check()) {
+            $navNotifications = auth()->user()->notifications()->latest('sent_at')->take(20)->get();
+            $navUnreadCount = $navNotifications->where('is_read', false)->count();
+            $navRequestUnreadCount = $navNotifications->where('type', '!=', 'new_message')->where('is_read', false)->count();
+            $navMessageUnreadCount = $navNotifications->where('type', 'new_message')->where('is_read', false)->count();
+            $adminUnreadMessagesCount = \App\Models\RequestMessage::where('is_read', false)->where('sender_id', '!=', auth()->id())->count();
+        } else {
+            $navNotifications = collect();
+            $navUnreadCount = 0;
+            $navRequestUnreadCount = 0;
+            $navMessageUnreadCount = 0;
+            $adminUnreadMessagesCount = 0;
+        }
     @endphp
 
     <!-- Mobile Top Header Bar (visible only on mobile screens < md) -->
