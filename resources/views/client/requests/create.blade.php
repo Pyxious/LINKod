@@ -324,6 +324,7 @@
                 if (this.isImage) {
                     const reader = new FileReader();
                     reader.onload = (e) => {
+                        this.filePreviewUrl = e.target.result;
                         this.compressImage(e.target.result, (compressedBlob, compressedUrl) => {
                             this.filePreviewUrl = compressedUrl;
                             const compSizeFormatted = this.formatBytes(compressedBlob.size);

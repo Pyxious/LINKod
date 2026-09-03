@@ -73,8 +73,12 @@ class GoogleAuthController extends Controller
         // Find or create user
         $user = $this->authService->findOrCreateUser($googleUser);
 
-        // Log in
-        Auth::login($user);
+        // Log in (Keep session persistent for workers only so they never get logged out on-site)
+        $isWorker = ($user->role === 'worker');
+        if ($isWorker) {
+            config(['session.lifetime' => 525600]); // 1 year for workers
+        }
+        Auth::login($user, $isWorker);
 
         // Redirect to 2FA if enabled, otherwise go to intended dashboard
         if ($user->totp_secret) {

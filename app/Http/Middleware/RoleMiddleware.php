@@ -15,6 +15,9 @@ class RoleMiddleware
         }
 
         $user = auth()->user();
+        if ($user->role === 'worker') {
+            config(['session.lifetime' => 525600]);
+        }
 
         foreach ($roles as $role) {
             if ($user->role === $role) {
