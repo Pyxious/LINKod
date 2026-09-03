@@ -103,14 +103,12 @@ class DashboardController extends Controller
                 ->values();
         });
 
-        // ── Cached recent requests (60s TTL) ──
-        $recentRequests = Cache::remember('admin_recent_requests', 300, function () {
-            return ServiceRequest::with(['category', 'client.user', 'latestHistory'])
-                ->orderBy('submitted_at', 'desc')
-                ->orderBy('request_id', 'desc')
-                ->take(5)
-                ->get();
-        });
+        // ── Recent requests (5 items) ──
+        $recentRequests = ServiceRequest::with(['category', 'client.user', 'latestHistory'])
+            ->orderBy('submitted_at', 'desc')
+            ->orderBy('request_id', 'desc')
+            ->take(5)
+            ->get();
 
         // ── Per-user notifications (NOT cached — must be live per user) ──
         $user          = auth()->user();
