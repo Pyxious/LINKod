@@ -150,19 +150,24 @@
         @php
             $clientUser = auth()->user();
             $clientId = $clientUser?->client?->client_id;
-            $navNotifications = $clientUser ? $clientUser->notifications()->latest('sent_at')->take(20)->get() : collect();
-            $navUnreadCount = $clientUser ? $clientUser->notifications()->where('is_read', false)->count() : 0;
-            $navRequestUnreadCount = $clientUser ? $clientUser->notifications()->where('type', '!=', 'new_message')->where('is_read', false)->count() : 0;
-            $navMessageUnreadCount = $clientUser ? $clientUser->notifications()->where('type', 'new_message')->where('is_read', false)->count() : 0;
-            
-            $clientUnreadMessagesCount = $clientUser ? \App\Models\RequestMessage::where('is_read', false)
-                ->where('sender_id', '!=', $clientUser->user_id)
-                ->whereHas('serviceRequest', function($q) use ($clientId) {
-                    if ($clientId) {
-                        $q->where('client_id', $clientId);
-                    }
-                })
-                ->count() : 0;
+            if ($clientUser) {
+                $navNotifications      = $clientUser->notifications()->latest('sent_at')->take(20)->get();
+                $navUnreadCount        = $navNotifications->where('is_read', false)->count();
+                $navRequestUnreadCount = $navNotifications->where('type', '!=', 'new_message')->where('is_read', false)->count();
+                $navMessageUnreadCount = $navNotifications->where('type', 'new_message')->where('is_read', false)->count();
+                $clientUnreadMessagesCount = \App\Models\RequestMessage::where('is_read', false)
+                    ->where('sender_id', '!=', $clientUser->user_id)
+                    ->whereHas('serviceRequest', function($q) use ($clientId) {
+                        if ($clientId) $q->where('client_id', $clientId);
+                    })
+                    ->count();
+            } else {
+                $navNotifications = collect();
+                $navUnreadCount = 0;
+                $navRequestUnreadCount = 0;
+                $navMessageUnreadCount = 0;
+                $clientUnreadMessagesCount = 0;
+            }
         @endphp
 
         <!-- Right: Notification Bell + Theme Toggle + Avatar -->

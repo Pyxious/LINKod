@@ -53,11 +53,18 @@
     
     @php
         $workerUser = auth()->user();
-        $navNotifications = $workerUser ? $workerUser->notifications()->latest('sent_at')->take(20)->get() : collect();
-        $navUnreadCount = $workerUser ? $workerUser->notifications()->where('is_read', false)->count() : 0;
-        $navRequestUnreadCount = $workerUser ? $workerUser->notifications()->where('type', '!=', 'new_message')->where('is_read', false)->count() : 0;
-        $navMessageUnreadCount = $workerUser ? $workerUser->notifications()->where('type', 'new_message')->where('is_read', false)->count() : 0;
-        
+        if ($workerUser) {
+            $navNotifications      = $workerUser->notifications()->latest('sent_at')->take(20)->get();
+            $navUnreadCount        = $navNotifications->where('is_read', false)->count();
+            $navRequestUnreadCount = $navNotifications->where('type', '!=', 'new_message')->where('is_read', false)->count();
+            $navMessageUnreadCount = $navNotifications->where('type', 'new_message')->where('is_read', false)->count();
+        } else {
+            $navNotifications = collect();
+            $navUnreadCount = 0;
+            $navRequestUnreadCount = 0;
+            $navMessageUnreadCount = 0;
+        }
+
         $workerObj = $workerUser?->staff?->worker;
         $workerId = $workerObj?->worker_id;
         $teamId = $workerObj?->team_id;

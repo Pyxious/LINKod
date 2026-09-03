@@ -15,6 +15,7 @@ use App\Services\NotificationService;
 use App\Services\DecisionTreeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 
 class RequestController extends Controller
 {
@@ -41,15 +42,21 @@ class RequestController extends Controller
 
         $requests = $query->paginate(15);
 
-        // Fetch KPI Metrics for Admin Request Tracking
-        $totalRequests = ServiceRequest::count();
-        $submitted     = ServiceRequest::where(function($q) {
-            $q->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Submitted'))
-              ->orWhereDoesntHave('histories');
-        })->count();
-        $onHold        = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'On Hold'))->count();
-        $inProgress    = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', ['In Progress', 'Pending Verification']))->count();
-        $completed     = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count();
+        // Fetch KPI Metrics — cached 300s (5 min) since counts don't need to be live
+        $kpi = Cache::remember('admin_requests_kpi', 300, function () {
+            return [
+                'totalRequests' => ServiceRequest::count(),
+                'submitted'     => ServiceRequest::where(function($q) {
+                    $q->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Submitted'))
+                      ->orWhereDoesntHave('histories');
+                })->count(),
+                'onHold'        => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'On Hold'))->count(),
+                'inProgress'    => ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', ['In Progress', 'Pending Verification']))->count(),
+                'completed'     => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count(),
+            ];
+        });
+
+        extract($kpi);
 
         return view('admin.requests.index', compact(
             'requests', 'totalRequests', 'submitted', 'onHold', 'inProgress', 'completed'

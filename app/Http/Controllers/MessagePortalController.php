@@ -6,6 +6,7 @@ use App\Models\ServiceRequest;
 use App\Models\RequestMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class MessagePortalController extends Controller
 {
@@ -76,12 +77,13 @@ class MessagePortalController extends Controller
         }
 
 
-        $requests = $query->orderByRaw("
-            CASE 
-                WHEN LOWER(priority) = 'high' THEN 1 
-                ELSE 2 
-            END ASC
-        ")->orderBy('submitted_at', 'asc')->orderBy('request_id', 'asc')->get();
+        $requests = $query
+            ->orderByRaw("
+                CASE 
+                    WHEN LOWER(priority) = 'high' THEN 1 
+                    ELSE 2 
+                END ASC
+            ")->orderBy('submitted_at', 'asc')->orderBy('request_id', 'asc')->take(50)->get();
 
         // Perform search filtering on loaded Collection (supports decrypted user PII names, requisition codes, categories, titles, locations, emails)
         if ($request->filled('search')) {

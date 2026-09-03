@@ -10,6 +10,7 @@ use App\Services\DecisionTreeService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 
 class RequestController extends Controller
 {
@@ -24,16 +25,23 @@ class RequestController extends Controller
         $client = $user->client;
 
         if ($client) {
-            $baseQuery = $client->requests();
+            // Cache per-client KPI counts (120s — 2 min)
+            $kpi = Cache::remember("client_{$client->client_id}_request_kpi", 120, function () use ($client) {
+                $baseQuery = $client->requests();
+                return [
+                    'totalRequests'   => (clone $baseQuery)->count(),
+                    'pendingCount'    => (clone $baseQuery)->where(function($q) {
+                        $q->whereHas('latestHistory', fn($lh) => $lh->whereIn('current_status', ['Submitted', 'Pending', 'On Hold']))
+                          ->orWhereDoesntHave('histories');
+                    })->count(),
+                    'inProgressCount' => (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->whereIn('current_status', ['In Progress', 'Pending Verification']))->count(),
+                    'completedCount'  => (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Completed'))->count(),
+                    'cancelledCount'  => (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Cancelled'))->count(),
+                ];
+            });
+            extract($kpi);
 
-            $totalRequests   = (clone $baseQuery)->count();
-            $pendingCount    = (clone $baseQuery)->where(function($q) {
-                $q->whereHas('latestHistory', fn($lh) => $lh->whereIn('current_status', ['Submitted', 'Pending', 'On Hold']))
-                  ->orWhereDoesntHave('histories');
-            })->count();
-            $inProgressCount = (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->whereIn('current_status', ['In Progress', 'Pending Verification']))->count();
-            $completedCount  = (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Completed'))->count();
-            $cancelledCount  = (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Cancelled'))->count();
+            $baseQuery = $client->requests();
 
             $query = $client->requests()->with('category', 'latestHistory');
 
