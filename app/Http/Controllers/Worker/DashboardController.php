@@ -89,7 +89,7 @@ class DashboardController extends Controller
             ->values();
 
         $notifications = $user->notifications()->latest('sent_at')->take(10)->get();
-        $unreadCount   = $user->notifications()->where('is_read', false)->count();
+        $unreadCount   = $notifications->where('is_read', false)->count();
 
         return view('worker.dashboard', compact(
             'user',

@@ -8,116 +8,118 @@ use App\Models\Project;
 use App\Models\Worker;
 use App\Models\Notification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        $totalRequests    = ServiceRequest::count();
-        $requestsToday    = ServiceRequest::whereDate('submitted_at', today())->count();
+        // ── Cached global stats (safe to cache: not user-specific, 60s TTL) ──
+        $stats = Cache::remember('admin_dashboard_stats', 600, function () {
+            $totalRequests    = ServiceRequest::count();
+            $requestsToday    = ServiceRequest::whereDate('submitted_at', today())->count();
 
-        $totalWorkers     = Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))->count();
-        $availableWorkers = Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))->where('is_available', true)->count();
-        $availablePct     = $totalWorkers > 0 ? round(($availableWorkers / $totalWorkers) * 100) : 0;
+            $totalWorkers     = Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))->count();
+            $availableWorkers = Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))->where('is_available', true)->count();
+            $availablePct     = $totalWorkers > 0 ? round(($availableWorkers / $totalWorkers) * 100) : 0;
 
-        // Task status breakdown from project_history
-        $statuses = ['Pending', 'On Hold', 'In Progress', 'Pending Verification', 'Completed', 'Cancelled'];
-        $taskStatus = [];
-        foreach ($statuses as $status) {
-            $taskStatus[$status] = Project::whereHas('latestHistory', fn($q) =>
-                $q->where('current_status', $status)
-            )->count();
-        }
-
-        $activeTasks        = $taskStatus['In Progress'] ?? 0;
-        $completedTasks     = $taskStatus['Completed'] ?? 0;
-        $completionRate     = $totalRequests > 0
-            ? round(($completedTasks / $totalRequests) * 100)
-            : 0;
-
-        $completedThisMonth = ServiceRequest::whereHas('latestHistory', fn($q) =>
-            $q->where('current_status', 'Completed')->whereMonth('updated_at', now()->month)
-        )->count();
-
-        // Client request progress counts
-        $requestProgress = [
-            'Submitted'  => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Submitted'))->count(),
-            'Approved'   => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Approved'))->count(),
-            'On Hold'   => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'On Hold'))->count(),
-            'In Progress'=> ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'In Progress'))->count(),
-            'Completed'  => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count(),
-        ];
-
-        // Real-Time Task Monitoring Feed
-        $activities = collect();
-        $reqHistories = \App\Models\RequestHistory::with(['request.category', 'request.project.workers.staff.user'])
-            ->latest('updated_at')
-            ->take(15)
-            ->get();
-
-        foreach ($reqHistories as $rh) {
-            if (!$rh->request) continue;
-            $r = $rh->request;
-            $catName = strtolower($r->category->category_name ?? '');
-            $prefix = match(true) {
-                str_contains($catName, 'landscaping') => 'LS',
-                str_contains($catName, 'janitorial') => 'JS',
-                str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
-                str_contains($catName, 'plumbing') => 'PLS',
-                str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
-                str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
-                str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
-                default => 'REQ'
-            };
-            $code = $prefix . '-' . str_pad($r->request_id, 3, '0', STR_PAD_LEFT);
-            $workerName = $r->project?->workers?->first()?->staff?->user?->first_name;
-
-            if ($rh->current_status === 'Completed') {
-                $actor = $workerName ? "Worker {$workerName}" : "Worker";
-                $activities->push([
-                    'text'  => "{$actor} completed task {$code}",
-                    'color' => 'emerald',
-                    'time'  => \Carbon\Carbon::parse($rh->updated_at),
-                ]);
-            } elseif ($rh->current_status === 'Submitted') {
-                $activities->push([
-                    'text'  => "New request submitted {$code}",
-                    'color' => 'orange',
-                    'time'  => \Carbon\Carbon::parse($rh->updated_at ?? $r->submitted_at),
-                ]);
-            } elseif ($rh->current_status === 'In Progress') {
-                $actor = $workerName ? "Worker {$workerName}" : "Worker";
-                $activities->push([
-                    'text'  => "{$actor} started task {$code}",
-                    'color' => 'yellow',
-                    'time'  => \Carbon\Carbon::parse($rh->updated_at),
-                ]);
-            } elseif ($rh->current_status === 'Pending Verification') {
-                $actor = $workerName ? "Worker {$workerName}" : "Worker";
-                $activities->push([
-                    'text'  => "{$actor} submitted task proof for {$code}",
-                    'color' => 'blue',
-                    'time'  => \Carbon\Carbon::parse($rh->updated_at),
-                ]);
+            // Task status breakdown from project_history
+            $statuses = ['Pending', 'On Hold', 'In Progress', 'Pending Verification', 'Completed', 'Cancelled'];
+            $taskStatus = [];
+            foreach ($statuses as $status) {
+                $taskStatus[$status] = Project::whereHas('latestHistory', fn($q) =>
+                    $q->where('current_status', $status)
+                )->count();
             }
-        }
 
-        $realTimeMonitoring = $activities->unique(fn($a) => $a['text'] . $a['time']->format('Y-m-d H:i'))
-            ->sortByDesc('time')
-            ->take(6)
-            ->values();
+            $activeTasks    = $taskStatus['In Progress'] ?? 0;
+            $completedTasks = $taskStatus['Completed'] ?? 0;
+            $completionRate = $totalRequests > 0
+                ? round(($completedTasks / $totalRequests) * 100)
+                : 0;
 
-        // Service Requests Inventory (Latest 5 Requests)
-        $recentRequests = ServiceRequest::with(['category', 'client.user', 'latestHistory'])
-            ->orderBy('submitted_at', 'desc')
-            ->orderBy('request_id', 'desc')
-            ->take(5)
-            ->get();
+            $completedThisMonth = ServiceRequest::whereHas('latestHistory', fn($q) =>
+                $q->where('current_status', 'Completed')->whereMonth('updated_at', now()->month)
+            )->count();
 
-        // Notifications
-        $user = auth()->user();
+            // Client request progress counts
+            $requestProgress = [
+                'Submitted'   => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Submitted'))->count(),
+                'Approved'    => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Approved'))->count(),
+                'On Hold'     => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'On Hold'))->count(),
+                'In Progress' => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'In Progress'))->count(),
+                'Completed'   => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count(),
+            ];
+
+            return compact(
+                'totalRequests', 'requestsToday', 'totalWorkers', 'availableWorkers',
+                'availablePct', 'activeTasks', 'completedTasks', 'completionRate',
+                'completedThisMonth', 'taskStatus', 'requestProgress'
+            );
+        });
+
+        // ── Cached activity feed (60s TTL) ──
+        $realTimeMonitoring = Cache::remember('admin_activity_feed', 120, function () {
+            $activities = collect();
+            $reqHistories = \App\Models\RequestHistory::with(['request.category', 'request.project.workers.staff.user'])
+                ->latest('updated_at')
+                ->take(15)
+                ->get();
+
+            foreach ($reqHistories as $rh) {
+                if (!$rh->request) continue;
+                $r = $rh->request;
+                $catName = strtolower($r->category->category_name ?? '');
+                $prefix = match(true) {
+                    str_contains($catName, 'landscaping') => 'LS',
+                    str_contains($catName, 'janitorial') => 'JS',
+                    str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+                    str_contains($catName, 'plumbing') => 'PLS',
+                    str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                    str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                    str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
+                    default => 'REQ'
+                };
+                $code = $prefix . '-' . str_pad($r->request_id, 3, '0', STR_PAD_LEFT);
+                $workerName = $r->project?->workers?->first()?->staff?->user?->first_name;
+
+                if ($rh->current_status === 'Completed') {
+                    $actor = $workerName ? "Worker {$workerName}" : "Worker";
+                    $activities->push(['text' => "{$actor} completed task {$code}", 'color' => 'emerald', 'time' => \Carbon\Carbon::parse($rh->updated_at)]);
+                } elseif ($rh->current_status === 'Submitted') {
+                    $activities->push(['text' => "New request submitted {$code}", 'color' => 'orange', 'time' => \Carbon\Carbon::parse($rh->updated_at ?? $r->submitted_at)]);
+                } elseif ($rh->current_status === 'In Progress') {
+                    $actor = $workerName ? "Worker {$workerName}" : "Worker";
+                    $activities->push(['text' => "{$actor} started task {$code}", 'color' => 'yellow', 'time' => \Carbon\Carbon::parse($rh->updated_at)]);
+                } elseif ($rh->current_status === 'Pending Verification') {
+                    $actor = $workerName ? "Worker {$workerName}" : "Worker";
+                    $activities->push(['text' => "{$actor} submitted task proof for {$code}", 'color' => 'blue', 'time' => \Carbon\Carbon::parse($rh->updated_at)]);
+                }
+            }
+
+            return $activities->unique(fn($a) => $a['text'] . $a['time']->format('Y-m-d H:i'))
+                ->sortByDesc('time')
+                ->take(6)
+                ->values();
+        });
+
+        // ── Cached recent requests (60s TTL) ──
+        $recentRequests = Cache::remember('admin_recent_requests', 300, function () {
+            return ServiceRequest::with(['category', 'client.user', 'latestHistory'])
+                ->orderBy('submitted_at', 'desc')
+                ->orderBy('request_id', 'desc')
+                ->take(5)
+                ->get();
+        });
+
+        // ── Per-user notifications (NOT cached — must be live per user) ──
+        $user          = auth()->user();
         $notifications = $user ? $user->notifications()->latest('sent_at')->take(10)->get() : collect();
-        $unreadCount = $user ? $user->notifications()->where('is_read', false)->count() : 0;
+        $unreadCount   = $user ? $user->notifications()->where('is_read', false)->count() : 0;
+
+        // Unpack stats for view
+        extract($stats);
+
         return view('admin.dashboard', compact(
             'totalRequests', 'requestsToday', 'activeTasks', 'availableWorkers', 'totalWorkers',
             'availablePct', 'completionRate', 'completedThisMonth', 'taskStatus',
