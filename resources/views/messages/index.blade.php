@@ -580,7 +580,7 @@ document.addEventListener('keydown', function(e) {
 });
 
 document.addEventListener('DOMContentLoaded', function() {
-    const feed = document.getElementById('chatMessagesFeed');
+    const feed = document.getElementById('chatFeedContainer') || document.getElementById('chatMessagesFeed');
     const inner = document.getElementById('chatMessagesInner') || feed;
     const activeRequestId = feed ? feed.getAttribute('data-request-id') : null;
     const currentUserId = parseInt(feed ? (feed.getAttribute('data-current-user-id') || 0) : 0);
@@ -730,7 +730,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log(`[Supabase Realtime] Connected to chat channel for request #${activeRequestId}`);
+                }
+            });
     }
     initRealtimeChat();
 
