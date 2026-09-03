@@ -576,14 +576,14 @@
                      <!-- Preview Card (When file is chosen) -->
                      <div x-show="proofFile" x-cloak class="border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-xs">
                          <div class="flex items-center gap-3.5 min-w-0">
-                             <template x-if="proofPreviewUrl">
-                                 <img :src="proofPreviewUrl" alt="Proof Thumbnail" class="w-16 h-20 object-cover rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0 shadow-xs">
-                             </template>
-                             <template x-if="!proofPreviewUrl">
-                                 <div class="w-16 h-20 bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center font-bold text-xs shrink-0">
-                                     PDF
-                                 </div>
-                             </template>
+                             <div class="w-16 h-20 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0 shadow-xs overflow-hidden bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
+                                 <template x-if="proofPreviewUrl">
+                                     <img :src="proofPreviewUrl" alt="" class="w-full h-full object-cover">
+                                 </template>
+                                 <template x-if="!proofPreviewUrl">
+                                     <span class="font-bold text-xs text-emerald-800 dark:text-emerald-300">DOC</span>
+                                 </template>
+                             </div>
                              <div class="min-w-0">
                                  <div class="flex items-center gap-2">
                                      <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -708,7 +708,11 @@
                         this.proofSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
                         this.capturedFile = file;
                         if (file.type && file.type.startsWith('image/')) {
-                            this.proofPreviewUrl = URL.createObjectURL(file);
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                this.proofPreviewUrl = e.target.result;
+                            };
+                            reader.readAsDataURL(file);
                         } else {
                             this.proofPreviewUrl = '';
                         }
