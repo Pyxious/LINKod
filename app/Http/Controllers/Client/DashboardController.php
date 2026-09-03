@@ -14,9 +14,7 @@ class DashboardController extends Controller
         $client = $user->client;
 
         $activeRequests = $client
-            ? Cache::remember("client_{$client->client_id}_recent_requests", 120, fn() =>
-                $client->requests()->with('latestHistory', 'category')->latest('submitted_at')->take(5)->get()
-              )
+            ? $client->requests()->with('latestHistory', 'category')->latest('submitted_at')->take(5)->get()
             : collect();
 
         // Compute unread from a single notifications fetch

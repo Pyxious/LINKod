@@ -20,37 +20,28 @@ class WorkforceController extends Controller
 
     public function index()
     {
-        // Cache workers with all relations (300s — changes only when assignments are updated)
-        $workers = Cache::remember('admin_workforce_workers', 300, function () {
-            return Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))
-                ->with([
-                    'staff.user',
-                    'team',
-                    'projects' => function($q) {
-                        $q->with('request.category', 'latestHistory')
-                          ->whereHas('latestHistory', function($lh) {
-                              $lh->whereNotIn('current_status', ['Completed', 'Cancelled']);
-                          });
-                    }
-                ])->get();
-        });
+        $workers = Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))
+            ->with([
+                'staff.user',
+                'team',
+                'projects' => function($q) {
+                    $q->with('request.category', 'latestHistory')
+                      ->whereHas('latestHistory', function($lh) {
+                          $lh->whereNotIn('current_status', ['Completed', 'Cancelled']);
+                      });
+                }
+            ])->get();
 
-        // Cache pending projects (300s)
-        $projects = Cache::remember('admin_workforce_pending_projects', 300, function () {
-            return Project::with('request', 'latestHistory')
-                ->whereHas('latestHistory', fn($q) => $q->where('current_status', 'Pending'))
-                ->get();
-        });
+        $projects = Project::with('request', 'latestHistory')
+            ->whereHas('latestHistory', fn($q) => $q->where('current_status', 'Pending'))
+            ->get();
 
         $totalWorkers     = $workers->count();
         $availableWorkers = $workers->filter(fn($w) => $w->projects->isEmpty())->count();
         $busyWorkers      = $totalWorkers - $availableWorkers;
         $onLeave          = 0;
 
-        // Cache teams + fix N+1: load ALL TeamLeader records in ONE query upfront
-        $teams = Cache::remember('admin_workforce_teams', 300, function () {
-            return Team::with('category')->get();
-        });
+        $teams = Team::with('category')->get();
 
         // Pre-load all team leaders in a single query to avoid N+1
         $allTeamLeaders = TeamLeader::with('staff.user')->get()->keyBy('leader_id');

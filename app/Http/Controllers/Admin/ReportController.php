@@ -40,23 +40,21 @@ class ReportController extends Controller
         });
         extract($summaryStats);
 
-        $categories = Cache::remember('admin_reports_categories', 600, fn() => Category::all());
-        $workers    = Cache::remember('admin_reports_workers', 300, fn() => Worker::with('user', 'team')->get());
+        $categories = Category::all();
+        $workers    = Worker::with('user', 'team')->get();
 
-        // Cache preview requests (300s — 5 min, only completed requests)
-        $previewRequests = Cache::remember('admin_reports_preview', 300, function () {
-            return ServiceRequest::with(['category', 'client.user', 'project.histories', 'evaluation', 'latestHistory', 'histories'])
-                ->where(function($q) {
-                    $q->whereHas('latestHistory', function($lh) {
-                        $lh->where('current_status', 'Completed');
-                    })->orWhereHas('project.latestHistory', function($plh) {
-                        $plh->where('current_status', 'Completed');
-                    });
-                })
-                ->orderBy('submitted_at', 'asc')
-                ->orderBy('request_id', 'asc')
-                ->get()
-                ->map(function($req) {
+        $previewRequests = ServiceRequest::with(['category', 'client.user', 'project.histories', 'evaluation', 'latestHistory', 'histories'])
+            ->where(function($q) {
+                $q->whereHas('latestHistory', function($lh) {
+                    $lh->where('current_status', 'Completed');
+                })->orWhereHas('project.latestHistory', function($plh) {
+                    $plh->where('current_status', 'Completed');
+                });
+            })
+            ->orderBy('submitted_at', 'asc')
+            ->orderBy('request_id', 'asc')
+            ->get()
+            ->map(function($req) {
                     $startedDate = '';
                     $completionDate = '';
 
