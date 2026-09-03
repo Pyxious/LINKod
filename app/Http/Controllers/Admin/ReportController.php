@@ -11,6 +11,7 @@ use App\Models\Category;
 use App\Models\UserLog;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -23,144 +24,115 @@ class ReportController extends Controller
 {
     public function index()
     {
-        $totalRequests   = ServiceRequest::count();
-        $totalProjects   = Project::count();
-        $avgRating       = Evaluation::avg('rating');
-        $availableWorkers= Worker::where('is_available', true)->count();
+        // Cache summary stats (600s — 10 min)
+        $summaryStats = Cache::remember('admin_reports_summary', 600, function () {
+            return [
+                'totalRequests'       => ServiceRequest::count(),
+                'totalProjects'       => Project::count(),
+                'avgRating'           => Evaluation::avg('rating'),
+                'availableWorkers'    => Worker::where('is_available', true)->count(),
+                'requestsByPriority'  => ServiceRequest::selectRaw('priority, count(*) as total')->groupBy('priority')->pluck('total', 'priority'),
+                'requestsByCategory'  => ServiceRequest::join('category', 'request.category_id', '=', 'category.category_id')
+                    ->selectRaw('category.category_name, count(*) as total')
+                    ->groupBy('category.category_name')
+                    ->pluck('total', 'category_name'),
+            ];
+        });
+        extract($summaryStats);
 
-        $requestsByPriority = ServiceRequest::selectRaw('priority, count(*) as total')
-            ->groupBy('priority')->pluck('total', 'priority');
+        $categories = Cache::remember('admin_reports_categories', 600, fn() => Category::all());
+        $workers    = Cache::remember('admin_reports_workers', 300, fn() => Worker::with('user', 'team')->get());
 
-        $requestsByCategory = ServiceRequest::join('category', 'request.category_id', '=', 'category.category_id')
-            ->selectRaw('category.category_name, count(*) as total')
-            ->groupBy('category.category_name')
-            ->pluck('total', 'category_name');
-            
-        $categories = Category::all();
-        $workers = Worker::with('user', 'team')->get();
+        // Cache preview requests (300s — 5 min, only completed requests)
+        $previewRequests = Cache::remember('admin_reports_preview', 300, function () {
+            return ServiceRequest::with(['category', 'client.user', 'project.histories', 'evaluation', 'latestHistory', 'histories'])
+                ->where(function($q) {
+                    $q->whereHas('latestHistory', function($lh) {
+                        $lh->where('current_status', 'Completed');
+                    })->orWhereHas('project.latestHistory', function($plh) {
+                        $plh->where('current_status', 'Completed');
+                    });
+                })
+                ->orderBy('submitted_at', 'asc')
+                ->orderBy('request_id', 'asc')
+                ->get()
+                ->map(function($req) {
+                    $startedDate = '';
+                    $completionDate = '';
 
-        // Only finished/completed requests for Accomplishment Reports preview
-        $previewRequests = ServiceRequest::with(['category', 'client.user', 'project.histories', 'evaluation', 'latestHistory', 'histories'])
-            ->where(function($q) {
-                $q->whereHas('latestHistory', function($lh) {
-                    $lh->where('current_status', 'Completed');
-                })->orWhereHas('project.latestHistory', function($plh) {
-                    $plh->where('current_status', 'Completed');
-                });
-            })
-            ->orderBy('submitted_at', 'asc')
-            ->orderBy('request_id', 'asc')
-            ->get()
-            ->map(function($req) {
-                $startedDate = '';
-                $completionDate = '';
-                
-                if ($req->project) {
-                    $startHistory = $req->project->histories->where('current_status', 'In Progress')->first();
-                    if ($startHistory) {
-                        $startedDate = Carbon::parse($startHistory->updated_at)->format('n/j/Y');
+                    if ($req->project) {
+                        $startHistory = $req->project->histories->where('current_status', 'In Progress')->first();
+                        if ($startHistory) $startedDate = Carbon::parse($startHistory->updated_at)->format('n/j/Y');
+                        $compHistory = $req->project->histories->where('current_status', 'Completed')->first();
+                        if ($compHistory) $completionDate = Carbon::parse($compHistory->updated_at)->format('n/j/Y');
                     }
-                    $compHistory = $req->project->histories->where('current_status', 'Completed')->first();
-                    if ($compHistory) {
-                        $completionDate = Carbon::parse($compHistory->updated_at)->format('n/j/Y');
+
+                    if (!$startedDate && $req->histories) {
+                        $reqStart = $req->histories->where('current_status', 'In Progress')->first();
+                        if ($reqStart) $startedDate = Carbon::parse($reqStart->updated_at)->format('n/j/Y');
                     }
-                }
-                
-                if (!$startedDate && $req->histories) {
-                    $reqStart = $req->histories->where('current_status', 'In Progress')->first();
-                    if ($reqStart) {
-                        $startedDate = Carbon::parse($reqStart->updated_at)->format('n/j/Y');
+                    if (!$completionDate && $req->histories) {
+                        $reqComp = $req->histories->where('current_status', 'Completed')->first();
+                        if ($reqComp) $completionDate = Carbon::parse($reqComp->updated_at)->format('n/j/Y');
                     }
-                }
+                    if (!$startedDate && $req->submitted_at)    $startedDate    = Carbon::parse($req->submitted_at)->format('n/j/Y');
+                    if (!$completionDate && $req->submitted_at) $completionDate = Carbon::parse($req->submitted_at)->format('n/j/Y');
 
-                if (!$completionDate && $req->histories) {
-                    $reqComp = $req->histories->where('current_status', 'Completed')->first();
-                    if ($reqComp) {
-                        $completionDate = Carbon::parse($reqComp->updated_at)->format('n/j/Y');
+                    $ratingVal = '';
+                    if ($req->evaluation) {
+                        $r = (float) $req->evaluation->rating;
+                        $ratingVal = ($r == (int)$r) ? (string)(int)$r : number_format($r, 1);
                     }
-                }
 
-                if (!$startedDate && $req->submitted_at) {
-                    $startedDate = Carbon::parse($req->submitted_at)->format('n/j/Y');
-                }
-                if (!$completionDate && $req->submitted_at) {
-                    $completionDate = Carbon::parse($req->submitted_at)->format('n/j/Y');
-                }
+                    $catName = strtolower($req->category->category_name ?? '');
+                    $prefix = match(true) {
+                        str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') || str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'CMS',
+                        str_contains($catName, 'plumbing') => 'PLS',
+                        str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                        str_contains($catName, 'janitorial') => 'JS',
+                        str_contains($catName, 'landscaping') => 'LS',
+                        str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
+                        default => 'REQ'
+                    };
+                    $categoryOrder = match($prefix) { 'CMS' => 1, 'PLS' => 2, 'PAINT' => 3, 'JS' => 4, 'LS' => 5, 'MAN' => 6, default => 7 };
+                    $isManpower = $prefix === 'MAN' || str_contains($catName, 'manpower') || str_contains($catName, 'event');
+                    $verifiedWork = $req->project?->nature_of_work;
+                    $hasVerifiedWork = $verifiedWork && !in_array(trim($verifiedWork), ['Completed', 'Repair & Maintenance Done', 'Direct Repair', '']);
 
-                $ratingVal = '';
-                if ($req->evaluation) {
-                    $r = (float) $req->evaluation->rating;
-                    $ratingVal = ($r == (int)$r) ? (string)(int)$r : number_format($r, 1);
-                }
-
-                $catName = strtolower($req->category->category_name ?? '');
-                $prefix = match(true) {
-                    str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') || str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'CMS',
-                    str_contains($catName, 'plumbing') => 'PLS',
-                    str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
-                    str_contains($catName, 'janitorial') => 'JS',
-                    str_contains($catName, 'landscaping') => 'LS',
-                    str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
-                    default => 'REQ'
-                };
-
-                $categoryOrder = match($prefix) {
-                    'CMS' => 1,
-                    'PLS' => 2,
-                    'PAINT' => 3,
-                    'JS' => 4,
-                    'LS' => 5,
-                    'MAN' => 6,
-                    default => 7
-                };
-
-                $isManpower = $prefix === 'MAN' || str_contains($catName, 'manpower') || str_contains($catName, 'event');
-                $verifiedWork = $req->project?->nature_of_work;
-                $hasVerifiedWork = $verifiedWork && !in_array(trim($verifiedWork), ['Completed', 'Repair & Maintenance Done', 'Direct Repair', '']);
-
-                if ($isManpower) {
-                    $taskTitle = $hasVerifiedWork ? $verifiedWork : $req->title;
-                    $taskDesc = null;
-                } else {
-                    $taskTitle = $req->title;
-                    if ($hasVerifiedWork && $verifiedWork !== $req->title) {
-                        $taskDesc = $verifiedWork;
-                    } elseif ($req->display_description) {
-                        $taskDesc = $req->display_description;
+                    if ($isManpower) {
+                        $taskTitle = $hasVerifiedWork ? $verifiedWork : $req->title;
+                        $taskDesc  = null;
                     } else {
-                        $taskDesc = null;
+                        $taskTitle = $req->title;
+                        $taskDesc  = ($hasVerifiedWork && $verifiedWork !== $req->title) ? $verifiedWork : ($req->display_description ?? null);
                     }
-                }
 
-                return [
-                    'request_id' => $req->request_id,
-                    'category_id' => $req->category_id,
-                    'category_name' => $req->category->category_name ?? 'General Maintenance',
-                    'prefix' => $prefix,
-                    'category_order' => $categoryOrder,
-                    'title' => $taskTitle,
-                    'description' => $taskDesc,
-                    'location' => $req->location ?? 'N/A',
-                    'submitted_at' => $req->submitted_at ? Carbon::parse($req->submitted_at)->format('Y-m-d') : null,
-                    'request_date_formatted' => $req->submitted_at ? Carbon::parse($req->submitted_at)->format('n/j/Y') : '',
-                    'started_date' => $startedDate,
-                    'completion_date' => $completionDate,
-                    'rating' => $ratingVal,
-                    'current_status' => 'Completed',
-                ];
-            })
-            ->sort(function($a, $b) {
-                if ($a['category_order'] !== $b['category_order']) {
-                    return $a['category_order'] <=> $b['category_order'];
-                }
-                if ($a['submitted_at'] !== $b['submitted_at']) {
-                    return strcmp($a['submitted_at'] ?? '', $b['submitted_at'] ?? '');
-                }
-                return $a['request_id'] <=> $b['request_id'];
-            })
-            ->values();
+                    return [
+                        'request_id'             => $req->request_id,
+                        'category_id'            => $req->category_id,
+                        'category_name'          => $req->category->category_name ?? 'General Maintenance',
+                        'prefix'                 => $prefix,
+                        'category_order'         => $categoryOrder,
+                        'title'                  => $taskTitle,
+                        'description'            => $taskDesc,
+                        'location'               => $req->location ?? 'N/A',
+                        'submitted_at'           => $req->submitted_at ? Carbon::parse($req->submitted_at)->format('Y-m-d') : null,
+                        'request_date_formatted' => $req->submitted_at ? Carbon::parse($req->submitted_at)->format('n/j/Y') : '',
+                        'started_date'           => $startedDate,
+                        'completion_date'        => $completionDate,
+                        'rating'                 => $ratingVal,
+                        'current_status'         => 'Completed',
+                    ];
+                })
+                ->sort(function($a, $b) {
+                    if ($a['category_order'] !== $b['category_order']) return $a['category_order'] <=> $b['category_order'];
+                    if ($a['submitted_at'] !== $b['submitted_at']) return strcmp($a['submitted_at'] ?? '', $b['submitted_at'] ?? '');
+                    return $a['request_id'] <=> $b['request_id'];
+                })
+                ->values();
+        });
 
-        // Fetch real generated reports history from UserLog
+        // Recent report audit log (not cached — must be live)
         $recentReports = UserLog::with('user')
             ->where(function($q) {
                 $q->where('action', 'LIKE', '%generated%')
@@ -169,15 +141,14 @@ class ReportController extends Controller
             ->latest('created_at')
             ->paginate(10);
 
-        // Map category ID to Team Leader info for live preview signatories
-        $teamLeaders = \App\Models\Team::with('leader.staff.user', 'category')->get()->mapWithKeys(function($t) {
-            $u = $t->leader?->staff?->user;
-            $name = $u ? strtoupper(trim($u->first_name . ' ' . $u->last_name)) : 'TEAM LEADER';
-            $secName = $t->category?->category_name ?? $t->team_name;
-            return [$t->category_id => [
-                'leader_name'  => $name,
-                'section_name' => $secName,
-            ]];
+        // Cache team leaders for signatories (600s)
+        $teamLeaders = Cache::remember('admin_reports_team_leaders', 600, function () {
+            return \App\Models\Team::with('leader.staff.user', 'category')->get()->mapWithKeys(function($t) {
+                $u = $t->leader?->staff?->user;
+                $name = $u ? strtoupper(trim($u->first_name . ' ' . $u->last_name)) : 'TEAM LEADER';
+                $secName = $t->category?->category_name ?? $t->team_name;
+                return [$t->category_id => ['leader_name' => $name, 'section_name' => $secName]];
+            });
         });
 
         return view('admin.reports.index', compact(

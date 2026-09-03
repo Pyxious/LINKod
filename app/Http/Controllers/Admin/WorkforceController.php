@@ -12,6 +12,7 @@ use App\Models\Worker;
 use App\Models\ProjectWorker;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class WorkforceController extends Controller
 {
@@ -19,41 +20,53 @@ class WorkforceController extends Controller
 
     public function index()
     {
-        $workers = Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))
-            ->with([
-                'staff.user', 
-                'team',
-                'projects' => function($q) {
-                    $q->with('request.category', 'latestHistory')
-                      ->whereHas('latestHistory', function($lh) {
-                          $lh->whereNotIn('current_status', ['Completed', 'Cancelled']);
-                      });
-                }
-            ])->get();
-        $projects = Project::with('request', 'latestHistory')
-            ->whereHas('latestHistory', fn($q) => $q->where('current_status', 'Pending'))
-            ->get();
+        // Cache workers with all relations (300s — changes only when assignments are updated)
+        $workers = Cache::remember('admin_workforce_workers', 300, function () {
+            return Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))
+                ->with([
+                    'staff.user',
+                    'team',
+                    'projects' => function($q) {
+                        $q->with('request.category', 'latestHistory')
+                          ->whereHas('latestHistory', function($lh) {
+                              $lh->whereNotIn('current_status', ['Completed', 'Cancelled']);
+                          });
+                    }
+                ])->get();
+        });
 
-        $totalWorkers = $workers->count();
+        // Cache pending projects (300s)
+        $projects = Cache::remember('admin_workforce_pending_projects', 300, function () {
+            return Project::with('request', 'latestHistory')
+                ->whereHas('latestHistory', fn($q) => $q->where('current_status', 'Pending'))
+                ->get();
+        });
+
+        $totalWorkers     = $workers->count();
         $availableWorkers = $workers->filter(fn($w) => $w->projects->isEmpty())->count();
-        $busyWorkers = $totalWorkers - $availableWorkers;
-        $onLeave = 0; // Mocked
+        $busyWorkers      = $totalWorkers - $availableWorkers;
+        $onLeave          = 0;
 
-        $teams = Team::with('category')->get();
-        // Decorate teams with stats and members list
+        // Cache teams + fix N+1: load ALL TeamLeader records in ONE query upfront
+        $teams = Cache::remember('admin_workforce_teams', 300, function () {
+            return Team::with('category')->get();
+        });
+
+        // Pre-load all team leaders in a single query to avoid N+1
+        $allTeamLeaders = TeamLeader::with('staff.user')->get()->keyBy('leader_id');
+
         foreach ($teams as $team) {
             $teamWorkers = $workers->where('team_id', $team->team_id);
-            $team->team_members = $teamWorkers->values();
+            $team->team_members   = $teamWorkers->values();
             $team->skilled_workers = $teamWorkers->count();
-            $team->available = $teamWorkers->filter(fn($w) => $w->projects->isEmpty())->count();
-            $team->active_tasks = $teamWorkers->sum(fn($w) => $w->projects->count());
+            $team->available      = $teamWorkers->filter(fn($w) => $w->projects->isEmpty())->count();
+            $team->active_tasks   = $teamWorkers->sum(fn($w) => $w->projects->count());
 
-            
-            // Team leader name & leader worker
+            // Resolve leader from pre-loaded collection (no extra DB query)
             $leader = null;
             $leaderWorkerObj = null;
             if ($team->team_leader) {
-                $teamLeaderObj = TeamLeader::find($team->team_leader);
+                $teamLeaderObj = $allTeamLeaders->get($team->team_leader);
                 if ($teamLeaderObj) {
                     $leaderWorker = $workers->firstWhere('staff_id', $teamLeaderObj->staff_id);
                     if ($leaderWorker) {
@@ -62,10 +75,9 @@ class WorkforceController extends Controller
                     }
                 }
             }
-            $team->leader_name = $leader ?? 'Not Assigned';
+            $team->leader_name  = $leader ?? 'Not Assigned';
             $team->leader_worker = $leaderWorkerObj;
 
-            // Match icons based on name
             $name = strtolower($team->team_name);
             if (str_contains($name, 'carpentry') || str_contains($name, 'masonry') || str_contains($name, 'electrical')) $team->icon = '⚡';
             elseif (str_contains($name, 'plumbing')) $team->icon = '🚰';
