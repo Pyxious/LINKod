@@ -167,38 +167,53 @@ class RequestController extends Controller
 
             unset($validated['contact_number']);
 
-            // Package Manpower structured details into description if provided
-            if ($request->filled('activity_title') || $request->filled('prep_details') || $request->filled('prep_date') || $request->filled('assistance_details') || $request->filled('clearing_details')) {
-                $manpowerData = [
-                    'activity_title'          => $request->input('activity_title', $validated['title']),
-                    'event_date'              => $request->input('event_date', ''),
-                    'venue'                   => $request->input('venue', $validated['location']),
-                    'prep_date'               => $request->input('prep_date', ''),
-                    'prep_details'            => $request->input('prep_details', ''),
-                    'prep_regular'            => $request->boolean('prep_regular', true),
-                    'prep_overtime'           => $request->boolean('prep_overtime', false),
-                    'prep_regular_time'       => $request->input('prep_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
-                    'prep_overtime_time'      => $request->input('prep_overtime_time', ''),
-                    'assistance_date'         => $request->input('assistance_date', ''),
-                    'assistance_details'      => $request->input('assistance_details', ''),
-                    'assistance_regular'      => $request->boolean('assistance_regular', true),
-                    'assistance_overtime'     => $request->boolean('assistance_overtime', false),
-                    'assistance_regular_time' => $request->input('assistance_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
-                    'assistance_overtime_time'=> $request->input('assistance_overtime_time', ''),
-                    'clearing_date'           => $request->input('clearing_date', ''),
-                    'clearing_details'        => $request->input('clearing_details', ''),
-                    'clearing_regular'        => $request->boolean('clearing_regular', true),
-                    'clearing_overtime'       => $request->boolean('clearing_overtime', false),
-                    'clearing_regular_time'   => $request->input('clearing_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
-                    'clearing_overtime_time'  => $request->input('clearing_overtime_time', ''),
-                    'additional_date'         => $request->input('additional_date', ''),
-                    'additional_notes'        => $request->input('additional_notes', ''),
-                    'general_description'     => $request->input('description', ''),
-                ];
+            // Package Manpower/Janitorial structured details only if category is Janitorial & Manpower (Category ID 4)
+            $isJanitorialAndManpowerCategory = ((int)$validated['category_id'] === 4);
 
-                $validated['description'] = json_encode($manpowerData);
-                if ($request->filled('activity_title')) {
-                    $validated['title'] = $request->input('activity_title');
+            if ($isJanitorialAndManpowerCategory) {
+                if ($request->filled('activity_title') || $request->filled('prep_details') || $request->filled('prep_date') || $request->filled('assistance_details') || $request->filled('clearing_details')) {
+                    $manpowerData = [
+                        'activity_title'          => $request->input('activity_title', $validated['title']),
+                        'event_date'              => $request->input('event_date', ''),
+                        'venue'                   => $request->input('venue', $validated['location']),
+                        'prep_date'               => $request->input('prep_date', ''),
+                        'prep_details'            => $request->input('prep_details', ''),
+                        'prep_regular'            => $request->boolean('prep_regular', true),
+                        'prep_overtime'           => $request->boolean('prep_overtime', false),
+                        'prep_regular_time'       => $request->input('prep_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
+                        'prep_overtime_time'      => $request->input('prep_overtime_time', ''),
+                        'assistance_date'         => $request->input('assistance_date', ''),
+                        'assistance_details'      => $request->input('assistance_details', ''),
+                        'assistance_regular'      => $request->boolean('assistance_regular', true),
+                        'assistance_overtime'     => $request->boolean('assistance_overtime', false),
+                        'assistance_regular_time' => $request->input('assistance_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
+                        'assistance_overtime_time'=> $request->input('assistance_overtime_time', ''),
+                        'clearing_date'           => $request->input('clearing_date', ''),
+                        'clearing_details'        => $request->input('clearing_details', ''),
+                        'clearing_regular'        => $request->boolean('clearing_regular', true),
+                        'clearing_overtime'       => $request->boolean('clearing_overtime', false),
+                        'clearing_regular_time'   => $request->input('clearing_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
+                        'clearing_overtime_time'  => $request->input('clearing_overtime_time', ''),
+                        'additional_date'         => $request->input('additional_date', ''),
+                        'additional_notes'        => $request->input('additional_notes', ''),
+                        'general_description'     => $request->input('description', ''),
+                    ];
+
+                    $validated['description'] = json_encode($manpowerData);
+                    if ($request->filled('activity_title')) {
+                        $validated['title'] = $request->input('activity_title');
+                    }
+                } elseif ($request->filled('janitorial_areas') || $request->filled('janitorial_type')) {
+                    $janitorialData = [
+                        'type'                 => 'janitorial',
+                        'janitorial_areas'     => $request->input('janitorial_areas', ''),
+                        'janitorial_type'      => $request->input('janitorial_type', ''),
+                        'janitorial_frequency' => $request->input('janitorial_frequency', ''),
+                        'janitorial_supplies'  => $request->input('janitorial_supplies', ''),
+                        'general_description'  => $request->input('description', ''),
+                    ];
+
+                    $validated['description'] = json_encode($janitorialData);
                 }
             }
 
@@ -364,6 +379,295 @@ class RequestController extends Controller
                 ->with('success', 'Your request has been successfully cancelled.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error cancelling request: ' . $e->getMessage());
+        }
+    }
+
+    public function approveSchedule(int $id)
+    {
+        try {
+            $serviceRequest = ServiceRequest::with(['project.workers.staff.user', 'project.workers.user', 'client'])->findOrFail($id);
+            $this->authorize('update', $serviceRequest);
+
+            if ($serviceRequest->schedule_status !== 'pending_client_approval') {
+                return redirect()->back()->with('info', 'There is no pending schedule proposal awaiting your approval.');
+            }
+
+            $serviceRequest->update([
+                'schedule_status'         => 'approved',
+                'schedule_decline_reason' => null,
+            ]);
+
+            $formattedDate = $serviceRequest->scheduled_date?->format('F d, Y') ?? 'Selected Date';
+            $window = match($serviceRequest->scheduled_time_window) {
+                'AM' => 'Morning (AM)',
+                'PM' => 'Afternoon (PM)',
+                'AM-PM' => 'Whole Day (AM - PM)',
+                default => $serviceRequest->scheduled_time_window ?? 'Whole Day'
+            };
+
+            $project = $serviceRequest->project;
+            if ($project && $project->workers->isNotEmpty()) {
+                // Workers were pre-assigned by admin! Launch project now!
+                $project->update([
+                    'date_approved' => now()->toDateString(),
+                ]);
+
+                foreach ($project->workers as $worker) {
+                    $worker->update(['is_available' => false]);
+                    $workerUserId = $worker->staff?->user_id ?? $worker->user?->user_id;
+                    if ($workerUserId) {
+                        $this->notifications->workerAssigned(
+                            $workerUserId,
+                            $serviceRequest->title,
+                            $project->project_id
+                        );
+                    }
+                }
+
+                \App\Models\ProjectHistory::create([
+                    'project_id'      => $project->project_id,
+                    'previous_status' => $project->current_status,
+                    'current_status'  => 'Pending',
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
+
+                RequestHistory::create([
+                    'request_id'      => $serviceRequest->request_id,
+                    'previous_status' => $serviceRequest->current_status,
+                    'current_status'  => 'Approved',
+                    'remarks'         => "Visit schedule confirmed by client for {$formattedDate} ({$window}). Project launched and maintenance workers assigned.",
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
+
+                // Notify Client of approval
+                $this->notifications->requestStatusChanged(
+                    $serviceRequest->client->user_id,
+                    $serviceRequest->title,
+                    'Approved',
+                    $serviceRequest->request_id,
+                    'client'
+                );
+            } else {
+                RequestHistory::create([
+                    'request_id'      => $serviceRequest->request_id,
+                    'previous_status' => $serviceRequest->current_status,
+                    'current_status'  => 'Schedule Confirmed',
+                    'remarks'         => "Client confirmed visit schedule for {$formattedDate} ({$window}).",
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
+            }
+
+            \App\Models\UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Client confirmed visit schedule for request #{$serviceRequest->request_id}",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            // Notify all admins
+            $admins = \App\Models\User::where('role', 'admin')->get();
+            foreach ($admins as $admin) {
+                $this->notifications->scheduleApproved(
+                    $admin->user_id,
+                    $serviceRequest->title,
+                    $formattedDate,
+                    $window,
+                    $serviceRequest->request_id
+                );
+            }
+
+            return redirect()->route('client.requests.show', $id)
+                ->with('success', "Visit schedule on {$formattedDate} ({$window}) has been confirmed.");
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error approving schedule: ' . $e->getMessage());
+        }
+    }
+
+    public function declineSchedule(Request $request, int $id)
+    {
+        try {
+            $validated = $request->validate([
+                'decline_reason' => 'required|string|max:500',
+            ], [
+                'decline_reason.required' => 'Please provide a reason or your preferred alternative dates.',
+            ]);
+
+            $serviceRequest = ServiceRequest::findOrFail($id);
+            $this->authorize('update', $serviceRequest);
+
+            $reason = trim($validated['decline_reason']);
+
+            $serviceRequest->update([
+                'schedule_status'         => 'declined',
+                'schedule_decline_reason' => $reason,
+            ]);
+
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $serviceRequest->current_status,
+                'current_status'  => 'Schedule Refused',
+                'remarks'         => "Client refused schedule and requested rescheduling: {$reason}",
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            \App\Models\UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Client declined schedule for request #{$serviceRequest->request_id}: {$reason}",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            // Notify all admins
+            $admins = \App\Models\User::where('role', 'admin')->get();
+            foreach ($admins as $admin) {
+                $this->notifications->scheduleDeclined(
+                    $admin->user_id,
+                    $serviceRequest->title,
+                    $reason,
+                    $serviceRequest->request_id
+                );
+            }
+
+            return redirect()->route('client.requests.show', $id)
+                ->with('success', 'Reschedule request sent to GSO Admin. You will be notified when a new date is proposed.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error requesting reschedule: ' . $e->getMessage());
+        }
+    }
+
+    public function approveBom(int $id)
+    {
+        try {
+            $serviceRequest = ServiceRequest::with('project.billOfMaterials', 'project.workers.staff.user')->findOrFail($id);
+            $this->authorize('update', $serviceRequest);
+
+            $project = $serviceRequest->project;
+            if (!$project) {
+                return redirect()->back()->with('error', 'Project not found for this request.');
+            }
+
+            $totalCost = $project->billOfMaterials->sum('total_cost');
+
+            $serviceRequest->update([
+                'bom_status' => 'approved',
+            ]);
+
+            $previousStatus = $serviceRequest->current_status;
+            $newStatus = 'In Progress';
+
+            \App\Models\ProjectHistory::create([
+                'project_id'      => $project->project_id,
+                'previous_status' => $project->current_status,
+                'current_status'  => $newStatus,
+                'remarks'         => 'Client approved Bill of Materials (PHP ' . number_format($totalCost, 2) . '). Work may proceed.',
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $previousStatus,
+                'current_status'  => $newStatus,
+                'remarks'         => 'Client approved Bill of Materials (PHP ' . number_format($totalCost, 2) . '). Work may proceed.',
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            \App\Models\UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Client approved Bill of Materials for request #{$serviceRequest->request_id}",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            // Notify Admins
+            $admins = \App\Models\User::where('role', 'admin')->get();
+            foreach ($admins as $admin) {
+                $this->notifications->bomApprovedByClient(
+                    $admin->user_id,
+                    $serviceRequest->title,
+                    $serviceRequest->request_id,
+                    'admin'
+                );
+            }
+
+            // Notify Workers
+            foreach ($project->workers as $pw) {
+                $workerUserId = $pw->staff?->user_id ?? $pw->user?->user_id;
+                if ($workerUserId) {
+                    $this->notifications->bomApprovedByClient(
+                        $workerUserId,
+                        $serviceRequest->title,
+                        $project->project_id,
+                        'worker'
+                    );
+                }
+            }
+
+            return redirect()->route('client.requests.show', $id)
+                ->with('success', 'Bill of Materials approved successfully. Work has resumed!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error approving Bill of Materials: ' . $e->getMessage());
+        }
+    }
+
+    public function declineBom(Request $request, int $id)
+    {
+        try {
+            $serviceRequest = ServiceRequest::with('project.billOfMaterials')->findOrFail($id);
+            $this->authorize('update', $serviceRequest);
+
+            $reason = trim((string)$request->input('remarks', ''));
+
+            $serviceRequest->update([
+                'bom_status' => 'declined',
+            ]);
+
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $serviceRequest->current_status,
+                'current_status'  => 'On Hold',
+                'remarks'         => 'Client declined Bill of Materials.' . ($reason ? " Reason: {$reason}" : ''),
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            if ($serviceRequest->project) {
+                \App\Models\ProjectHistory::create([
+                    'project_id'      => $serviceRequest->project->project_id,
+                    'previous_status' => $serviceRequest->project->current_status,
+                    'current_status'  => 'On Hold',
+                    'remarks'         => 'Client declined Bill of Materials.' . ($reason ? " Reason: {$reason}" : ''),
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
+            }
+
+            \App\Models\UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Client declined Bill of Materials for request #{$serviceRequest->request_id}",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            $admins = \App\Models\User::where('role', 'admin')->get();
+            foreach ($admins as $admin) {
+                $this->notifications->bomDeclinedByClient(
+                    $admin->user_id,
+                    $serviceRequest->title,
+                    $serviceRequest->request_id,
+                    $reason
+                );
+            }
+
+            return redirect()->route('client.requests.show', $id)
+                ->with('success', 'Bill of Materials declined. GSO Admin has been notified.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error declining Bill of Materials: ' . $e->getMessage());
         }
     }
 }

@@ -30,9 +30,8 @@
     <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 mb-4">
         <!-- Priority Toggles -->
         <div class="flex bg-gray-100 dark:bg-zinc-800/80 p-1 rounded-lg gap-1 overflow-x-auto">
-            <button wire:click="setPriority('High')" class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap {{ $priority === 'High' ? 'bg-white dark:bg-zinc-900 text-gray-900 dark:text-blue-400 shadow-xs font-semibold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400' }}">High</button>
-            <button wire:click="setPriority('Medium')" class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap {{ $priority === 'Medium' ? 'bg-white dark:bg-zinc-900 text-gray-900 dark:text-blue-400 shadow-xs font-semibold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400' }}">Medium</button>
-            <button wire:click="setPriority('Low')" class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap {{ $priority === 'Low' ? 'bg-white dark:bg-zinc-900 text-gray-900 dark:text-blue-400 shadow-xs font-semibold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400' }}">Low</button>
+            <button wire:click="setPriority('Urgent')" class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap {{ in_array(strtolower($priority), ['urgent', 'high']) ? 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/40 dark:text-red-300 shadow-xs font-semibold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400' }}">Urgent</button>
+            <button wire:click="setPriority('Routine')" class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap {{ in_array(strtolower($priority), ['routine', 'medium', 'low']) ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 shadow-xs font-semibold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400' }}">Routine</button>
         </div>
 
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -79,11 +78,9 @@
                 };
                 $reqCode = $prefix . '-' . str_pad($r->request_id, 3, '0', STR_PAD_LEFT);
                 
-                $priClass = match(strtolower($r->priority ?? 'low')) { 
-                    'high'=>'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800', 
-                    'medium'=>'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800', 
-                    default=>'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' 
-                };
+                $priClass = $r->is_urgent 
+                    ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800' 
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
 
                 $s = $r->current_status;
                 $sClass = match($s) {
@@ -114,7 +111,7 @@
                 </div>
                 <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-zinc-800">
                     <span>{{ $r->location }}</span>
-                    <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold border {{ $priClass }}">{{ ucfirst($r->priority ?? 'Low') }}</span>
+                    <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold border {{ $priClass }}">{{ $r->priority_label }}</span>
                 </div>
                 @if($assignedWorkers->count() > 0)
                 <div class="text-xs text-gray-600 dark:text-gray-300 pt-1">
@@ -237,14 +234,12 @@
                     </td>
                     <td class="py-4 border-y border-gray-200 dark:border-zinc-800">
                         @php
-                            $priClass = match(strtolower($r->priority ?? 'low')) { 
-                                'high'=>'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800', 
-                                'medium'=>'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800', 
-                                default=>'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' 
-                            };
+                            $priClass = $r->is_urgent 
+                                ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800' 
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
                         @endphp
                         <span class="inline-block px-3 py-1 rounded-full text-[11px] font-bold border {{ $priClass }}">
-                            {{ ucfirst($r->priority ?? 'Low') }}
+                            {{ $r->priority_label }}
                         </span>
                     </td>
                     <td class="py-4 border-y border-gray-200 dark:border-zinc-800">

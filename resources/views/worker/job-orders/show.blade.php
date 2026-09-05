@@ -24,6 +24,8 @@
     $clientEmail = $clientUser?->email_account ?? 'No email provided';
     $clientPhone = $clientUser?->contact_number ?? $req?->client?->contact_number ?? 'Not Provided';
     $initials = strtoupper(substr($clientUser?->first_name ?? 'K', 0, 1));
+    $currentWorker = auth()->user()->staff?->worker;
+    $isTeamLeader = $currentWorker ? $currentWorker->isTeamLeader() : false;
 @endphp
 
 <!-- Header -->
@@ -33,15 +35,30 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
             Back to Job Orders
         </a>
-        <h1 class="text-[#042B74] dark:text-blue-400 text-2xl font-bold flex items-center gap-3">
-            Requisition #{{ $reqCode }}
+        <h1 class="text-[#042B74] dark:text-blue-400 text-2xl font-bold flex items-center gap-3 flex-wrap">
+            <span>Requisition #{{ $reqCode }}</span>
+            @if($req)
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider border
+                    {{ $req->is_urgent ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300' }}">
+                    {{ $req->priority_label }}
+                </span>
+            @endif
             <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider
                 @if($project->current_status === 'Pending') bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300
+                @elseif($project->current_status === 'Awaiting Verification of Bill of Materials') bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300
+                @elseif($project->current_status === 'BOM Verified (Awaiting Client Approval)') bg-indigo-50 text-indigo-800 border border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300
                 @elseif($project->current_status === 'In Progress') bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300
                 @elseif($project->current_status === 'Pending Verification') bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300
-                @else bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 @endif">
+                @elseif($project->current_status === 'Completed') bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300
+                @else bg-gray-50 text-gray-700 border border-gray-200 dark:bg-zinc-800 dark:text-gray-300 @endif">
                 {{ $project->current_status }}
             </span>
+            @if($isTeamLeader)
+                <span class="px-2.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-950/40 dark:text-purple-300">
+                    Team Leader
+                </span>
+            @endif
+        </h1>
     </div>
 </div>
 
@@ -54,8 +71,7 @@
         <!-- 1st Box: Issue Description & Supporting Documents -->
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">
             @php
-                $catName = strtolower($req->category->category_name ?? '');
-                $isManpower = str_contains($catName, 'manpower') || str_contains($catName, 'event');
+                $isManpower = $req->is_manpower ?? false;
                 $m = $req->manpower_details ?? [];
             @endphp
 
@@ -1077,11 +1093,34 @@
             @endif
 
             @if($project->current_status !== 'Completed' && $project->current_status !== 'Pending Verification')
-                <div x-data="{
-                    submittingBOM: false,
-                    rows: [
-                        { material_id: '', custom_name: '', unit: 'pcs', qty: 1 }
-                    ],
+                @if($isTeamLeader)
+                    <!-- Team Leader Direct Fast-Track Button if BOM pending -->
+                    @if($project->billOfMaterials->whereNull('date_approved')->count() > 0 || in_array($project->current_status, ['Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)']))
+                        <div class="mb-5 p-4 bg-emerald-50/80 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    Team Leader On-Site Direct Override
+                                </h4>
+                                <p class="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
+                                    Did the client purchase or provide the requested materials/cash directly to the team on-site?
+                                </p>
+                            </div>
+                            <form action="{{ route('worker.bom.team-leader-approve', $project->project_id) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 whitespace-nowrap">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    Confirm Materials Received &amp; Start Work
+                                </button>
+                            </form>
+                        </div>
+                    @endif
+
+                    <div x-data="{
+                        submittingBOM: false,
+                        rows: [
+                            { material_id: '', custom_name: '', unit: 'pcs', qty: 1 }
+                        ],
                     catalog: {{ Js::from($materials->map(fn($m) => ['id' => $m->material_id, 'name' => $m->material_name, 'unit' => $m->unit_of_measurement ?? 'pcs'])) }},
                     isDiscrete(unit) {
                         if (!unit) return true;
@@ -1229,10 +1268,16 @@
                                     class="w-full sm:w-auto bg-[#0033a0] hover:bg-[#002480] text-white px-6 py-2.5 rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer">
                                 <svg x-show="submittingBOM" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                 <span x-text="submittingBOM ? 'Submitting...' : 'Submit Material Request'">Submit Material Request</span>
-                            </button>
                         </div>
                     </form>
                 </div>
+                @else
+                    <div class="p-4 bg-slate-50 dark:bg-zinc-800/40 rounded-xl border border-gray-200 dark:border-zinc-700 text-center">
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            <strong>Role Notice:</strong> Only the assigned <strong>Team Leader</strong> or GSO Admin is authorized to prepare and submit a Bill of Materials for this job order.
+                        </p>
+                    </div>
+                @endif
             @endif
         </div>
 
@@ -1251,17 +1296,23 @@
                 <div>
                     <div class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">PRIORITY LEVEL</div>
                     <div>
-                        @php
-                            $prio2 = ucfirst(strtolower($req->priority ?? 'Low'));
-                            $prioBadge2 = match(strtolower($req->priority ?? 'low')) {
-                                'high' => 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300',
-                                'medium' => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300',
-                                default => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300'
-                            };
-                        @endphp
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border {{ $prioBadge2 }}">{{ $prio2 }} Priority</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border 
+                            {{ $req?->is_urgent ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300' }}">
+                            {{ $req?->priority_label ?? 'Routine' }}
+                        </span>
                     </div>
                 </div>
+                @if($req?->scheduled_date)
+                    <div>
+                        <div class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">SCHEDULED VISIT</div>
+                        <div class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                            <span>📅 {{ $req->scheduled_date->format('M d, Y') }}</span>
+                            <span class="px-2 py-0.5 rounded text-[10.5px] bg-[#0033a0] text-white">
+                                {{ $req->scheduled_time_window ?? 'Whole Day' }}
+                            </span>
+                        </div>
+                    </div>
+                @endif
                 <div>
                     <div class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">CAMPUS</div>
                     <div class="text-sm font-bold text-gray-900 dark:text-white">{{ $req->campus ?? 'BU Main' }}</div>

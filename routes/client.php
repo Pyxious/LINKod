@@ -19,6 +19,10 @@ Route::middleware(['auth', '2fa', 'role:client'])->prefix('client')->name('clien
     Route::post('/requests/{id}/messages', [\App\Http\Controllers\RequestMessageController::class, 'store'])->name('requests.messages.store')->middleware('throttle:15,1');
     Route::post('/requests/{id}/messages/mark-read', [\App\Http\Controllers\RequestMessageController::class, 'markAsRead'])->name('requests.messages.mark-read');
     Route::post('/requests/{id}/cancel', [RequestController::class, 'cancel'])->name('requests.cancel')->middleware('throttle:10,1');
+    Route::post('/requests/{id}/schedule/approve', [RequestController::class, 'approveSchedule'])->name('requests.schedule.approve')->middleware('throttle:10,1');
+    Route::post('/requests/{id}/schedule/decline', [RequestController::class, 'declineSchedule'])->name('requests.schedule.decline')->middleware('throttle:10,1');
+    Route::post('/requests/{id}/bom/approve', [RequestController::class, 'approveBom'])->name('requests.bom.approve')->middleware('throttle:10,1');
+    Route::post('/requests/{id}/bom/decline', [RequestController::class, 'declineBom'])->name('requests.bom.decline')->middleware('throttle:10,1');
 
     Route::get('/requests/{id}/evaluate',  [EvaluationController::class, 'create'])->name('evaluations.create');
     Route::post('/requests/{id}/evaluate', [EvaluationController::class, 'store'])->name('evaluations.store')->middleware('throttle:10,1');

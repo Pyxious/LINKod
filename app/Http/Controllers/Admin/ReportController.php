@@ -128,7 +128,6 @@ class ReportController extends Controller
                     return $a['request_id'] <=> $b['request_id'];
                 })
                 ->values();
-        });
 
         // Recent report audit log (not cached — must be live)
         $recentReports = UserLog::with('user')

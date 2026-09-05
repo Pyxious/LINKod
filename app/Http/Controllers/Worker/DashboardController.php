@@ -62,7 +62,7 @@ class DashboardController extends Controller
 
         // 4. Active assignments for the task list on dashboard (Pending, On Hold, In Progress)
         $assignments = $allAssignments
-            ->filter(fn($a) => $a->project && !in_array($a->project->current_status, ['Completed', 'Cancelled']))
+            ->filter(fn($a) => $a->project && !in_array($a->project->current_status, ['Completed', 'Cancelled', 'Pending Schedule Confirmation']))
             ->sort(function($a, $b) {
                 $prioA = strtolower($a->project?->request?->priority ?? 'low');
                 $prioB = strtolower($b->project?->request?->priority ?? 'low');

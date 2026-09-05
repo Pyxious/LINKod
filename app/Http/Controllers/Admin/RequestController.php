@@ -346,14 +346,18 @@ class RequestController extends Controller
     {
         try {
             $request->validate([
-                'category_id' => 'required|exists:category,category_id',
-                'priority'    => 'required|in:High,Medium,Low,high,medium,low',
+                'category_id'           => 'required|exists:category,category_id',
+                'priority'              => 'required|in:High,Medium,Low,high,medium,low,urgent,routine,Urgent,Routine',
+                'scheduled_date'        => 'nullable|date',
+                'scheduled_time_window' => 'nullable|in:AM,PM,AM-PM',
+                'worker_ids'            => 'nullable|array',
+                'worker_ids.*'          => 'exists:worker,worker_id',
             ]);
 
             $serviceRequest = ServiceRequest::findOrFail($id);
 
-            // Guard against duplicate approvals / race conditions
-            if ($serviceRequest->project()->exists()) {
+            // Guard against duplicate approvals / already active project
+            if ($serviceRequest->project && in_array($serviceRequest->current_status, ['Approved', 'In Progress', 'Completed'])) {
                 return redirect()->route('admin.requests.show', $id)
                     ->with('info', 'This request has already been approved.');
             }
@@ -369,32 +373,47 @@ class RequestController extends Controller
                 ]);
             }
 
-            $serviceRequest->update([
+            $updateData = [
                 'category_id' => $request->category_id,
                 'priority'    => $request->priority,
-            ]);
+            ];
+
+            if ($request->filled('scheduled_date')) {
+                $updateData['scheduled_date'] = $request->scheduled_date;
+                $updateData['scheduled_time_window'] = $request->input('scheduled_time_window', $serviceRequest->scheduled_time_window ?? 'AM-PM');
+                $updateData['schedule_status'] = 'approved';
+                $updateData['schedule_decline_reason'] = null;
+            } elseif ($serviceRequest->scheduled_date && $serviceRequest->schedule_status !== 'approved') {
+                $updateData['schedule_status'] = 'approved';
+                $updateData['schedule_decline_reason'] = null;
+            }
+
+            $serviceRequest->update($updateData);
 
             $previous = $serviceRequest->current_status;
 
-            RequestHistory::create([
-                'request_id'      => $serviceRequest->request_id,
-                'previous_status' => $previous,
-                'current_status'  => 'Approved',
-                'updated_at'      => now(),
-                'updated_by'      => auth()->id(),
+            // Find or create Project
+            $project = Project::firstOrCreate([
+                'request_id' => $serviceRequest->request_id,
+            ], [
+                'client_id'     => $serviceRequest->client_id,
+                'approved_by'   => $staff?->staff_id,
+                'date_approved' => now()->toDateString(),
             ]);
 
-            // Create a Project record
-            $project = Project::create([
-                'client_id'     => $serviceRequest->client_id,
-                'request_id'    => $serviceRequest->request_id,
+            $project->update([
                 'approved_by'   => $staff?->staff_id,
                 'date_approved' => now()->toDateString(),
             ]);
 
             $workerIds = $request->input('worker_ids', []);
 
-            // If no workers were explicitly checked, auto-assign workers from the team matching the category (least loaded first)
+            // If empty, check if workers were already assigned to project
+            if (empty($workerIds) && $project->workers()->exists()) {
+                $workerIds = $project->workers->pluck('worker_id')->toArray();
+            }
+
+            // If still empty, auto-assign workers from the team matching the category (least loaded first)
             if (empty($workerIds) && $request->category_id) {
                 $category = \App\Models\Category::find($request->category_id);
                 if ($category) {
@@ -428,40 +447,58 @@ class RequestController extends Controller
                 }
             }
 
-
             if (!empty($workerIds)) {
+                $syncData = [];
                 foreach ($workerIds as $workerId) {
-                    \App\Models\ProjectWorker::firstOrCreate([
-                        'project_id' => $project->project_id,
-                        'worker_id'  => $workerId,
-                    ], [
-                        'date_assigned' => now()->toDateString(),
-                    ]);
+                    $syncData[$workerId] = ['date_assigned' => now()->toDateString()];
+                }
+                $project->workers()->sync($syncData);
 
+                foreach ($workerIds as $workerId) {
                     $worker = \App\Models\Worker::find($workerId);
                     if ($worker) {
                         $worker->update(['is_available' => false]);
                         
-                        $this->notifications->workerAssigned(
-                            $worker->staff->user_id,
-                            $serviceRequest->title,
-                            $project->project_id
-                        );
+                        $workerUserId = $worker->staff?->user_id ?? $worker->user?->user_id;
+                        if ($workerUserId) {
+                            $this->notifications->workerAssigned(
+                                $workerUserId,
+                                $serviceRequest->title,
+                                $project->project_id
+                            );
+                        }
                     }
                 }
             }
 
             ProjectHistory::create([
                 'project_id'      => $project->project_id,
-                'previous_status' => null,
+                'previous_status' => $project->current_status,
                 'current_status'  => 'Pending',
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            $dateFormatted = $serviceRequest->scheduled_date?->format('M d, Y') ?? 'Confirmed Schedule';
+            $windowText = match($serviceRequest->scheduled_time_window) {
+                'AM' => 'Morning (AM)',
+                'PM' => 'Afternoon (PM)',
+                'AM-PM' => 'Whole Day (AM - PM)',
+                default => $serviceRequest->scheduled_time_window ?? 'Visit'
+            };
+
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $previous,
+                'current_status'  => 'Approved',
+                'remarks'         => "Request approved for {$dateFormatted} ({$windowText}). Maintenance workers assigned.",
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
 
             \App\Models\UserLog::create([
                 'user_id'    => auth()->id(),
-                'action'     => "Admin approved request #{$serviceRequest->request_id} and created project #{$project->project_id}",
+                'action'     => "Admin approved request #{$serviceRequest->request_id} and activated project #{$project->project_id}",
                 'ip_address' => request()->ip(),
                 'created_at' => now(),
             ]);
@@ -476,7 +513,7 @@ class RequestController extends Controller
             );
 
             return redirect()->route('admin.requests.show', $id)
-                ->with('success', 'Request approved, project created, and workers assigned.');
+                ->with('success', 'Request approved, project launched, and maintenance workers assigned.');
 
         } catch (\Exception $e) {
             return redirect()->back()
@@ -661,6 +698,305 @@ class RequestController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Failed to print satisfaction page: ' . $e->getMessage());
+        }
+    }
+
+    public function proposeSchedule(Request $request, int $id)
+    {
+        try {
+            $validated = $request->validate([
+                'scheduled_date'        => 'required|date',
+                'scheduled_time_window' => 'required|in:AM,PM,AM-PM',
+                'category_id'           => 'nullable|exists:category,category_id',
+                'priority'              => 'nullable|in:High,Medium,Low,high,medium,low,urgent,routine,Urgent,Routine',
+                'worker_ids'            => 'nullable|array',
+                'worker_ids.*'          => 'exists:worker,worker_id',
+            ]);
+
+            $serviceRequest = ServiceRequest::with('client.user')->findOrFail($id);
+
+            $updateData = [
+                'scheduled_date'          => $validated['scheduled_date'],
+                'scheduled_time_window'   => $validated['scheduled_time_window'],
+                'schedule_status'         => 'pending_client_approval',
+                'schedule_decline_reason' => null,
+            ];
+
+            if (!empty($validated['category_id'])) {
+                $updateData['category_id'] = $validated['category_id'];
+            }
+            if (!empty($validated['priority'])) {
+                $updateData['priority'] = $validated['priority'];
+            }
+
+            $serviceRequest->update($updateData);
+
+            // Pre-assign workers to Project in pending confirmation state
+            $user  = auth()->user();
+            $staff = $user->staff;
+            if (!$staff) {
+                $staff = \App\Models\Staff::create([
+                    'user_id'    => $user->user_id,
+                    'role'       => $user->role,
+                    'date_hired' => now()->toDateString(),
+                ]);
+            }
+
+            $project = Project::firstOrCreate([
+                'request_id' => $serviceRequest->request_id,
+            ], [
+                'client_id'     => $serviceRequest->client_id,
+                'approved_by'   => $staff?->staff_id,
+                'date_approved' => null,
+            ]);
+
+            $workerIds = $request->input('worker_ids', []);
+            if (!empty($workerIds)) {
+                $syncData = [];
+                foreach ($workerIds as $wId) {
+                    $syncData[$wId] = ['date_assigned' => now()->toDateString()];
+                }
+                $project->workers()->sync($syncData);
+            }
+
+            ProjectHistory::create([
+                'project_id'      => $project->project_id,
+                'previous_status' => $project->current_status,
+                'current_status'  => 'Pending Schedule Confirmation',
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            $dateFormatted = \Carbon\Carbon::parse($validated['scheduled_date'])->format('F d, Y');
+            $windowText = match($validated['scheduled_time_window']) {
+                'AM' => 'Morning (AM)',
+                'PM' => 'Afternoon (PM)',
+                'AM-PM' => 'Whole Day (AM - PM)',
+                default => $validated['scheduled_time_window']
+            };
+
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $serviceRequest->current_status,
+                'current_status'  => 'Schedule Set',
+                'remarks'         => "Admin proposed visit schedule for {$dateFormatted} ({$windowText}). Maintenance personnel selected. Awaiting client confirmation.",
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Admin set visit schedule for request #{$serviceRequest->request_id}: {$dateFormatted} ({$windowText})",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            // Notify client
+            if ($serviceRequest->client?->user_id) {
+                $this->notifications->scheduleProposed(
+                    $serviceRequest->client->user_id,
+                    $serviceRequest->title,
+                    $dateFormatted,
+                    $validated['scheduled_time_window'],
+                    $serviceRequest->request_id
+                );
+            }
+
+            return redirect()->route('admin.requests.show', $id)
+                ->with('success', "Visit schedule and maintenance personnel set for {$dateFormatted} ({$windowText}). Client notified for confirmation.");
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error setting schedule: ' . $e->getMessage());
+        }
+    }
+
+    public function startTaskOverride(Request $request, int $id)
+    {
+        try {
+            $validated = $request->validate([
+                'proof'   => ['required', 'file', new \App\Rules\SecureFileUpload(['jpg', 'jpeg', 'png', 'webp'], 10240)],
+                'remarks' => 'nullable|string|max:500',
+            ], [
+                'proof.required' => 'A Before-Work photo is required to start this task.',
+            ]);
+
+            $serviceRequest = ServiceRequest::with('project.workers', 'client.user')->findOrFail($id);
+
+            if (!$serviceRequest->project) {
+                return redirect()->back()->with('error', 'No active project found for this request. Please approve the request first.');
+            }
+
+            $project = $serviceRequest->project;
+            $disk = config('filesystems.default', 'public');
+            $proofPath = $request->file('proof')->store('proofs', $disk);
+
+            $previousStatus = $project->current_status;
+            $newStatus = 'In Progress';
+            $remarks = 'Admin Operational Override: Work commenced with documented Before-Work photo.' . ($request->filled('remarks') ? ' Note: ' . $request->input('remarks') : '');
+
+            ProjectHistory::create([
+                'project_id'       => $project->project_id,
+                'previous_status'  => $previousStatus,
+                'current_status'   => $newStatus,
+                'proof_attachment' => $proofPath,
+                'remarks'          => $remarks,
+                'updated_at'       => now(),
+                'updated_by'       => auth()->id(),
+            ]);
+
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $serviceRequest->current_status,
+                'current_status'  => $newStatus,
+                'remarks'         => $remarks,
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Admin started task for request #{$serviceRequest->request_id} (Before-Work Photo uploaded)",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            // Notify Client
+            if ($serviceRequest->client?->user_id) {
+                $this->notifications->requestStatusChanged(
+                    $serviceRequest->client->user_id,
+                    $serviceRequest->title,
+                    'In Progress',
+                    $serviceRequest->request_id,
+                    'client'
+                );
+            }
+
+            return redirect()->route('admin.requests.show', $id)
+                ->with('success', 'Task started successfully with Before-Work photo. Status is now In Progress.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error starting task: ' . $e->getMessage());
+        }
+    }
+
+    public function completeTaskOverride(Request $request, int $id)
+    {
+        try {
+            $validated = $request->validate([
+                'proof'           => ['required', 'file', new \App\Rules\SecureFileUpload(['jpg', 'jpeg', 'png', 'webp'], 10240)],
+                'completion_type' => 'nullable|in:Full Repair,Inspection Only',
+                'nature_of_work'  => 'nullable|string|max:200',
+                'recommendation'  => 'nullable|string|max:1000',
+            ], [
+                'proof.required' => 'An After-Work / accomplishment photo is required to complete this task.',
+            ]);
+
+            $serviceRequest = ServiceRequest::with('project.workers', 'client.user')->findOrFail($id);
+
+            if (!$serviceRequest->project) {
+                return redirect()->back()->with('error', 'No active project found for this request.');
+            }
+
+            $project = $serviceRequest->project;
+            $disk = config('filesystems.default', 'public');
+            $proofPath = $request->file('proof')->store('proofs', $disk);
+
+            $completionType = $validated['completion_type'] ?? $request->input('completion_type', 'Full Repair');
+            $natureOfWork = trim($validated['nature_of_work'] ?? $request->input('nature_of_work', ''));
+
+            if ($completionType === 'Inspection Only' || $natureOfWork === 'Inspection & Assessment Only') {
+                $finalNature = 'Inspection & Assessment Only';
+            } else {
+                $finalNature = !empty($natureOfWork) ? $natureOfWork : 'Repair & Maintenance Done';
+            }
+
+            $project->nature_of_work = $finalNature;
+            if ($request->filled('recommendation')) {
+                $project->recommendation = $request->input('recommendation');
+            } else {
+                $project->recommendation = null;
+            }
+            $project->save();
+
+            $previousStatus = $project->current_status;
+            $newStatus = 'Completed';
+            $remarks = $finalNature . ($request->filled('recommendation') ? ' — ' . $request->input('recommendation') : '');
+
+            ProjectHistory::create([
+                'project_id'       => $project->project_id,
+                'previous_status'  => $previousStatus,
+                'current_status'   => $newStatus,
+                'proof_attachment' => $proofPath,
+                'remarks'          => 'Admin Operational Override: ' . $remarks,
+                'updated_at'       => now(),
+                'updated_by'       => auth()->id(),
+            ]);
+
+            // Release workers
+            foreach ($project->workers as $worker) {
+                $worker->recalculateAvailability();
+            }
+
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $serviceRequest->current_status,
+                'current_status'  => $newStatus,
+                'remarks'         => $remarks,
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Admin completed task for request #{$serviceRequest->request_id} (After-Work Photo uploaded, Nature: {$finalNature})",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            // Notify Client
+            if ($serviceRequest->client?->user_id) {
+                $this->notifications->requestStatusChanged(
+                    $serviceRequest->client->user_id,
+                    $serviceRequest->title,
+                    'Completed',
+                    $serviceRequest->request_id,
+                    'client'
+                );
+            }
+
+            return redirect()->route('admin.requests.show', $id)
+                ->with('success', 'Task successfully completed with After-Work photo and closed.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error completing task: ' . $e->getMessage());
+        }
+    }
+
+    public function storeBom(Request $request, int $id)
+    {
+        try {
+            $serviceRequest = ServiceRequest::findOrFail($id);
+            if (in_array($serviceRequest->current_status, ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'])) {
+                return redirect()->back()->with('error', 'Bill of Materials cannot be modified once work is In Progress or closed.');
+            }
+            $user  = auth()->user();
+            $staff = $user?->staff;
+            if (!$staff && $user) {
+                $staff = \App\Models\Staff::firstOrCreate([
+                    'user_id' => $user->user_id,
+                ], [
+                    'role'       => $user->role,
+                    'date_hired' => now()->toDateString(),
+                ]);
+            }
+
+            $project = Project::firstOrCreate([
+                'request_id' => $serviceRequest->request_id,
+            ], [
+                'client_id'   => $serviceRequest->client_id,
+                'approved_by' => $staff?->staff_id,
+            ]);
+
+            return app(\App\Http\Controllers\Admin\BomController::class)->store($request, $project->project_id);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error adding material to BOM: ' . $e->getMessage());
         }
     }
 }

@@ -23,13 +23,24 @@
                     <span class="px-3 py-1 bg-[#0033a0] text-white text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-sm">
                         Requisition #{{ str_pad($request->request_id, 4, '0', STR_PAD_LEFT) }}
                     </span>
+                    <span class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border 
+                        {{ $request->is_urgent ? 'bg-red-100 text-red-700 border-red-300' : 'bg-blue-100 text-blue-700 border-blue-300' }}">
+                        {{ $request->priority_label }}
+                    </span>
                     <span id="requestStatusBadge" data-request-status-badge class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border
-                        {{ match($request->current_status) {
-                            'Completed' => 'bg-emerald-100 text-emerald-700 border-emerald-300',
-                            'In Progress', 'Pending Verification' => 'bg-blue-100 text-blue-700 border-blue-300',
-                            'Cancelled', 'Rejected' => 'bg-amber-100 text-amber-700 border-amber-300',
-                            default => 'bg-amber-100 text-amber-700 border-amber-300'
-                        } }}">
+                        @if($request->current_status === 'Completed')
+                            bg-emerald-100 text-emerald-700 border-emerald-300
+                        @elseif($request->current_status === 'Awaiting Verification of Bill of Materials')
+                            bg-amber-100 text-amber-800 border-amber-300
+                        @elseif($request->current_status === 'BOM Verified (Awaiting Client Approval)')
+                            bg-indigo-100 text-indigo-800 border-indigo-300
+                        @elseif(in_array($request->current_status, ['In Progress', 'Pending Verification']))
+                            bg-blue-100 text-blue-700 border-blue-300
+                        @elseif(in_array($request->current_status, ['Cancelled', 'Rejected']))
+                            bg-rose-100 text-rose-700 border-rose-300
+                        @else
+                            bg-amber-100 text-amber-700 border-amber-300
+                        @endif">
                         {{ $request->current_status }}
                     </span>
                     @if($request->project?->nature_of_work)
@@ -191,12 +202,113 @@
             
             <!-- Left Column: Details & BOM -->
             <div class="lg:col-span-2 space-y-6">
-                
+
+                @if($request->scheduled_date)
+                    <!-- Scheduled Visit Card -->
+                    <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 {{ $request->schedule_status === 'pending_client_approval' ? 'border-amber-400 dark:border-amber-600 bg-amber-50/20' : ($request->schedule_status === 'approved' ? 'border-emerald-400 dark:border-emerald-600' : 'border-gray-200 dark:border-zinc-800') }} p-6 shadow-sm space-y-4"
+                         x-data="{ rescheduleModal: false, decliningReason: '' }">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-zinc-800">
+                            <div class="flex items-center gap-2.5">
+                                <span class="p-2 rounded-xl {{ $request->schedule_status === 'pending_client_approval' ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300' : ($request->schedule_status === 'approved' ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300') }}">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                </span>
+                                <div>
+                                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                                        Maintenance Visit Schedule
+                                    </h3>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        Target date for GSO staff on-site inspection and service.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div>
+                                @if($request->schedule_status === 'approved')
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-bold rounded-full">
+                                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                        Schedule Confirmed
+                                    </span>
+                                @elseif($request->schedule_status === 'pending_client_approval')
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-xs font-bold rounded-full animate-pulse">
+                                        Action Required: Please Confirm
+                                    </span>
+                                @elseif($request->schedule_status === 'declined')
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 text-xs font-bold rounded-full">
+                                        Reschedule Requested
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 dark:bg-zinc-800/60 rounded-xl border border-gray-200 dark:border-zinc-700 gap-4">
+                            <div class="space-y-1">
+                                <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Proposed Schedule
+                                </div>
+                                <div class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
+                                    <span>📅 {{ $request->scheduled_date->format('F d, Y') }} ({{ $request->scheduled_date->format('l') }})</span>
+                                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-[#0033a0] text-white shadow-2xs">
+                                        {{ match($request->scheduled_time_window) {
+                                            'AM' => 'Morning (8:00 AM - 12:00 PM)',
+                                            'PM' => 'Afternoon (1:00 PM - 5:00 PM)',
+                                            'AM-PM' => 'Whole Day (8:00 AM - 5:00 PM)',
+                                            default => $request->scheduled_time_window ?? 'Whole Day'
+                                        } }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            @if($request->schedule_status === 'pending_client_approval')
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <button type="button" @click="rescheduleModal = true" class="px-4 py-2 bg-white dark:bg-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-zinc-600 rounded-xl text-xs font-bold transition shadow-2xs">
+                                        Decline / Reschedule
+                                    </button>
+                                    <form action="{{ route('client.requests.schedule.approve', $request->request_id) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                            Confirm Schedule
+                                        </button>
+                                    </form>
+                                </div>
+                            @endif
+                        </div>
+
+                        @if($request->schedule_status === 'declined')
+                            <div class="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-xl text-xs text-rose-700 dark:text-rose-300">
+                                <strong>Reschedule request sent:</strong> "{{ $request->schedule_decline_reason }}". GSO Admin will propose an alternative date shortly.
+                            </div>
+                        @endif
+
+                        <!-- Reschedule Modal -->
+                        <div x-show="rescheduleModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" @keydown.escape.window="rescheduleModal = false">
+                            <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.outside="rescheduleModal = false">
+                                <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800">
+                                    <h4 class="text-sm font-bold text-slate-900 dark:text-white">Request Alternative Schedule</h4>
+                                    <button type="button" @click="rescheduleModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
+                                </div>
+                                <form action="{{ route('client.requests.schedule.decline', $request->request_id) }}" method="POST" class="space-y-4">
+                                    @csrf
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider">
+                                            Reason &amp; Preferred Dates <span class="text-red-500">*</span>
+                                        </label>
+                                        <textarea name="decline_reason" x-model="decliningReason" rows="3" required placeholder="Please state why the proposed date is not suitable and suggest dates/times when your office or facility will be available..." class="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"></textarea>
+                                    </div>
+                                    <div class="flex justify-end gap-2 pt-2">
+                                        <button type="button" @click="rescheduleModal = false" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl">Cancel</button>
+                                        <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs">Submit Reschedule Request</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <!-- Request Specifications Card -->
                 <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
                     @php
-                        $catName = strtolower($request->category->category_name ?? '');
-                        $isManpower = str_contains($catName, 'manpower') || str_contains($catName, 'event');
+                        $isManpower = $request->is_manpower;
                         $m = $request->manpower_details ?? [];
                     @endphp
 
@@ -529,6 +641,61 @@
                             <span class="text-base font-black text-[#0033a0] dark:text-blue-400">₱{{ number_format($grandTotal, 2) }}</span>
                         </div>
 
+                        @if($request->bom_status === 'awaiting_client' || $request->current_status === 'BOM Verified (Awaiting Client Approval)')
+                            <div class="mt-4 p-5 bg-indigo-50/80 dark:bg-indigo-950/30 border-2 border-indigo-200 dark:border-indigo-800 rounded-2xl space-y-3"
+                                 x-data="{ declineBomModal: false }">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
+                                            <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-200">
+                                                Action Required: Bill of Materials Approval
+                                            </h4>
+                                        </div>
+                                        <p class="text-xs text-indigo-700 dark:text-indigo-300 mt-1">
+                                            GSO Admin has verified and priced the required materials. Please review and approve to proceed with procurement and maintenance work.
+                                        </p>
+                                    </div>
+
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <button type="button" @click="declineBomModal = true" class="px-4 py-2 bg-white dark:bg-zinc-800 hover:bg-gray-50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-bold transition shadow-2xs">
+                                            Decline BOM
+                                        </button>
+                                        <form action="{{ route('client.requests.bom.approve', $request->request_id) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                Approve BOM
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- Decline BOM Modal -->
+                                <div x-show="declineBomModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" @keydown.escape.window="declineBomModal = false">
+                                    <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.outside="declineBomModal = false">
+                                        <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800">
+                                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">Decline Bill of Materials</h4>
+                                            <button type="button" @click="declineBomModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
+                                        </div>
+                                        <form action="{{ route('client.requests.bom.decline', $request->request_id) }}" method="POST" class="space-y-4">
+                                            @csrf
+                                            <div>
+                                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider">
+                                                    Feedback / Note (Optional)
+                                                </label>
+                                                <textarea name="remarks" rows="3" placeholder="Provide details on why this BOM is declined or if alternative supplies are available on-site..." class="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"></textarea>
+                                            </div>
+                                            <div class="flex justify-end gap-2 pt-2">
+                                                <button type="button" @click="declineBomModal = false" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl">Cancel</button>
+                                                <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs">Confirm Decline</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
                     @else
                         <div class="p-6 bg-slate-50 dark:bg-zinc-800/30 rounded-xl text-center border border-gray-100 dark:border-zinc-800">
                             <p class="text-xs text-gray-400 italic">No Bill of Materials (BOM) required or requested yet for this job.</p>
@@ -536,42 +703,53 @@
                     @endif
                 </div>
 
+                <!-- Per-Request Messaging Channel (Under BOM, matching BOM width) -->
+                @include('partials.request-messages', ['serviceRequest' => $request])
+
             </div>
 
             <!-- Right Column: Status Timeline Stepper -->
-            <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
-                <h2 class="text-base font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    Status Timeline & History
-                </h2>
+            <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-100 dark:border-zinc-800">
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <svg class="w-4 h-4 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Status Timeline</span>
+                    </h2>
+                    <span class="text-[10.5px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                        {{ $request->histories->count() }} Updates
+                    </span>
+                </div>
 
-                <div id="requestTimelineFeed" class="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200 dark:before:bg-zinc-700">
+                <div id="requestTimelineFeed" class="relative pl-5 space-y-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-px before:bg-gray-200 dark:before:bg-zinc-700/80">
                     @forelse($request->histories as $history)
-                        @php
-                            $isRejected = ($history->current_status === 'Rejected');
-                            $isCancelled = ($history->current_status === 'Cancelled');
-                            $isCompleted = ($history->current_status === 'Completed');
-                        @endphp
-                        <div class="relative">
-                            <!-- Bullet Indicator -->
-                            <div class="absolute -left-[23px] top-1 w-4 h-4 rounded-full {{ ($isRejected || $isCancelled) ? 'bg-red-600 dark:bg-red-500' : ($isCompleted ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-[#0033a0] dark:bg-blue-500') }} border-2 border-white dark:border-zinc-900 shadow-sm flex items-center justify-center text-white text-[8px] font-bold">
-                                {{ ($isRejected || $isCancelled) ? '✕' : '✓' }}
-                            </div>
+                        <div class="relative group">
+                            <!-- Bullet Indicator: sleek dot -->
+                            <div class="absolute -left-[19px] top-1.5 w-2.5 h-2.5 rounded-full {{ $history->bullet_color_class }} ring-4 ring-white dark:ring-[#1c1c1e] shadow-2xs"></div>
 
-                            <div class="bg-slate-50 dark:bg-zinc-800/40 p-3.5 rounded-xl border border-gray-100 dark:border-zinc-800">
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="text-xs font-extrabold {{ $isRejected ? 'text-red-700 dark:text-red-400' : ($isCompleted ? 'text-emerald-700 dark:text-emerald-400' : 'text-[#0033a0] dark:text-blue-400') }}">
-                                        {{ $history->current_status }}
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border {{ $history->badge_color_class }}">
+                                        {{ $history->action_title }}
+                                    </span>
+                                    <span class="text-[10.5px] text-gray-400 dark:text-gray-500 font-medium tabular-nums">
+                                        {{ \Carbon\Carbon::parse($history->updated_at)->format('M d, g:i A') }}
                                     </span>
                                 </div>
 
-                                <div class="text-[11px] text-gray-500 dark:text-gray-400">
-                                    {{ \Carbon\Carbon::parse($history->updated_at)->format('M d, Y h:i A') }}
-                                </div>
+                                @if($history->remarks)
+                                    <p class="text-xs text-slate-700 dark:text-gray-300 bg-slate-50 dark:bg-zinc-800/60 rounded-lg px-3 py-1.5 border-l-2 border-slate-300 dark:border-zinc-600 leading-relaxed font-normal">
+                                        {{ $history->remarks }}
+                                    </p>
+                                @endif
 
                                 @if($history->updatedBy)
-                                    <div class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
-                                        Updated by: {{ $history->updatedBy->first_name ?? '' }} {{ $history->updatedBy->last_name ?? '' }}
+                                    <div class="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1.5 pt-0.5">
+                                        <span>by <span class="font-semibold text-slate-600 dark:text-gray-300">{{ $history->updatedBy->first_name ?? '' }} {{ $history->updatedBy->last_name ?? '' }}</span></span>
+                                        @if($history->updatedBy->role)
+                                            <span class="uppercase text-[8.5px] px-1 py-0.2 rounded font-bold {{ $history->updatedBy->role === 'admin' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : ($history->updatedBy->role === 'worker' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300' : 'bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-gray-400') }}">
+                                                {{ $history->updatedBy->role }}
+                                            </span>
+                                        @endif
                                     </div>
                                 @endif
                             </div>
@@ -583,9 +761,6 @@
             </div>
 
         </div>
-
-        <!-- Per-Request Messaging Channel (Full-Width Bottom) -->
-        @include('partials.request-messages', ['serviceRequest' => $request])
 
     </main>
 </div>
@@ -651,35 +826,62 @@ document.addEventListener('DOMContentLoaded', function() {
                             const dateStr = new Date().toLocaleString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
-                                year: 'numeric',
                                 hour: 'numeric',
                                 minute: '2-digit',
                                 hour12: true
                             });
 
-                            const isRej = (history.current_status === 'Rejected');
-                            const isCanc = (history.current_status === 'Cancelled');
-                            const isComp = (history.current_status === 'Completed');
-                            const bulletBg = (isRej || isCanc) ? 'bg-red-600 dark:bg-red-500' : (isComp ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-[#0033a0] dark:bg-blue-500');
-                            const bulletIcon = (isRej || isCanc) ? '✕' : '✓';
-                            const statusColor = isRej ? 'text-red-700 dark:text-red-400' : (isComp ? 'text-emerald-700 dark:text-emerald-400' : 'text-[#0033a0] dark:text-blue-400');
+                            let actionTitle = history.current_status || 'Status Update';
+                            const rem = (history.remarks || '').toLowerCase();
+                            if (rem.includes('proposed visit schedule') || rem.includes('proposed schedule') || actionTitle === 'Schedule Set') {
+                                actionTitle = 'Schedule Proposed';
+                            } else if (rem.includes('requested rescheduling') || rem.includes('declined schedule') || rem.includes('refused schedule') || actionTitle === 'Schedule Refused') {
+                                actionTitle = 'Schedule Declined';
+                            } else if (rem.includes('confirmed visit schedule') || rem.includes('approved schedule') || actionTitle === 'Schedule Confirmed') {
+                                actionTitle = 'Schedule Confirmed';
+                            } else if (rem.includes('client approved bill of materials') || actionTitle === 'BOM Approved by Client') {
+                                actionTitle = 'BOM Approved';
+                            } else if (rem.includes('client declined bill of materials') || actionTitle === 'BOM Declined by Client') {
+                                actionTitle = 'BOM Declined';
+                            } else if (rem.includes('admin verified bill of materials') || actionTitle === 'BOM Verified (Awaiting Client Approval)') {
+                                actionTitle = 'BOM Verified';
+                            } else if (rem.includes('submitted bill of materials') || actionTitle === 'Awaiting Verification of Bill of Materials') {
+                                actionTitle = 'BOM Submitted';
+                            } else if (actionTitle === 'Submitted') {
+                                actionTitle = 'Submitted';
+                            } else if (actionTitle === 'Approved') {
+                                actionTitle = 'Approved';
+                            } else if (actionTitle === 'Rejected') {
+                                actionTitle = 'Rejected';
+                            }
+
+                            const isRej = actionTitle.includes('Rejected') || actionTitle.includes('Cancelled') || actionTitle.includes('Declined');
+                            const isComp = actionTitle.includes('Confirmed') || actionTitle.includes('Approved') || actionTitle.includes('Completed');
+                            const isWarn = actionTitle.includes('Proposed') || actionTitle.includes('Submitted') || actionTitle.includes('Pending') || actionTitle.includes('On Hold');
+                            const bulletBg = isRej ? 'bg-rose-500' : (isComp ? 'bg-emerald-500' : (isWarn ? 'bg-amber-500' : 'bg-blue-600'));
+                            const badgeClass = isRej 
+                                ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900' 
+                                : (isComp ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900' : (isWarn ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900' : 'bg-blue-50 text-[#0038A8] border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900'));
+
+                            const remarksHtml = history.remarks 
+                                ? `<p class="text-xs text-slate-700 dark:text-gray-300 bg-slate-50 dark:bg-zinc-800/60 rounded-lg px-3 py-1.5 border-l-2 border-slate-300 dark:border-zinc-600 leading-relaxed font-normal">${history.remarks}</p>` 
+                                : '';
 
                             const item = document.createElement('div');
-                            item.className = 'relative animate-fadeIn';
+                            item.className = 'relative group animate-fadeIn';
                             item.innerHTML = `
-                                <div class="absolute -left-[23px] top-1 w-4 h-4 rounded-full ${bulletBg} border-2 border-white dark:border-zinc-900 shadow-sm flex items-center justify-center text-white text-[8px] font-bold">
-                                    ${bulletIcon}
-                                </div>
-                                <div class="bg-slate-50 dark:bg-zinc-800/40 p-3.5 rounded-xl border border-gray-100 dark:border-zinc-800">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs font-extrabold ${statusColor}">
-                                            ${history.current_status || 'Updated'}
+                                <div class="absolute -left-[19px] top-1.5 w-2.5 h-2.5 rounded-full ${bulletBg} ring-4 ring-white dark:ring-[#1c1c1e] shadow-2xs"></div>
+                                <div class="space-y-1">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border ${badgeClass}">
+                                            ${actionTitle}
                                         </span>
                                         <span class="text-[9px] font-bold uppercase bg-blue-100 dark:bg-blue-900 text-[#0033a0] dark:text-blue-300 px-1.5 py-0.5 rounded">Just now</span>
                                     </div>
-                                    <div class="text-[11px] text-gray-500 dark:text-gray-400">
+                                    <div class="text-[10.5px] text-gray-400 dark:text-gray-500 font-medium tabular-nums">
                                         ${dateStr}
                                     </div>
+                                    ${remarksHtml}
                                 </div>
                             `;
                             timeline.appendChild(item);

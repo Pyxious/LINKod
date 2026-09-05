@@ -30,6 +30,10 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
     Route::post('/requests/{id}/approve',[RequestController::class, 'approve'])->name('requests.approve')->middleware('throttle:10,1');
     Route::post('/requests/{id}/reject', [RequestController::class, 'reject'])->name('requests.reject')->middleware('throttle:10,1');
     Route::post('/requests/{id}/verify', [RequestController::class, 'verifyCompletion'])->name('requests.verify')->middleware('throttle:10,1');
+    Route::post('/requests/{id}/schedule', [RequestController::class, 'proposeSchedule'])->name('requests.schedule')->middleware('throttle:15,1');
+    Route::post('/requests/{id}/start-override', [RequestController::class, 'startTaskOverride'])->name('requests.start-override')->middleware('throttle:10,1');
+    Route::post('/requests/{id}/complete-override', [RequestController::class, 'completeTaskOverride'])->name('requests.complete-override')->middleware('throttle:10,1');
+    Route::post('/requests/{id}/bom', [RequestController::class, 'storeBom'])->name('requests.bom.store')->middleware('throttle:15,1');
 
     // Workforce / Units
     Route::get('/workforce',        [WorkforceController::class, 'index'])->name('workforce.index');

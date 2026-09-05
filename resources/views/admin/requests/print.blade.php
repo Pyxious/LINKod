@@ -263,7 +263,7 @@
 
 @php
     $catName = strtolower($serviceRequest->category->category_name ?? '');
-    $isManpower = str_contains($catName, 'manpower') || str_contains($catName, 'event');
+    $isManpower = $serviceRequest->is_manpower;
     $details = $serviceRequest->manpower_details;
     $clientUser = $serviceRequest->client?->user;
     $clientName = $clientUser ? trim($clientUser->first_name . ' ' . $clientUser->last_name) : 'Client Requestor';
@@ -616,7 +616,7 @@
                 Description of Work Requested:
             </div>
             <div style="font-weight:bold; font-size:11.5px; margin-bottom:2px;">{{ $serviceRequest->title }}</div>
-            <div style="font-size:11px; line-height:1.4;">{{ $serviceRequest->description }}</div>
+            <div style="font-size:11px; line-height:1.4; white-space: pre-line;">{{ $serviceRequest->display_description }}</div>
         </div>
 
         <div style="display:flex; justify-content:flex-end; margin-top:14px;">

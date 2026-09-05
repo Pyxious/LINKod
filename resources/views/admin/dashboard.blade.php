@@ -208,13 +208,10 @@
                                     default => 'REQ'
                                 };
                                 $reqCode = $prefix . '-' . str_pad($req->request_id, 3, '0', STR_PAD_LEFT);
-
-                                $prio = strtolower($req->priority ?? 'low');
-                                $prioClass = match($prio) {
-                                    'high'   => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
-                                    'medium' => 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
-                                    default  => 'bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-800'
-                                };
+                                $prio = $req->priority_label ?? 'Routine';
+                                $prioClass = ($req->is_urgent ?? false)
+                                    ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800'
+                                    : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
 
                                 $st = $req->current_status;
                                 $stClass = match($st) {
@@ -232,12 +229,15 @@
                                         {{ $reqCode }}
                                     </a>
                                 </td>
-                                <td class="py-3 px-3 font-medium text-slate-800 dark:text-gray-200">
+                                <td class="py-3 px-3 font-semibold text-gray-800 dark:text-gray-200 truncate max-w-[200px]" title="{{ $req->title }}">
+                                    {{ $req->title }}
+                                </td>
+                                <td class="py-3 px-3 text-gray-500 dark:text-gray-400">
                                     {{ $req->category->category_name ?? 'General' }}
                                 </td>
                                 <td class="py-3 px-3 text-center">
                                     <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $prioClass }}">
-                                        {{ ucfirst($req->priority ?? 'Low') }}
+                                        {{ $prio }}
                                     </span>
                                 </td>
                                 <td class="py-3 px-3 text-center">

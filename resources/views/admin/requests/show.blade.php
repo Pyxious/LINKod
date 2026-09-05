@@ -4,8 +4,7 @@
 
 @section('content')
 @php
-    $catNameLower = strtolower($serviceRequest->category->category_name ?? '');
-    $isManpower = str_contains($catNameLower, 'manpower') || str_contains($catNameLower, 'event');
+    $isManpower = $serviceRequest->is_manpower;
 @endphp
 
 <div class="w-full max-w-6xl mx-auto space-y-6 font-sans">
@@ -32,19 +31,29 @@
                     Requisition #{{ str_pad($serviceRequest->request_id, 4, '0', STR_PAD_LEFT) }}
                 </span>
                 <span class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border 
-                    {{ match(strtolower($serviceRequest->priority ?? 'low')) {
-                        'high' => 'bg-red-100 text-red-700 border-red-300',
-                        'medium' => 'bg-amber-100 text-amber-700 border-amber-300',
-                        default => 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                    } }}">
-                    {{ strtoupper($serviceRequest->priority ?? 'Low') }} Priority
+                    {{ $serviceRequest->is_urgent ? 'bg-red-100 text-red-700 border-red-300' : 'bg-blue-100 text-blue-700 border-blue-300' }}">
+                    {{ $serviceRequest->priority_label }}
                 </span>
-                <span class="px-3 py-1 bg-blue-100 text-blue-800 text-[11px] font-bold rounded-full">
+                <span class="px-3 py-1 text-[11px] font-bold rounded-full 
+                    @if($serviceRequest->current_status === 'Awaiting Verification of Bill of Materials')
+                        bg-amber-100 text-amber-900 border border-amber-300
+                    @elseif($serviceRequest->current_status === 'BOM Verified (Awaiting Client Approval)')
+                        bg-indigo-100 text-indigo-900 border border-indigo-300
+                    @elseif($serviceRequest->current_status === 'Completed')
+                        bg-emerald-100 text-emerald-800
+                    @else
+                        bg-blue-100 text-blue-800
+                    @endif">
                     {{ $serviceRequest->current_status }}
                 </span>
                 @if($serviceRequest->project?->nature_of_work)
                     <span class="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold rounded-full">
                         {{ $serviceRequest->project->nature_of_work }}
+                    </span>
+                @endif
+                @if($serviceRequest->scheduled_date)
+                    <span class="px-3 py-1 bg-blue-100 text-[#0033a0] dark:bg-blue-950/70 dark:text-blue-300 border border-blue-300 dark:border-blue-800 text-[11px] font-bold rounded-full flex items-center gap-1.5">
+                        <span>📅 {{ $serviceRequest->scheduled_date->format('M d, Y') }} ({{ $serviceRequest->scheduled_time_window }})</span>
                     </span>
                 @endif
             </div>
@@ -109,6 +118,8 @@
             </div>
         </div>
     </div>
+
+
 
     <!-- Request Details Card -->
     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm"
@@ -281,7 +292,9 @@
         @else
             <!-- Standard Description Box (Non-Manpower) -->
             <div class="mb-6">
-                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Description / Issue Summary</div>
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                    {{ $serviceRequest->is_janitorial ? 'Description / Specific Work Requirements' : 'Description / Issue Summary' }}
+                </div>
                 <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl text-slate-800 dark:text-gray-200 text-sm leading-relaxed border border-gray-100 dark:border-zinc-700 whitespace-pre-line">
                     {{ $serviceRequest->display_description ?: 'No additional description provided.' }}
                 </div>
@@ -360,318 +373,328 @@
         @endif    @endif
     </div>
 
-    <!-- Bill of Materials (BOM) Section Card (Direct Pricing & Approval in Request Page) -->
-    @if($serviceRequest->project && $serviceRequest->project->billOfMaterials->count() > 0)
-        @php
-            $pendingBomCount = $serviceRequest->project->billOfMaterials->whereNull('date_approved')->count();
-        @endphp
-        <div id="bom-section" 
-             class="bg-white dark:bg-[#1c1c1e] rounded-2xl border {{ $pendingBomCount > 0 ? 'border-amber-400 dark:border-amber-600' : 'border-gray-200 dark:border-zinc-800' }} p-6 sm:p-7 shadow-sm"
-             x-data="{
-                 items: {{ Js::from($serviceRequest->project->billOfMaterials->map(fn($b) => [
-                     'bom_id' => $b->bom_id,
-                     'material_name' => $b->material->material_name ?? 'Material Item',
-                     'unit' => $b->material->unit_of_measurement ?? 'pcs',
-                     'qty' => (float)$b->qty,
-                     'unit_cost' => (float)($b->material->unit_cost ?? 0),
-                     'is_approved' => !is_null($b->date_approved),
-                 ])) }},
-                 showAddMaterial: false,
-                 submittingBOM: false,
-                 selectedMaterialId: '',
-                 customName: '',
-                 addUnit: 'pcs',
-                 addQty: 1,
-                 addUnitCost: 0,
-                 catalog: {{ Js::from(($allMaterials ?? collect())->map(fn($m) => ['id' => $m->material_id, 'name' => $m->material_name, 'unit' => $m->unit_of_measurement ?? 'pcs', 'cost' => (float)$m->unit_cost])) }},
-                 isDiscrete(unit) {
-                     if (!unit) return true;
-                     const u = unit.toString().trim().toLowerCase();
-                     const continuousUnits = ['meter', 'meters', 'm', 'length', 'lengths', 'ft', 'feet', 'foot', 'liter', 'liters', 'l', 'kg', 'kilo', 'kilos', 'kilogram', 'kilograms', 'gallon', 'gallons', 'gal', 'yard', 'yards', 'yd', 'inch', 'inches', 'cm', 'mm'];
-                     return !continuousUnits.includes(u);
-                 },
-                 get grandTotal() {
-                     return this.items.reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.unit_cost) || 0)), 0);
-                 },
-                 onSelectAddChange() {
-                     if (this.selectedMaterialId && this.selectedMaterialId !== 'custom') {
-                         const found = this.catalog.find(m => m.id == this.selectedMaterialId);
-                         if (found) {
-                             this.addUnit = found.unit || 'pcs';
-                             this.addUnitCost = found.cost || 0;
-                         }
-                     } else if (this.selectedMaterialId === 'custom') {
-                         this.addUnitCost = 0;
-                         if (!this.addUnit) this.addUnit = 'pcs';
-                     }
+    <!-- Unified Maintenance Visit Scheduling & Project Assignment Card -->
+    @php
+        $isTerminal = in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected']);
+        $showUnifiedBox = !$isTerminal && (
+            !$serviceRequest->project 
+            || $serviceRequest->project->current_status === 'Pending Schedule Confirmation'
+            || in_array($serviceRequest->current_status, ['Submitted', 'Pending', 'Schedule Set', 'Schedule Confirmed', 'Schedule Refused'])
+        );
+    @endphp
+    @if($showUnifiedBox)
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-7 shadow-sm space-y-4"
+             x-data="{ 
+                 scheduledDate: '{{ $serviceRequest->scheduled_date?->format('Y-m-d') ?? date('Y-m-d') }}',
+                 timeWindow: '{{ $serviceRequest->scheduled_time_window ?? 'AM-PM' }}',
+                 priority: '{{ strtolower($serviceRequest->priority ?? 'routine') }}',
+                 scheduleStatus: '{{ $serviceRequest->schedule_status ?? 'none' }}',
+                 showRejectPanel: false,
+                 isMinimized: {{ $serviceRequest->schedule_status === 'pending_client_approval' ? 'true' : 'false' }},
+                 get isDirectApprove() {
+                     return this.scheduleStatus === 'approved' || this.priority === 'urgent';
                  }
              }">
-            
-            <!-- BOM Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-5">
-                <div>
-                    <div class="flex items-center gap-2.5 mb-1 flex-wrap">
-                        <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">
-                            Bill of Materials (BOM) — Pricing &amp; Approval
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                 :class="{'pb-3 border-b border-gray-100 dark:border-zinc-800': !isMinimized}">
+                <div class="flex items-center gap-2.5">
+                    <span class="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </span>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white">
+                            Maintenance Visit Scheduling &amp; Project Assignment
                         </h2>
-                        @if($pendingBomCount > 0)
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">
-                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                {{ $pendingBomCount }} Pending Pricing / Approval
-                            </span>
-                        @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
-                                Approved
-                            </span>
-                        @endif
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            Set visit schedule, assign maintenance personnel, and process request approval.
+                        </p>
                     </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                        Set or adjust unit prices directly below, then click "Save Prices & Approve BOM" to approve.
-                    </p>
                 </div>
 
-                <div class="flex items-center gap-2 shrink-0">
-                    <button type="button" 
-                            @click="showAddMaterial = !showAddMaterial" 
-                            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 cursor-pointer">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                        <span x-text="showAddMaterial ? 'Close Form' : 'Add Material'">Add Material</span>
-                    </button>
+                <!-- Status Badge & Optional Toggle -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    @if($serviceRequest->schedule_status === 'approved')
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-bold rounded-full">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            Schedule Confirmed by Client
+                        </span>
+                    @elseif($serviceRequest->schedule_status === 'pending_client_approval')
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-xs font-bold rounded-full">
+                            <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                            Awaiting Client Confirmation
+                        </span>
+                        <button type="button" 
+                                @click="isMinimized = !isMinimized" 
+                                class="px-2.5 py-1 text-xs font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white rounded-lg border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 transition inline-flex items-center gap-1.5"
+                                :title="isMinimized ? 'Expand form to modify schedule or workers' : 'Minimize form'">
+                            <span x-text="isMinimized ? 'Modify' : 'Minimize'"></span>
+                            <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="{'rotate-180': !isMinimized}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                    @elseif($serviceRequest->schedule_status === 'declined')
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 text-xs font-bold rounded-full">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+                            Client Requested Reschedule
+                        </span>
+                    @else
+                        <span class="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 text-xs font-bold rounded-full">
+                            Visit Schedule Pending
+                        </span>
+                    @endif
                 </div>
             </div>
 
-            <!-- In-Place Pricing & Approval Form -->
-            <form action="{{ route('admin.bom.approve', $serviceRequest->project->project_id) }}" method="POST" @submit="submittingBOM = true">
+            <!-- Minimized Info Banner when Awaiting -->
+            @if($serviceRequest->schedule_status === 'pending_client_approval')
+                <div x-show="isMinimized" x-cloak class="pt-1 text-xs text-gray-600 dark:text-gray-400 flex flex-wrap items-center gap-x-5 gap-y-1">
+                    @if($serviceRequest->scheduled_date)
+                        <span class="inline-flex items-center gap-1 font-medium">
+                            <span class="text-gray-400">📅 Proposed Visit:</span>
+                            <span class="font-bold text-slate-800 dark:text-gray-200">{{ $serviceRequest->scheduled_date->format('M d, Y') }} ({{ $serviceRequest->scheduled_time_window }})</span>
+                        </span>
+                    @endif
+                    @if($serviceRequest->project && $serviceRequest->project->workers->isNotEmpty())
+                        <span class="inline-flex items-center gap-1 font-medium">
+                            <span class="text-gray-400">👷 Assigned Personnel:</span>
+                            <span class="font-bold text-slate-800 dark:text-gray-200">{{ $serviceRequest->project->workers->map(fn($w) => $w->user->first_name . ' ' . $w->user->last_name)->join(', ') }}</span>
+                        </span>
+                    @endif
+                </div>
+            @endif
+
+            <!-- Bottom Part: Form & Action Steps (Hidden when isMinimized is true) -->
+            <div x-show="!isMinimized" class="space-y-5">
+
+            @if($serviceRequest->schedule_status === 'declined' && $serviceRequest->schedule_decline_reason)
+                <div class="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-xl flex items-start gap-3">
+                    <span class="text-rose-600 dark:text-rose-400 shrink-0 text-base">⚠️</span>
+                    <div class="text-xs">
+                        <p class="font-bold text-rose-900 dark:text-rose-200">Client's Reason for Rescheduling:</p>
+                        <p class="text-rose-700 dark:text-rose-300 mt-0.5">{{ $serviceRequest->schedule_decline_reason }}</p>
+                        <p class="text-[11px] text-rose-600 dark:text-rose-400 mt-1 font-semibold">Please adjust the date and time window below, verify workers, and resend proposal.</p>
+                    </div>
+                </div>
+            @endif
+
+            @if($serviceRequest->scheduled_date && $serviceRequest->schedule_status === 'approved')
+                <div class="p-4 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                        </span>
+                        <div>
+                            <div class="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                                Agreed Visit Schedule (Confirmed by Client)
+                            </div>
+                            <div class="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                                📅 {{ $serviceRequest->scheduled_date->format('F d, Y') }} ({{ $serviceRequest->scheduled_date->format('l') }}) • {{ match($serviceRequest->scheduled_time_window) {
+                                    'AM' => 'Morning (8:00 AM - 12:00 PM)',
+                                    'PM' => 'Afternoon (1:00 PM - 5:00 PM)',
+                                    'AM-PM' => 'Whole Day (8:00 AM - 5:00 PM)',
+                                    default => $serviceRequest->scheduled_time_window ?? 'Whole Day'
+                                } }}
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 shrink-0">
+                        Ready to Assign &amp; Launch
+                    </span>
+                </div>
+            @endif
+
+            <!-- Unified Form -->
+            <form :action="isDirectApprove ? '{{ route('admin.requests.approve', $serviceRequest->request_id) }}' : '{{ route('admin.requests.schedule', $serviceRequest->request_id) }}'" 
+                  method="POST" 
+                  class="space-y-5">
                 @csrf
-                <input type="hidden" name="redirect_to" value="{{ route('admin.requests.show', $serviceRequest->request_id) }}#bom-section">
-                
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-gray-200 dark:border-zinc-800 text-[11px] font-extrabold text-gray-400 uppercase tracking-wider">
-                                <th class="py-2.5 px-3">Material Item</th>
-                                <th class="py-2.5 px-3 text-center w-28">Qty</th>
-                                <th class="py-2.5 px-3 text-center w-24">Unit</th>
-                                <th class="py-2.5 px-3 text-right w-36">Unit Price (₱)</th>
-                                <th class="py-2.5 px-3 text-right w-36">Total (₱)</th>
-                                <th class="py-2.5 px-3 text-center w-24">Status</th>
-                                <th class="py-2.5 px-3 text-center w-14">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
-                            <template x-for="(item, idx) in items" :key="item.bom_id">
-                                <tr class="hover:bg-blue-50/40 dark:hover:bg-zinc-800/40 transition">
-                                    
-                                    <!-- Hidden BOM ID -->
-                                    <input type="hidden" :name="'items[' + idx + '][bom_id]'" :value="item.bom_id">
 
-                                    <!-- Material Name -->
-                                    <td class="py-3 px-3">
-                                        <div class="font-bold text-slate-900 dark:text-white" x-text="item.material_name"></div>
-                                    </td>
+                <!-- 1. Schedule Selection -->
+                <div>
+                    <div class="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-extrabold">1</span>
+                        Visit Schedule
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-zinc-800/40 p-4 rounded-xl border border-gray-100 dark:border-zinc-800">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">
+                                Visit Date (Calendar) <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" 
+                                   name="scheduled_date" 
+                                   x-model="scheduledDate" 
+                                   min="{{ date('Y-m-d') }}" 
+                                   required 
+                                   class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-[#0033a0] shadow-2xs">
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Target date for GSO maintenance staff on-site visit.</p>
+                        </div>
 
-                                    <!-- Quantity Input (Step 1 for discrete units, 0.01 for continuous) -->
-                                    <td class="py-3 px-3 text-center">
-                                        <input type="number" 
-                                               :name="'items[' + idx + '][qty]'" 
-                                               x-model.number="item.qty" 
-                                               :step="isDiscrete(item.unit) ? '1' : '0.01'" 
-                                               :min="isDiscrete(item.unit) ? '1' : '0.01'" 
-                                               class="w-20 px-2 py-1.5 text-center font-bold border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#0033a0]" 
-                                               required>
-                                    </td>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">
+                                Time Window / Duration <span class="text-red-500">*</span>
+                            </label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border-2 cursor-pointer transition text-center"
+                                       :class="timeWindow === 'AM' ? 'border-[#0033a0] bg-blue-50/80 dark:bg-blue-950/40 text-[#0033a0] dark:text-blue-300 font-bold' : 'border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900'">
+                                    <input type="radio" name="scheduled_time_window" value="AM" x-model="timeWindow" class="sr-only">
+                                    <span class="text-xs font-extrabold">AM</span>
+                                    <span class="text-[10px] text-gray-500 dark:text-gray-400">8AM - 12PM</span>
+                                </label>
 
-                                    <!-- Unit of Measurement (Non-editable badge) -->
-                                    <td class="py-3 px-3 text-center">
-                                        <div class="px-2 py-1 text-center font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-zinc-800/80 rounded-lg text-xs border border-gray-200 dark:border-zinc-700 select-none" x-text="item.unit || 'pcs'"></div>
-                                        <input type="hidden" :name="'items[' + idx + '][unit_of_measurement]'" :value="item.unit">
-                                    </td>
+                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border-2 cursor-pointer transition text-center"
+                                       :class="timeWindow === 'PM' ? 'border-[#0033a0] bg-blue-50/80 dark:bg-blue-950/40 text-[#0033a0] dark:text-blue-300 font-bold' : 'border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900'">
+                                    <input type="radio" name="scheduled_time_window" value="PM" x-model="timeWindow" class="sr-only">
+                                    <span class="text-xs font-extrabold">PM</span>
+                                    <span class="text-[10px] text-gray-500 dark:text-gray-400">1PM - 5PM</span>
+                                </label>
 
-                                    <!-- Unit Price Input -->
-                                    <td class="py-3 px-3 text-right">
-                                        <div class="relative inline-block w-32">
-                                            <span class="absolute left-2.5 top-1.5 text-xs font-bold text-gray-400">₱</span>
-                                            <input type="number" 
-                                                   :name="'items[' + idx + '][unit_cost]'" 
-                                                   x-model.number="item.unit_cost" 
-                                                   step="0.01" 
-                                                   min="0" 
-                                                   placeholder="0.00" 
-                                                   class="w-full pl-6 pr-2.5 py-1.5 text-right font-black border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-[#0033a0] dark:text-blue-400 focus:ring-2 focus:ring-[#0033a0]" 
-                                                   required>
-                                        </div>
-                                    </td>
-
-                                    <!-- Row Total -->
-                                    <td class="py-3 px-3 text-right font-black text-slate-900 dark:text-white">
-                                        ₱<span x-text="((parseFloat(item.qty) || 0) * (parseFloat(item.unit_cost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
-                                    </td>
-
-                                    <!-- Status -->
-                                    <td class="py-3 px-3 text-center">
-                                        <span x-show="item.is_approved" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                                            Approved
-                                        </span>
-                                        <span x-show="!item.is_approved" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                                            Pending
-                                        </span>
-                                    </td>
-
-                                    <!-- Delete Item Button -->
-                                    <td class="py-3 px-3 text-center">
-                                        <button type="button" 
-                                                @click="if(confirm('Remove this material from the BOM?')) { document.getElementById('delete-bom-item-' + item.bom_id).submit(); }" 
-                                                class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition" 
-                                                title="Delete material">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                        </button>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
+                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border-2 cursor-pointer transition text-center"
+                                       :class="timeWindow === 'AM-PM' ? 'border-[#0033a0] bg-blue-50/80 dark:bg-blue-950/40 text-[#0033a0] dark:text-blue-300 font-bold' : 'border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900'">
+                                    <input type="radio" name="scheduled_time_window" value="AM-PM" x-model="timeWindow" class="sr-only">
+                                    <span class="text-xs font-extrabold">AM - PM</span>
+                                    <span class="text-[10px] text-gray-500 dark:text-gray-400">Whole Day</span>
+                                </label>
+                            </div>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Specify whether the visit is morning, afternoon, or whole day.</p>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Grand Total & Direct Approval Action Bar -->
-                <div class="mt-5 pt-4 border-t border-gray-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50 dark:bg-zinc-800/50 p-4 rounded-xl">
-                    <div class="flex items-center gap-2.5">
-                        <span class="text-xs font-bold text-slate-700 dark:text-gray-300">Total Materials Budget:</span>
-                        <span class="text-lg sm:text-xl font-black text-[#0033a0] dark:text-blue-400">
-                            ₱<span x-text="grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
-                        </span>
+                <!-- 2. Category & Priority -->
+                <div>
+                    <div class="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-extrabold">2</span>
+                        Verification &amp; Priority
                     </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">Verify Category <span class="text-red-500">*</span></label>
+                            <select name="category_id" id="categorySelect" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]" required>
+                                <option value="">Select Category</option>
+                                @foreach($categories as $category)
+                                    <option value="{{ $category->category_id }}" data-name="{{ strtolower($category->category_name) }}" {{ $serviceRequest->category_id == $category->category_id ? 'selected' : '' }}>
+                                        {{ $category->category_name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
 
-                    <button type="submit" 
-                            :disabled="submittingBOM" 
-                            class="w-full sm:w-auto px-7 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer">
-                        <svg x-show="submittingBOM" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span x-text="submittingBOM ? 'Saving & Approving...' : 'Save Prices & Approve BOM'">Save Prices & Approve BOM</span>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">Project Priority <span class="text-red-500">*</span></label>
+                            <select name="priority" x-model="priority" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]" required>
+                                <option value="routine">Routine Maintenance (Requires Client Schedule Confirmation)</option>
+                                <option value="urgent">Urgent / Emergency (Bypasses Client Confirmation)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Assign Maintenance Personnel -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-extrabold">3</span>
+                            Assign Maintenance Personnel
+                        </div>
+                        <span class="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Select one or more staff to assign to this project</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto p-3 border border-blue-200 dark:border-zinc-700 rounded-xl bg-slate-50/50 dark:bg-zinc-900/50">
+                        @php
+                            $assignedIds = $serviceRequest->project ? $serviceRequest->project->workers->pluck('worker_id')->toArray() : [];
+                        @endphp
+                        @foreach($workers as $worker)
+                            @php
+                                $teamName = strtolower($worker->team->team_name ?? '');
+                                $categoryName = strtolower($serviceRequest->category->category_name ?? '');
+                                $isRecommended = false;
+                                if ($teamName && $categoryName) {
+                                    preg_match_all('/\w+/', $categoryName, $catWords);
+                                    foreach ($catWords[0] as $word) {
+                                        if (strlen($word) > 3 && str_contains($teamName, $word)) {
+                                            $isRecommended = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                $isAssigned = in_array($worker->worker_id, $assignedIds);
+                                $isChecked = $isAssigned || (empty($assignedIds) && $isRecommended);
+                                $activeCount = $worker->projects->count();
+                            @endphp
+                            <label class="worker-option flex items-center gap-2.5 cursor-pointer p-2.5 bg-white dark:bg-zinc-900 hover:bg-blue-50 dark:hover:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-800 {{ $isRecommended ? 'border-blue-200 dark:border-blue-800' : '' }} transition-colors min-w-0" data-team="{{ strtolower($worker->team->team_name ?? '') }}">
+                                <input type="checkbox" name="worker_ids[]" value="{{ $worker->worker_id }}" {{ $isChecked ? 'checked' : '' }} class="worker-checkbox rounded text-[#0033a0] focus:ring-[#0033a0] w-4 h-4 shrink-0">
+                                <div class="flex-1 min-w-0 flex items-center justify-between gap-1.5">
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-bold text-slate-900 dark:text-gray-200 truncate" title="{{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}">
+                                            {{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}
+                                        </div>
+                                        <div class="text-[11px] text-gray-500 truncate flex items-center gap-1.5" title="{{ $worker->team->team_name ?? 'No Unit' }}">
+                                            <span>{{ $worker->team->team_name ?? 'No Unit' }}</span>
+                                            <span>•</span>
+                                            @if($activeCount === 0)
+                                                <span class="text-emerald-600 dark:text-emerald-400 font-bold">Available</span>
+                                            @elseif($activeCount === 1)
+                                                <span class="text-amber-600 dark:text-amber-400 font-bold">Busy (1 Active)</span>
+                                            @else
+                                                <span class="text-amber-600 dark:text-amber-400 font-bold">Busy ({{ $activeCount }} Active)</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <span class="recommended-badge text-[9px] bg-[#0033a0] text-white px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide shrink-0 {{ $isRecommended ? '' : 'hidden' }}">Recommended</span>
+                                </div>
+                            </label>
+                        @endforeach
+                        @if($workers->isEmpty())
+                            <p class="text-xs text-gray-400 p-2 italic col-span-full">No active maintenance workers found.</p>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- 4. Submit Action & Reject Option -->
+                <div class="pt-3 border-t border-gray-100 dark:border-zinc-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    <button type="button" 
+                            @click="showRejectPanel = !showRejectPanel" 
+                            class="px-4 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition border border-rose-200 dark:border-rose-900/50 inline-flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <span x-text="showRejectPanel ? 'Hide Rejection Form' : 'Decline / Reject Request'"></span>
                     </button>
+
+                    <div class="flex items-center gap-3">
+                        <button type="submit" 
+                                class="w-full sm:w-auto px-6 py-3 bg-[#0033a0] hover:bg-[#002480] text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-md inline-flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span x-show="isDirectApprove">Approve Request &amp; Assign Workers to Project</span>
+                            <span x-show="!isDirectApprove">Send Schedule Proposal &amp; Assign Workers</span>
+                        </button>
+                    </div>
                 </div>
             </form>
 
-            <!-- Inline Form: Add Additional Material (Toggled) -->
-            <div x-show="showAddMaterial" 
+            <!-- Collapsible Rejection Panel -->
+            <div x-show="showRejectPanel" 
                  x-cloak 
-                 x-transition 
-                 class="mt-5 pt-5 border-t border-gray-200 dark:border-zinc-800 bg-blue-50/40 dark:bg-zinc-800/30 p-4 rounded-xl">
-                <h3 class="text-xs font-black uppercase tracking-wider text-[#0033a0] dark:text-blue-400 mb-3 flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    <span>Add Item to this Request's BOM</span>
-                </h3>
-
-                <form action="{{ route('admin.bom.store', $serviceRequest->project->project_id) }}" method="POST">
+                 class="pt-4 border-t border-rose-200 dark:border-rose-900/50">
+                <form action="{{ route('admin.requests.reject', $serviceRequest->request_id) }}" method="POST" class="bg-rose-50/60 dark:bg-rose-950/20 p-5 rounded-2xl border border-rose-200 dark:border-rose-900/60 space-y-3">
                     @csrf
-                    <input type="hidden" name="redirect_to" value="{{ route('admin.requests.show', $serviceRequest->request_id) }}#bom-section">
-                    
-                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                        <!-- Catalog Select -->
-                        <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-4' : 'sm:col-span-5'">
-                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Select Catalog Material</label>
-                            <select name="material_id" 
-                                    x-model="selectedMaterialId" 
-                                    @change="onSelectAddChange()" 
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-[#0033a0]" 
-                                    required>
-                                <option value="">Select a material...</option>
-                                @foreach($allMaterials ?? [] as $m)
-                                    <option value="{{ $m->material_id }}">{{ $m->material_name }} ({{ $m->unit_of_measurement ?? 'pcs' }} - ₱{{ number_format($m->unit_cost, 2) }})</option>
-                                @endforeach
-                                <option value="custom" class="font-bold text-[#0033a0]">+ Add New Custom Material...</option>
-                            </select>
-                        </div>
-
-                        <!-- Custom Material Name if 'custom' -->
-                        <div class="sm:col-span-3" x-show="selectedMaterialId === 'custom'">
-                            <label class="block text-[11px] font-bold text-[#0033a0] uppercase tracking-wider mb-1">Custom Material Name</label>
-                            <input type="text" 
-                                   name="custom_material_name" 
-                                   x-model="customName" 
-                                   :required="selectedMaterialId === 'custom'" 
-                                   placeholder="e.g. Teflon Tape 1/2 in" 
-                                   class="w-full px-3 py-2 border border-[#0033a0] rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
-                        </div>
-
-                        <!-- Quantity -->
-                        <div class="sm:col-span-2">
-                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Quantity</label>
-                            <input type="number" 
-                                   name="qty" 
-                                   x-model.number="addQty" 
-                                   :step="isDiscrete(addUnit) ? '1' : '0.01'" 
-                                   :min="isDiscrete(addUnit) ? '1' : '0.01'" 
-                                   placeholder="1" 
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white" 
-                                   required>
-                        </div>
-
-                        <!-- Unit of Measurement -->
-                        <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-1' : 'sm:col-span-2'">
-                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Unit</label>
-                            
-                            <div x-show="selectedMaterialId !== 'custom'" class="w-full px-3 py-2 border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/80 rounded-lg text-xs font-bold text-slate-700 dark:text-gray-300 text-center flex items-center justify-center min-h-[38px] select-none">
-                                <span x-text="addUnit || 'pcs'"></span>
-                            </div>
-                            <input type="hidden" x-show="selectedMaterialId !== 'custom'" name="unit_of_measurement" :value="addUnit">
-
-                            <select x-show="selectedMaterialId === 'custom'" 
-                                    name="unit_of_measurement" 
-                                    x-model="addUnit" 
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
-                                <option value="pcs">pcs</option>
-                                <option value="meters">meters</option>
-                                <option value="lengths">lengths</option>
-                                <option value="rolls">rolls</option>
-                                <option value="boxes">boxes</option>
-                                <option value="bags">bags</option>
-                                <option value="liters">liters</option>
-                                <option value="sheets">sheets</option>
-                                <option value="sets">sets</option>
-                                <option value="units">units</option>
-                                <option value="kg">kg</option>
-                                <option value="gallons">gallons</option>
-                                <option value="pairs">pairs</option>
-                                <option value="tubes">tubes</option>
-                                <option value="packs">packs</option>
-                                <option value="feet">feet</option>
-                                <option value="can">can</option>
-                            </select>
-                        </div>
-
-                        <!-- Unit Cost -->
-                        <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-2' : 'sm:col-span-3'">
-                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Unit Price (₱)</label>
-                            <div class="relative">
-                                <span class="absolute left-2.5 top-2 text-xs font-bold text-gray-400">₱</span>
-                                <input type="number" 
-                                       name="unit_cost" 
-                                       x-model.number="addUnitCost" 
-                                       step="0.01" 
-                                       min="0" 
-                                       placeholder="0.00" 
-                                       class="w-full pl-6 pr-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-bold bg-white dark:bg-zinc-800 text-slate-900 dark:text-white" 
-                                       required>
-                            </div>
-                        </div>
-
-                        <!-- Submit Button -->
-                        <div class="sm:col-span-12 flex justify-end pt-1">
-                            <button type="submit" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                <span>Add Item to BOM</span>
-                            </button>
-                        </div>
+                    <div class="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-bold text-xs uppercase tracking-wider">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        Confirm Request Rejection
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1">Reason for Rejection <span class="text-red-500">*</span></label>
+                        <textarea name="feedback" rows="3" placeholder="State why this service request cannot be fulfilled..." class="w-full p-3 bg-white dark:bg-zinc-900 border border-rose-200 dark:border-zinc-700 rounded-xl text-xs text-slate-800 dark:text-gray-200 focus:outline-none focus:border-rose-500" required></textarea>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" @click="showRejectPanel = false" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition shadow-sm">
+                            Confirm Reject Request
+                        </button>
                     </div>
                 </form>
             </div>
-
-            <!-- Hidden delete forms for each BOM item -->
-            @foreach($serviceRequest->project->billOfMaterials as $bItem)
-                <form id="delete-bom-item-{{ $bItem->bom_id }}" action="{{ route('admin.bom.destroy-item', ['projectId' => $serviceRequest->project->project_id, 'bomId' => $bItem->bom_id]) }}" method="POST" class="hidden">
-                    @csrf
-                    @method('DELETE')
-                </form>
-            @endforeach
+            </div> <!-- Close div for !isMinimized -->
         </div>
     @endif
 
@@ -778,122 +801,799 @@
         </div>
     @endif
 
-    <!-- Action Forms Section -->
-    @if(in_array($serviceRequest->current_status, ['Submitted', 'Pending']))
-        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
-            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-6">
-                Action Required: Review &amp; Process Request
-            </h2>
-            
-            <div class="flex flex-col lg:flex-row gap-6 items-stretch">
-                <!-- Approve Form -->
-                <form action="{{ route('admin.requests.approve', $serviceRequest->request_id) }}" method="POST" class="flex-1 bg-[#f0f6ff] dark:bg-zinc-800/50 p-6 rounded-2xl border border-blue-200 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
-                    @csrf
-                    
+
+
+    @if($serviceRequest->project && !in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected']))
+        <!-- Admin Operational Override Card -->
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-blue-200 dark:border-zinc-800 p-6 shadow-sm space-y-4"
+             x-data="{ showStartModal: false, showCompleteModal: false }"
+             @close-start-modal.window="showStartModal = false"
+             @close-complete-modal.window="showCompleteModal = false">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-zinc-800">
+                <div class="flex items-center gap-2.5">
+                    <span class="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </span>
                     <div>
-                        <div class="flex items-center gap-2 text-[#0033a0] dark:text-blue-400 font-bold text-sm mb-4">
-                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-extrabold">1</span>
-                            Approve Request &amp; Assign Project
-                        </div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                            Admin Operational Override
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            Perform operational progress updates on behalf of workers if they are offline or in the field without connectivity.
+                        </p>
+                    </div>
+                </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">Verify Category</label>
-                                <select name="category_id" id="categorySelect" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]" required>
-                                    <option value="">Select Category</option>
-                                    @foreach($categories as $category)
-                                        <option value="{{ $category->category_id }}" data-name="{{ strtolower($category->category_name) }}" {{ $serviceRequest->category_id == $category->category_id ? 'selected' : '' }}>
-                                            {{ $category->category_name }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                <div class="flex items-center gap-2 flex-wrap">
+                    @if(in_array($serviceRequest->current_status, ['Approved', 'Pending', 'On Hold', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)']))
+                        <button type="button" @click="showStartModal = true" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Start Task (Before Photo)
+                        </button>
+                    @endif
+
+                    @if(in_array($serviceRequest->current_status, ['In Progress', 'Pending Verification']))
+                        <button type="button" @click="showCompleteModal = true" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Complete Task (After Photo &amp; Close)
+                        </button>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Start Task Modal -->
+            <div x-show="showStartModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+                 x-data="adminOverrideHandler('start')"
+                 @keydown.escape.window="closeModal()">
+                <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" @click.outside="closeModal()">
+                    <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800">
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">Admin Override: Start Task</h4>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">Set task to In Progress with required Before-Work photo evidence.</p>
+                        </div>
+                        <button type="button" @click="closeModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer">✕</button>
+                    </div>
+
+                    <form action="{{ route('admin.requests.start-override', $serviceRequest->request_id) }}" method="POST" enctype="multipart/form-data" class="space-y-4" @submit="validateAndSubmit($event)">
+                        @csrf
+
+                        <!-- Proof Photo Upload & Camera Trigger -->
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-blue-900 dark:text-blue-300">
+                                    Before-Work Photo Evidence <span class="text-red-500 font-black">*</span>
+                                </label>
+                                <span class="text-[11px] text-gray-400">JPG, PNG, WEBP</span>
                             </div>
 
-                            <div>
-                                <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">Set Project Priority</label>
-                                <select name="priority" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]" required>
-                                    <option value="Low" {{ strtolower($serviceRequest->priority ?? 'low') === 'low' ? 'selected' : '' }}>Low Priority</option>
-                                    <option value="Medium" {{ strtolower($serviceRequest->priority ?? 'low') === 'medium' ? 'selected' : '' }}>Medium Priority</option>
-                                    <option value="High" {{ strtolower($serviceRequest->priority ?? 'low') === 'high' ? 'selected' : '' }}>High Priority</option>
-                                </select>
-                            </div>
-                        </div>
+                            <!-- Hidden file inputs -->
+                            <input type="file" name="proof" x-ref="fileInput" accept="image/*,application/pdf" @change="handleFile($event.target.files[0])" class="hidden">
+                            <input type="file" x-ref="mobileCameraInput" accept="image/*" capture="environment" @change="handleFile($event.target.files[0])" class="hidden">
 
-                        <div class="mb-6">
-                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-2">Assign Maintenance Workers</label>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto p-2.5 border border-blue-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900">
-                                @foreach($workers as $worker)
-                                    @php
-                                        $teamName = strtolower($worker->team->team_name ?? '');
-                                        $categoryName = strtolower($serviceRequest->category->category_name ?? '');
-                                        $isRecommended = false;
-                                        if ($teamName && $categoryName) {
-                                            preg_match_all('/\w+/', $categoryName, $catWords);
-                                            foreach ($catWords[0] as $word) {
-                                                if (strlen($word) > 3 && str_contains($teamName, $word)) {
-                                                    $isRecommended = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        $activeCount = $worker->projects->count();
-                                    @endphp
-                                    <label class="worker-option flex items-center gap-2.5 cursor-pointer p-2.5 hover:bg-blue-50 dark:hover:bg-zinc-800 rounded-xl border border-gray-100 dark:border-zinc-800 {{ $isRecommended ? 'bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : '' }} transition-colors min-w-0" data-team="{{ strtolower($worker->team->team_name ?? '') }}">
-                                        <input type="checkbox" name="worker_ids[]" value="{{ $worker->worker_id }}" {{ $isRecommended ? 'checked' : '' }} class="worker-checkbox rounded text-[#0033a0] focus:ring-[#0033a0] w-4 h-4 shrink-0">
-                                        <div class="flex-1 min-w-0 flex items-center justify-between gap-1.5">
-                                            <div class="min-w-0">
-                                                <div class="text-xs font-bold text-slate-900 dark:text-gray-200 truncate" title="{{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}">
-                                                    {{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}
-                                                </div>
-                                                <div class="text-[11px] text-gray-500 truncate flex items-center gap-1.5" title="{{ $worker->team->team_name ?? 'No Unit' }}">
-                                                    <span>{{ $worker->team->team_name ?? 'No Unit' }}</span>
-                                                    <span>•</span>
-                                                    @if($activeCount === 0)
-                                                        <span class="text-emerald-600 dark:text-emerald-400 font-bold">Available</span>
-                                                    @elseif($activeCount === 1)
-                                                        <span class="text-amber-600 dark:text-amber-400 font-bold">Busy (1 Active)</span>
-                                                    @else
-                                                        <span class="text-amber-600 dark:text-amber-400 font-bold">Busy (1 Active, {{ $activeCount - 1 }} Queued)</span>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                            <span class="recommended-badge text-[9px] bg-[#0033a0] text-white px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide shrink-0 {{ $isRecommended ? '' : 'hidden' }}">Recommended</span>
+                            <!-- Buttons when no file selected -->
+                            <div x-show="!proofFile" class="border-2 border-dashed border-blue-300 dark:border-blue-900/60 rounded-2xl p-5 bg-blue-50/30 dark:bg-blue-950/20 text-center">
+                                <div class="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-sm mx-auto">
+                                    <button type="button" 
+                                            @click="$refs.fileInput.click()" 
+                                            class="w-full sm:flex-1 px-4 py-2.5 bg-white dark:bg-zinc-800 border-2 border-gray-200 dark:border-zinc-700 hover:border-[#0033a0] rounded-xl text-xs font-bold text-gray-800 dark:text-gray-100 transition shadow-xs flex items-center justify-center gap-2 cursor-pointer">
+                                        <svg class="w-4 h-4 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                        <span>Choose File</span>
+                                    </button>
+
+                                    <span class="text-xs text-gray-400 font-bold">or</span>
+
+                                    <button type="button" 
+                                            @click="openCamera()" 
+                                            class="w-full sm:flex-1 px-4 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-2 cursor-pointer">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                        <span>Snap Photo (Camera)</span>
+                                    </button>
+                                </div>
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-2.5">Capture or select an on-site photo before work begins.</p>
+                            </div>
+
+                            <!-- Preview Card when file selected -->
+                            <div x-show="proofFile" x-cloak class="border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-2xl p-3.5 flex items-center justify-between gap-4 shadow-xs">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="w-14 h-16 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0 overflow-hidden bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
+                                        <template x-if="proofPreviewUrl">
+                                            <img :src="proofPreviewUrl" alt="" class="w-full h-full object-cover">
+                                        </template>
+                                        <template x-if="!proofPreviewUrl">
+                                            <span class="font-bold text-xs text-emerald-800 dark:text-emerald-300">DOC</span>
+                                        </template>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            <span class="text-xs font-bold text-gray-900 dark:text-white truncate" x-text="proofFile"></span>
                                         </div>
-                                    </label>
+                                        <p class="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold mt-0.5">Photo attached &amp; ready</p>
+                                        <p class="text-[10px] text-gray-400 font-mono" x-text="proofSize"></p>
+                                    </div>
+                                </div>
+                                <button type="button" @click="clearProof()" class="px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 rounded-xl transition border border-red-200 dark:border-red-800 shrink-0 cursor-pointer">
+                                    ✕ Remove
+                                </button>
+                            </div>
+                        </div>
 
-                                @endforeach
-                                @if($workers->isEmpty())
-                                    <p class="text-xs text-gray-400 p-2 italic col-span-2">No active workers found in database.</p>
-                                @endif
+                        <!-- Operational Notes -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                                Operational Notes / Remarks (Optional)
+                            </label>
+                            <textarea name="remarks" rows="2" placeholder="e.g. Worker offline, admin started task on team's behalf..." class="w-full px-3 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"></textarea>
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-2">
+                            <button type="button" @click="closeModal()" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl cursor-pointer">Cancel</button>
+                            <button type="submit" :disabled="saving" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                                <svg x-show="saving" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <span x-text="saving ? 'Starting...' : 'Set In Progress'">Set In Progress</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Live Camera Modal -->
+                    <div x-show="cameraActive" x-cloak class="fixed inset-0 bg-black/85 z-60 flex items-center justify-center p-4">
+                        <div class="bg-[#18181b] border border-zinc-700 rounded-3xl p-5 max-w-sm w-full shadow-2xl relative flex flex-col items-center">
+                            <div class="flex items-center justify-between w-full mb-3 text-white">
+                                <h3 class="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                                    <span>Before-Work Photo</span>
+                                </h3>
+                                <button type="button" @click="flipCamera()" class="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-gray-300 hover:text-white transition text-xs font-bold flex items-center gap-1.5 cursor-pointer" title="Flip Camera">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                    <span>Flip</span>
+                                </button>
+                            </div>
+
+                            <div x-show="cameraError" x-cloak class="w-full mb-4 p-4 bg-red-950/40 border border-red-800/80 rounded-2xl text-center text-xs text-red-200 space-y-2">
+                                <p class="font-bold flex items-center justify-center gap-1.5">
+                                    <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                    <span>Camera In Use or Blocked</span>
+                                </p>
+                                <p class="text-[11px] text-gray-300 leading-relaxed" x-text="cameraError"></p>
+                                <div class="pt-2 flex flex-col gap-2">
+                                    <button type="button" @click="startStream()" class="w-full px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold transition cursor-pointer">
+                                        🔄 Retry Camera
+                                    </button>
+                                    <button type="button" @click="closeCamera(); $refs.fileInput.click()" class="w-full px-3 py-2 bg-[#0038A8] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition cursor-pointer">
+                                        📁 Choose Photo from Files Instead
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div x-show="!cameraError" class="w-full bg-black rounded-2xl overflow-hidden mb-4 relative aspect-[3/4] flex items-center justify-center border-2 border-zinc-700">
+                                <video x-ref="cameraVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+
+                                <div class="absolute inset-4 border-2 border-white/30 rounded-xl pointer-events-none flex flex-col justify-between p-2">
+                                    <div class="flex justify-between">
+                                        <span class="w-4 h-4 border-t-2 border-l-2 border-white"></span>
+                                        <span class="w-4 h-4 border-t-2 border-r-2 border-white"></span>
+                                    </div>
+                                    <div class="text-center">
+                                        <span class="text-[10px] font-bold text-white/75 bg-black/40 px-2 py-0.5 rounded-full">Portrait Viewfinder</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="w-4 h-4 border-b-2 border-l-2 border-white"></span>
+                                        <span class="w-4 h-4 border-b-2 border-r-2 border-white"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between w-full px-4">
+                                <button type="button" @click="closeCamera()" class="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-xl text-xs font-bold transition cursor-pointer">
+                                    Cancel
+                                </button>
+
+                                <button type="button" 
+                                        x-show="!cameraError"
+                                        @click="capturePhoto()" 
+                                        class="w-14 h-14 rounded-full bg-white hover:bg-gray-100 p-1.5 transition flex items-center justify-center shadow-lg cursor-pointer" 
+                                        title="Take Photo">
+                                    <div class="w-full h-full rounded-full border-2 border-zinc-900 bg-red-600 hover:bg-red-700 flex items-center justify-center transition">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-white"></div>
+                                    </div>
+                                </button>
+
+                                <div class="w-12"></div>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <button type="submit" class="w-full bg-[#0033a0] hover:bg-[#002480] text-white font-bold py-3 px-4 rounded-xl transition shadow-md flex justify-center items-center gap-2 text-sm">
-                        Approve &amp; Launch Project
-                    </button>
-                </form>
-
-                <!-- Reject Form -->
-                <form action="{{ route('admin.requests.reject', $serviceRequest->request_id) }}" method="POST" class="w-full lg:w-80 bg-red-50/60 dark:bg-red-950/20 p-6 rounded-2xl border border-red-200 dark:border-red-900/50 shadow-sm flex flex-col justify-between">
-                    @csrf
-                    <div>
-                        <div class="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold text-sm mb-4">
-                            <span class="w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center font-extrabold">2</span>
-                            Reject Request
+            <!-- Complete Task Modal -->
+            <div x-show="showCompleteModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+                 x-data="adminOverrideHandler('complete')"
+                 @keydown.escape.window="closeModal()">
+                <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" @click.outside="closeModal()">
+                    <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800">
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">Admin Override: Complete Task</h4>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">Document work accomplishment and close request on behalf of workers.</p>
                         </div>
-                        <div class="mb-4">
-                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">Reason for Rejection <span class="text-red-500">*</span></label>
-                            <textarea name="feedback" rows="5" placeholder="State why this request cannot be processed..." class="w-full p-3 bg-white dark:bg-zinc-900 border border-red-200 dark:border-zinc-700 rounded-xl text-xs text-slate-800 dark:text-gray-200 focus:outline-none focus:border-red-500" required></textarea>
+                        <button type="button" @click="closeModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer">✕</button>
+                    </div>
+
+                    <form action="{{ route('admin.requests.complete-override', $serviceRequest->request_id) }}" method="POST" enctype="multipart/form-data" class="space-y-4" @submit="validateAndSubmit($event)">
+                        @csrf
+
+                        <!-- Nature of Work Executed (Full Repair vs Inspection Only) -->
+                        <div class="space-y-3">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                                Nature of Work Executed <span class="text-red-500">*</span>:
+                            </label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <label class="flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition"
+                                       :class="completionType === 'Full Repair' ? 'border-[#0033a0] bg-blue-50/70 dark:bg-blue-950/40' : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'">
+                                    <input type="radio" name="completion_type" value="Full Repair" x-model="completionType" class="mt-1 text-[#0033a0] focus:ring-[#0033a0]">
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-900 dark:text-white">Direct Repair / Maintenance Done</div>
+                                        <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Physical repair, replacement, or maintenance executed.</div>
+                                    </div>
+                                </label>
+
+                                <label class="flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition"
+                                       :class="completionType === 'Inspection Only' ? 'border-[#0033a0] bg-blue-50/70 dark:bg-blue-950/40' : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'">
+                                    <input type="radio" name="completion_type" value="Inspection Only" x-model="completionType" class="mt-1 text-[#0033a0] focus:ring-[#0033a0]">
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-900 dark:text-white">Inspection &amp; Assessment Only</div>
+                                        <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Site inspected and assessed without direct physical repairs.</div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- Details if Full Repair -->
+                            <div x-show="completionType === 'Full Repair'">
+                                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                    Accomplishment Summary / Work Executed:
+                                </label>
+                                <input type="text" 
+                                       name="nature_of_work" 
+                                       x-model="natureOfWork" 
+                                       placeholder="e.g. Repair &amp; Maintenance Done / Replaced ball valve" 
+                                       class="w-full px-3.5 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                            </div>
+
+                            <!-- Recommendations / Notes -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                    <span x-show="completionType === 'Inspection Only'">Inspection Findings &amp; Recommendation (Optional):</span>
+                                    <span x-show="completionType === 'Full Repair'">Work Notes / Summary (Optional):</span>
+                                </label>
+                                <textarea name="recommendation" 
+                                          rows="2" 
+                                          x-model="recommendation"
+                                          :placeholder="completionType === 'Inspection Only' ? 'e.g. Inspected circuit breaker; no major wiring damage found.' : 'e.g. Completed plumbing line restoration; pressure tested ok.'" 
+                                          class="w-full px-3 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Proof Photo Upload & Camera Trigger -->
+                        <div class="pt-3 border-t border-gray-100 dark:border-zinc-800">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-300">
+                                    Proof of Completion Photo Evidence <span class="text-red-500 font-black">*</span>
+                                </label>
+                                <span class="text-[11px] text-gray-400">JPG, PNG, WEBP</span>
+                            </div>
+
+                            <!-- Hidden file inputs -->
+                            <input type="file" name="proof" x-ref="fileInput" accept="image/*,application/pdf" @change="handleFile($event.target.files[0])" class="hidden">
+                            <input type="file" x-ref="mobileCameraInput" accept="image/*" capture="environment" @change="handleFile($event.target.files[0])" class="hidden">
+
+                            <!-- Buttons when no file selected -->
+                            <div x-show="!proofFile" class="border-2 border-dashed border-emerald-300 dark:border-emerald-900/60 rounded-2xl p-5 bg-emerald-50/30 dark:bg-emerald-950/20 text-center">
+                                <div class="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-sm mx-auto">
+                                    <button type="button" 
+                                            @click="$refs.fileInput.click()" 
+                                            class="w-full sm:flex-1 px-4 py-2.5 bg-white dark:bg-zinc-800 border-2 border-gray-200 dark:border-zinc-700 hover:border-emerald-600 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-100 transition shadow-xs flex items-center justify-center gap-2 cursor-pointer">
+                                        <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                        <span>Choose File</span>
+                                    </button>
+
+                                    <span class="text-xs text-gray-400 font-bold">or</span>
+
+                                    <button type="button" 
+                                            @click="openCamera()" 
+                                            class="w-full sm:flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-2 cursor-pointer">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                        <span>Snap Photo (Camera)</span>
+                                    </button>
+                                </div>
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-2.5">Capture or select an accomplishment photo showing finished work or inspection on-site.</p>
+                            </div>
+
+                            <!-- Preview Card when file selected -->
+                            <div x-show="proofFile" x-cloak class="border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-2xl p-3.5 flex items-center justify-between gap-4 shadow-xs">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="w-14 h-16 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0 overflow-hidden bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
+                                        <template x-if="proofPreviewUrl">
+                                            <img :src="proofPreviewUrl" alt="" class="w-full h-full object-cover">
+                                        </template>
+                                        <template x-if="!proofPreviewUrl">
+                                            <span class="font-bold text-xs text-emerald-800 dark:text-emerald-300">DOC</span>
+                                        </template>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            <span class="text-xs font-bold text-gray-900 dark:text-white truncate" x-text="proofFile"></span>
+                                        </div>
+                                        <p class="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold mt-0.5">Photo attached &amp; ready</p>
+                                        <p class="text-[10px] text-gray-400 font-mono" x-text="proofSize"></p>
+                                    </div>
+                                </div>
+                                <button type="button" @click="clearProof()" class="px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 rounded-xl transition border border-red-200 dark:border-red-800 shrink-0 cursor-pointer">
+                                    ✕ Remove
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-2">
+                            <button type="button" @click="closeModal()" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl cursor-pointer">Cancel</button>
+                            <button type="submit" :disabled="saving" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                                <svg x-show="saving" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <span x-text="saving ? 'Completing...' : 'Complete & Close Requisition'">Complete &amp; Close Requisition</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Live Camera Modal -->
+                    <div x-show="cameraActive" x-cloak class="fixed inset-0 bg-black/85 z-60 flex items-center justify-center p-4">
+                        <div class="bg-[#18181b] border border-zinc-700 rounded-3xl p-5 max-w-sm w-full shadow-2xl relative flex flex-col items-center">
+                            <div class="flex items-center justify-between w-full mb-3 text-white">
+                                <h3 class="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                                    <span>Proof of Completion Photo</span>
+                                </h3>
+                                <button type="button" @click="flipCamera()" class="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-gray-300 hover:text-white transition text-xs font-bold flex items-center gap-1.5 cursor-pointer" title="Flip Camera">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                    <span>Flip</span>
+                                </button>
+                            </div>
+
+                            <div x-show="cameraError" x-cloak class="w-full mb-4 p-4 bg-red-950/40 border border-red-800/80 rounded-2xl text-center text-xs text-red-200 space-y-2">
+                                <p class="font-bold flex items-center justify-center gap-1.5">
+                                    <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                    <span>Camera In Use or Blocked</span>
+                                </p>
+                                <p class="text-[11px] text-gray-300 leading-relaxed" x-text="cameraError"></p>
+                                <div class="pt-2 flex flex-col gap-2">
+                                    <button type="button" @click="startStream()" class="w-full px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold transition cursor-pointer">
+                                        🔄 Retry Camera
+                                    </button>
+                                    <button type="button" @click="closeCamera(); $refs.fileInput.click()" class="w-full px-3 py-2 bg-[#0038A8] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition cursor-pointer">
+                                        📁 Choose Photo from Files Instead
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div x-show="!cameraError" class="w-full bg-black rounded-2xl overflow-hidden mb-4 relative aspect-[3/4] flex items-center justify-center border-2 border-zinc-700">
+                                <video x-ref="cameraVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+
+                                <div class="absolute inset-4 border-2 border-white/30 rounded-xl pointer-events-none flex flex-col justify-between p-2">
+                                    <div class="flex justify-between">
+                                        <span class="w-4 h-4 border-t-2 border-l-2 border-white"></span>
+                                        <span class="w-4 h-4 border-t-2 border-r-2 border-white"></span>
+                                    </div>
+                                    <div class="text-center">
+                                        <span class="text-[10px] font-bold text-white/75 bg-black/40 px-2 py-0.5 rounded-full">Portrait Viewfinder</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="w-4 h-4 border-b-2 border-l-2 border-white"></span>
+                                        <span class="w-4 h-4 border-b-2 border-r-2 border-white"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between w-full px-4">
+                                <button type="button" @click="closeCamera()" class="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-xl text-xs font-bold transition cursor-pointer">
+                                    Cancel
+                                </button>
+
+                                <button type="button" 
+                                        x-show="!cameraError"
+                                        @click="capturePhoto()" 
+                                        class="w-14 h-14 rounded-full bg-white hover:bg-gray-100 p-1.5 transition flex items-center justify-center shadow-lg cursor-pointer" 
+                                        title="Take Photo">
+                                    <div class="w-full h-full rounded-full border-2 border-zinc-900 bg-red-600 hover:bg-red-700 flex items-center justify-center transition">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-white"></div>
+                                    </div>
+                                </button>
+
+                                <div class="w-12"></div>
+                            </div>
                         </div>
                     </div>
-                    <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition flex justify-center items-center gap-2 text-sm shadow-md">
-                        Reject Request
-                    </button>
-                </form>
+                </div>
             </div>
         </div>
-    @elseif($serviceRequest->project && $serviceRequest->project->current_status === 'Pending Verification')
+    @endif
+
+    <!-- Bill of Materials (BOM) Section Card (Direct Pricing & Approval in Request Page - Placed under Admin Operational Override) -->
+    @if($serviceRequest->project || !in_array($serviceRequest->current_status, ['Cancelled', 'Rejected']))
+        @php
+            $boms = $serviceRequest->project?->billOfMaterials ?? collect();
+            $pendingBomCount = $boms->whereNull('date_approved')->count();
+            $hasBomItems = $boms->count() > 0;
+            $nonEditableStatuses = ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'];
+            $isBomEditable = !in_array($serviceRequest->current_status, $nonEditableStatuses) 
+                          && !in_array($serviceRequest->project?->current_status, $nonEditableStatuses);
+        @endphp
+        <div id="bom-section" 
+             class="bg-white dark:bg-[#1c1c1e] rounded-2xl border {{ $pendingBomCount > 0 && $isBomEditable ? 'border-amber-400 dark:border-amber-600' : 'border-gray-200 dark:border-zinc-800' }} p-6 sm:p-7 shadow-sm"
+             x-data="{
+                 items: {{ Js::from($boms->map(fn($b) => [
+                     'bom_id' => $b->bom_id,
+                     'material_name' => $b->material->material_name ?? 'Material Item',
+                     'unit' => $b->material->unit_of_measurement ?? 'pcs',
+                     'qty' => (float)$b->qty,
+                     'unit_cost' => (float)($b->material->unit_cost ?? 0),
+                     'is_approved' => !is_null($b->date_approved),
+                 ])) }},
+                 showAddMaterial: false,
+                 submittingBOM: false,
+                 selectedMaterialId: '',
+                 customName: '',
+                 addUnit: 'pcs',
+                 addQty: 1,
+                 addUnitCost: 0,
+                 catalog: {{ Js::from(($allMaterials ?? collect())->map(fn($m) => ['id' => $m->material_id, 'name' => $m->material_name, 'unit' => $m->unit_of_measurement ?? 'pcs', 'cost' => (float)$m->unit_cost])) }},
+                 isDiscrete(unit) {
+                     if (!unit) return true;
+                     const u = unit.toString().trim().toLowerCase();
+                     const continuousUnits = ['meter', 'meters', 'm', 'length', 'lengths', 'ft', 'feet', 'foot', 'liter', 'liters', 'l', 'kg', 'kilo', 'kilos', 'kilogram', 'kilograms', 'gallon', 'gallons', 'gal', 'yard', 'yards', 'yd', 'inch', 'inches', 'cm', 'mm'];
+                     return !continuousUnits.includes(u);
+                 },
+                 get grandTotal() {
+                     return this.items.reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.unit_cost) || 0)), 0);
+                 },
+                 onSelectAddChange() {
+                     if (this.selectedMaterialId && this.selectedMaterialId !== 'custom') {
+                         const found = this.catalog.find(m => m.id == this.selectedMaterialId);
+                         if (found) {
+                             this.addUnit = found.unit || 'pcs';
+                             this.addUnitCost = found.cost || 0;
+                         }
+                     } else if (this.selectedMaterialId === 'custom') {
+                         this.addUnitCost = 0;
+                         if (!this.addUnit) this.addUnit = 'pcs';
+                     }
+                 }
+             }">
+            
+            <!-- BOM Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-5">
+                <div>
+                    <div class="flex items-center gap-2.5 mb-1 flex-wrap">
+                        <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">
+                            Bill of Materials (BOM) — Pricing &amp; Approval
+                        </h2>
+                        @if(!$isBomEditable)
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-gray-300 uppercase border border-slate-300 dark:border-zinc-700">
+                                <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                Locked ({{ $serviceRequest->current_status }})
+                            </span>
+                        @else
+                            <template x-if="items.length === 0">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 uppercase">
+                                    Draft / Ready to Add
+                                </span>
+                            </template>
+                            <template x-if="items.length > 0 && {{ $pendingBomCount > 0 ? 'true' : 'false' }}">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                    {{ $pendingBomCount }} Pending Pricing / Approval
+                                </span>
+                            </template>
+                            <template x-if="items.length > 0 && {{ $pendingBomCount === 0 ? 'true' : 'false' }}">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
+                                    Approved
+                                </span>
+                            </template>
+                        @endif
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                        @if($isBomEditable)
+                            Specify required materials, quantities, and pricing directly on this requisition.
+                        @else
+                            Bill of Materials is locked and read-only while this requisition is in progress or completed.
+                        @endif
+                    </p>
+                </div>
+
+                @if($isBomEditable)
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button type="button" 
+                                @click="showAddMaterial = !showAddMaterial" 
+                                class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            <span x-text="showAddMaterial ? 'Close Form' : 'Add Material'">Add Material</span>
+                        </button>
+                    </div>
+                @endif
+            </div>
+
+            <!-- Empty State when items.length === 0 -->
+            <div x-show="items.length === 0" class="py-8 px-4 text-center border-2 border-dashed border-gray-200 dark:border-zinc-800 rounded-2xl bg-gray-50/50 dark:bg-zinc-800/30 my-4">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                </div>
+                <h4 class="text-sm font-bold text-slate-800 dark:text-gray-200 mb-1">No Materials Listed in BOM</h4>
+                @if($isBomEditable)
+                    <p class="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-4">You can create a Bill of Materials for this requisition by adding catalog or custom materials below.</p>
+                    <button type="button" @click="showAddMaterial = true" x-show="!showAddMaterial" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <span>Add First Material Item</span>
+                    </button>
+                @else
+                    <p class="text-xs text-gray-400 max-w-md mx-auto">No materials were requested or allocated for this requisition.</p>
+                @endif
+            </div>
+
+            <!-- In-Place Pricing & Approval Form (when items exist) -->
+            <form x-show="items.length > 0" action="{{ $serviceRequest->project ? route('admin.bom.approve', $serviceRequest->project->project_id) : '#' }}" method="POST" @submit="submittingBOM = true">
+                @csrf
+                <input type="hidden" name="redirect_to" value="{{ route('admin.requests.show', $serviceRequest->request_id) }}#bom-section">
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-200 dark:border-zinc-800 text-[11px] font-extrabold text-gray-400 uppercase tracking-wider">
+                                <th class="py-2.5 px-3">Material Item</th>
+                                <th class="py-2.5 px-3 text-center w-28">Qty</th>
+                                <th class="py-2.5 px-3 text-center w-24">Unit</th>
+                                <th class="py-2.5 px-3 text-right w-36">Unit Price (₱)</th>
+                                <th class="py-2.5 px-3 text-right w-36">Total (₱)</th>
+                                <th class="py-2.5 px-3 text-center w-24">Status</th>
+                                <th class="py-2.5 px-3 text-center w-14">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
+                            <template x-for="(item, idx) in items" :key="item.bom_id">
+                                <tr class="hover:bg-blue-50/40 dark:hover:bg-zinc-800/40 transition">
+                                    
+                                    <!-- Hidden BOM ID -->
+                                    <input type="hidden" :name="'items[' + idx + '][bom_id]'" :value="item.bom_id">
+
+                                    <!-- Material Name -->
+                                    <td class="py-3 px-3">
+                                        <div class="font-bold text-slate-900 dark:text-white" x-text="item.material_name"></div>
+                                    </td>
+
+                                    <!-- Quantity Input / Badge -->
+                                    <td class="py-3 px-3 text-center">
+                                        @if($isBomEditable)
+                                            <input type="number" 
+                                                   :name="'items[' + idx + '][qty]'" 
+                                                   x-model.number="item.qty" 
+                                                   :step="isDiscrete(item.unit) ? '1' : '0.01'" 
+                                                   :min="isDiscrete(item.unit) ? '1' : '0.01'" 
+                                                   class="w-20 px-2 py-1.5 text-center font-bold border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#0033a0]" 
+                                                   required>
+                                        @else
+                                            <span class="font-bold text-slate-800 dark:text-gray-200 text-xs px-2.5 py-1 bg-gray-100 dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700" x-text="item.qty"></span>
+                                        @endif
+                                    </td>
+
+                                    <!-- Unit of Measurement (Non-editable badge) -->
+                                    <td class="py-3 px-3 text-center">
+                                        <div class="px-2 py-1 text-center font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-zinc-800/80 rounded-lg text-xs border border-gray-200 dark:border-zinc-700 select-none" x-text="item.unit || 'pcs'"></div>
+                                        <input type="hidden" :name="'items[' + idx + '][unit_of_measurement]'" :value="item.unit">
+                                    </td>
+
+                                    <!-- Unit Price Input / Badge -->
+                                    <td class="py-3 px-3 text-right">
+                                        @if($isBomEditable)
+                                            <div class="relative inline-block w-32">
+                                                <span class="absolute left-2.5 top-1.5 text-xs font-bold text-gray-400">₱</span>
+                                                <input type="number" 
+                                                       :name="'items[' + idx + '][unit_cost]'" 
+                                                       x-model.number="item.unit_cost" 
+                                                       step="0.01" 
+                                                       min="0" 
+                                                       placeholder="0.00" 
+                                                       class="w-full pl-6 pr-2.5 py-1.5 text-right font-black border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-[#0033a0] dark:text-blue-400 focus:ring-2 focus:ring-[#0033a0]" 
+                                                       required>
+                                            </div>
+                                        @else
+                                            <span class="font-black text-[#0033a0] dark:text-blue-400 text-xs">
+                                                ₱<span x-text="(parseFloat(item.unit_cost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                                            </span>
+                                        @endif
+                                    </td>
+
+                                    <!-- Row Total -->
+                                    <td class="py-3 px-3 text-right font-black text-slate-900 dark:text-white">
+                                        ₱<span x-text="((parseFloat(item.qty) || 0) * (parseFloat(item.unit_cost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                                    </td>
+
+                                    <!-- Status -->
+                                    <td class="py-3 px-3 text-center">
+                                        <span x-show="item.is_approved" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                            Approved
+                                        </span>
+                                        <span x-show="!item.is_approved" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                            Pending
+                                        </span>
+                                    </td>
+
+                                    <!-- Delete Item Button / Locked Indicator -->
+                                    <td class="py-3 px-3 text-center">
+                                        @if($isBomEditable)
+                                            <button type="button" 
+                                                    @click="if(confirm('Remove this material from the BOM?')) { document.getElementById('delete-bom-item-' + item.bom_id).submit(); }" 
+                                                    class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition cursor-pointer" 
+                                                    title="Delete material">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        @else
+                                            <span class="text-gray-300 dark:text-zinc-600 text-xs select-none">—</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Grand Total & Action Bar -->
+                <div class="mt-5 pt-4 border-t border-gray-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50 dark:bg-zinc-800/50 p-4 rounded-xl">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xs font-bold text-slate-700 dark:text-gray-300">Total Materials Budget:</span>
+                        <span class="text-lg sm:text-xl font-black text-[#0033a0] dark:text-blue-400">
+                            ₱<span x-text="grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                        </span>
+                    </div>
+
+                    @if($isBomEditable)
+                        <button type="submit" 
+                                :disabled="submittingBOM" 
+                                class="w-full sm:w-auto px-7 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer">
+                            <svg x-show="submittingBOM" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span x-text="submittingBOM ? 'Saving & Approving...' : 'Save Prices & Approve BOM'">Save Prices & Approve BOM</span>
+                        </button>
+                    @else
+                        <div class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 select-none">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            <span>BOM Form Locked ({{ $serviceRequest->current_status }})</span>
+                        </div>
+                    @endif
+                </div>
+            </form>
+
+            @if($isBomEditable)
+                <!-- Inline Form: Add Additional Material (Toggled) -->
+                <div x-show="showAddMaterial" 
+                     x-cloak 
+                     x-transition 
+                     class="mt-5 pt-5 border-t border-gray-200 dark:border-zinc-800 bg-blue-50/40 dark:bg-zinc-800/30 p-4 rounded-xl">
+                    <h3 class="text-xs font-black uppercase tracking-wider text-[#0033a0] dark:text-blue-400 mb-3 flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <span>Add Item to this Request's BOM</span>
+                    </h3>
+
+                    <form action="{{ $serviceRequest->project ? route('admin.bom.store', $serviceRequest->project->project_id) : route('admin.requests.bom.store', $serviceRequest->request_id) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="redirect_to" value="{{ route('admin.requests.show', $serviceRequest->request_id) }}#bom-section">
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                            <!-- Catalog Select -->
+                            <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-4' : 'sm:col-span-5'">
+                                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Select Catalog Material</label>
+                                <select name="material_id" 
+                                        x-model="selectedMaterialId" 
+                                        @change="onSelectAddChange()" 
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-[#0033a0]" 
+                                        required>
+                                    <option value="">Select a material...</option>
+                                    @foreach($allMaterials ?? [] as $m)
+                                        <option value="{{ $m->material_id }}">{{ $m->material_name }} ({{ $m->unit_of_measurement ?? 'pcs' }} - ₱{{ number_format($m->unit_cost, 2) }})</option>
+                                    @endforeach
+                                    <option value="custom" class="font-bold text-[#0033a0]">+ Add New Custom Material...</option>
+                                </select>
+                            </div>
+
+                            <!-- Custom Material Name if 'custom' -->
+                            <div class="sm:col-span-3" x-show="selectedMaterialId === 'custom'">
+                                <label class="block text-[11px] font-bold text-[#0033a0] uppercase tracking-wider mb-1">Custom Material Name</label>
+                                <input type="text" 
+                                       name="custom_material_name" 
+                                       x-model="customName" 
+                                       :required="selectedMaterialId === 'custom'" 
+                                       placeholder="e.g. Teflon Tape 1/2 in" 
+                                       class="w-full px-3 py-2 border border-[#0033a0] rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
+                            </div>
+
+                            <!-- Quantity -->
+                            <div class="sm:col-span-2">
+                                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Quantity</label>
+                                <input type="number" 
+                                       name="qty" 
+                                       x-model.number="addQty" 
+                                       :step="isDiscrete(addUnit) ? '1' : '0.01'" 
+                                       :min="isDiscrete(addUnit) ? '1' : '0.01'" 
+                                       placeholder="1" 
+                                       class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white" 
+                                       required>
+                            </div>
+
+                            <!-- Unit of Measurement -->
+                            <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-1' : 'sm:col-span-2'">
+                                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Unit</label>
+                                
+                                <div x-show="selectedMaterialId !== 'custom'" class="w-full px-3 py-2 border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/80 rounded-lg text-xs font-bold text-slate-700 dark:text-gray-300 text-center flex items-center justify-center min-h-[38px] select-none">
+                                    <span x-text="addUnit || 'pcs'"></span>
+                                </div>
+                                <input type="hidden" x-show="selectedMaterialId !== 'custom'" name="unit_of_measurement" :value="addUnit">
+
+                                <select x-show="selectedMaterialId === 'custom'" 
+                                        name="unit_of_measurement" 
+                                        x-model="addUnit" 
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
+                                    <option value="pcs">pcs</option>
+                                    <option value="meters">meters</option>
+                                    <option value="lengths">lengths</option>
+                                    <option value="rolls">rolls</option>
+                                    <option value="boxes">boxes</option>
+                                    <option value="bags">bags</option>
+                                    <option value="liters">liters</option>
+                                    <option value="sheets">sheets</option>
+                                    <option value="sets">sets</option>
+                                    <option value="units">units</option>
+                                    <option value="kg">kg</option>
+                                    <option value="gallons">gallons</option>
+                                    <option value="pairs">pairs</option>
+                                    <option value="tubes">tubes</option>
+                                    <option value="packs">packs</option>
+                                    <option value="feet">feet</option>
+                                    <option value="can">can</option>
+                                </select>
+                            </div>
+
+                            <!-- Unit Cost -->
+                            <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-2' : 'sm:col-span-3'">
+                                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Unit Price (₱)</label>
+                                <div class="relative">
+                                    <span class="absolute left-2.5 top-2 text-xs font-bold text-gray-400">₱</span>
+                                    <input type="number" 
+                                           name="unit_cost" 
+                                           x-model.number="addUnitCost" 
+                                           step="0.01" 
+                                           min="0" 
+                                           placeholder="0.00" 
+                                           class="w-full pl-6 pr-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-bold bg-white dark:bg-zinc-800 text-slate-900 dark:text-white" 
+                                           required>
+                                </div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="sm:col-span-12 flex justify-end pt-1">
+                                <button type="submit" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                    <span>Add Item to BOM</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Hidden delete forms for each BOM item -->
+                @if($serviceRequest->project)
+                    @foreach($serviceRequest->project->billOfMaterials as $bItem)
+                        <form id="delete-bom-item-{{ $bItem->bom_id }}" action="{{ route('admin.bom.destroy-item', ['projectId' => $serviceRequest->project->project_id, 'bomId' => $bItem->bom_id]) }}" method="POST" class="hidden">
+                            @csrf
+                            @method('DELETE')
+                        </form>
+                    @endforeach
+                @endif
+            @endif
+        </div>
+    @endif
+
+    @if($serviceRequest->project && $serviceRequest->project->current_status === 'Pending Verification')
         @php
             $beforeHistory = $serviceRequest->project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->last();
             $afterHistory = $serviceRequest->project->histories->whereIn('current_status', ['Pending Verification', 'Completed'])->whereNotNull('proof_attachment')->last();
@@ -1116,6 +1816,67 @@
         </div>
     @endif
 
+    <!-- Status Timeline & History Card -->
+    <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 shadow-sm space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800">
+            <div class="flex items-center gap-2.5">
+                <span class="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                        Status Timeline &amp; History Audit Log
+                    </h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Detailed log of all state transitions, scheduling proposals, BOM submissions, and approvals.
+                    </p>
+                </div>
+            </div>
+            <span class="text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
+                {{ $serviceRequest->histories->count() }} Updates
+            </span>
+        </div>
+
+        <div class="relative pl-5 space-y-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-px before:bg-gray-200 dark:before:bg-zinc-700/80">
+            @forelse($serviceRequest->histories as $history)
+                <div class="relative group">
+                    <!-- Bullet Indicator: sleek dot -->
+                    <div class="absolute -left-[19px] top-1.5 w-2.5 h-2.5 rounded-full {{ $history->bullet_color_class }} ring-4 ring-white dark:ring-[#1c1c1e] shadow-2xs"></div>
+
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border {{ $history->badge_color_class }}">
+                                {{ $history->action_title }}
+                            </span>
+                            <span class="text-[10.5px] text-gray-400 dark:text-gray-500 font-medium tabular-nums">
+                                {{ \Carbon\Carbon::parse($history->updated_at)->format('M d, g:i A') }}
+                            </span>
+                        </div>
+
+                        @if($history->remarks)
+                            <p class="text-xs text-slate-700 dark:text-gray-300 bg-slate-50 dark:bg-zinc-800/60 rounded-lg px-3 py-1.5 border-l-2 border-slate-300 dark:border-zinc-600 leading-relaxed font-normal">
+                                {{ $history->remarks }}
+                            </p>
+                        @endif
+
+                        @if($history->updatedBy)
+                            <div class="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1.5 pt-0.5">
+                                <span>by <span class="font-semibold text-slate-600 dark:text-gray-300">{{ $history->updatedBy->first_name ?? '' }} {{ $history->updatedBy->last_name ?? '' }}</span></span>
+                                @if($history->updatedBy->role)
+                                    <span class="uppercase text-[8.5px] px-1 py-0.2 rounded font-bold {{ $history->updatedBy->role === 'admin' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : ($history->updatedBy->role === 'worker' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300' : 'bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-gray-400') }}">
+                                        {{ $history->updatedBy->role }}
+                                    </span>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @empty
+                <p class="text-xs text-gray-400 italic">No history records found.</p>
+            @endforelse
+        </div>
+    </div>
+
     <!-- Per-Request Messaging Channel -->
     @include('partials.request-messages', ['serviceRequest' => $serviceRequest])
 </div>
@@ -1158,6 +1919,212 @@ document.addEventListener('DOMContentLoaded', function() {
 
     categorySelect.addEventListener('change', updateRecommendations);
 });
+
+function adminOverrideHandler(modalType) {
+    return {
+        modalType: modalType,
+        completionType: 'Full Repair',
+        natureOfWork: '',
+        recommendation: '',
+        saving: false,
+        proofFile: '',
+        proofSize: '',
+        proofPreviewUrl: '',
+        capturedFile: null,
+        cameraActive: false,
+        cameraStream: null,
+        cameraError: '',
+        facingMode: 'environment',
+
+        handleFile(file) {
+            if (!file) return;
+            this.proofFile = file.name;
+            this.proofSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+            this.capturedFile = file;
+            if (file.type && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.proofPreviewUrl = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                this.proofPreviewUrl = '';
+            }
+        },
+
+        async openCamera() {
+            this.cameraActive = true;
+            this.cameraError = '';
+            await this.$nextTick();
+            await this.startStream();
+        },
+
+        async startStream() {
+            this.cameraError = '';
+            if (this.cameraStream) {
+                try {
+                    this.cameraStream.getTracks().forEach(t => t.stop());
+                } catch (e) {}
+                this.cameraStream = null;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                this.cameraError = 'Live camera is not supported in this browser. Please use "Choose File" to select a photo.';
+                return;
+            }
+
+            let stream = null;
+            const targetFacing = this.facingMode || 'environment';
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: targetFacing },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+            } catch (err1) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: targetFacing },
+                        audio: false
+                    });
+                } catch (err2) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: true,
+                            audio: false
+                        });
+                    } catch (err3) {
+                        this.cameraError = 'Could not access camera (' + (err3.message || 'Permission denied') + '). Please ensure camera access is allowed in browser settings, or choose a file.';
+                        return;
+                    }
+                }
+            }
+
+            if (stream) {
+                this.cameraStream = stream;
+                await this.$nextTick();
+                const video = this.$refs.cameraVideo;
+                if (video) {
+                    video.srcObject = stream;
+                    video.muted = true;
+                    video.setAttribute('playsinline', 'true');
+                    video.setAttribute('autoplay', 'true');
+                    video.onloadedmetadata = async () => {
+                        try {
+                            await video.play();
+                        } catch (err) {}
+                    };
+                    try {
+                        await video.play();
+                    } catch (e) {}
+                }
+            }
+        },
+
+        async flipCamera() {
+            this.facingMode = (this.facingMode === 'environment') ? 'user' : 'environment';
+            await this.startStream();
+        },
+
+        capturePhoto() {
+            const video = this.$refs.cameraVideo;
+            if (!video || !this.cameraStream) return;
+
+            const vw = video.videoWidth || 640;
+            const vh = video.videoHeight || 480;
+
+            const targetWidth = 720;
+            const targetHeight = 960;
+
+            let srcW = vw;
+            let srcH = Math.round(vw * (4 / 3));
+            let srcX = 0;
+            let srcY = 0;
+
+            if (srcH > vh) {
+                srcH = vh;
+                srcW = Math.round(vh * (3 / 4));
+                srcX = Math.round((vw - srcW) / 2);
+                srcY = 0;
+            } else {
+                srcY = Math.round((vh - srcH) / 2);
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, targetWidth, targetHeight);
+
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const prefix = this.modalType === 'start' ? 'proof_before_' : 'proof_after_';
+                const filename = prefix + Date.now() + '.jpg';
+                const file = new File([blob], filename, { type: 'image/jpeg' });
+                
+                this.handleFile(file);
+
+                try {
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    if (this.$refs.fileInput) {
+                        this.$refs.fileInput.files = dt.files;
+                    }
+                } catch (e) {}
+
+                this.closeCamera();
+            }, 'image/jpeg', 0.90);
+        },
+
+        closeCamera() {
+            if (this.cameraStream) {
+                try {
+                    this.cameraStream.getTracks().forEach(track => track.stop());
+                } catch (e) {}
+                this.cameraStream = null;
+            }
+            this.cameraActive = false;
+            this.cameraError = '';
+        },
+
+        clearProof() {
+            this.proofFile = '';
+            this.proofSize = '';
+            this.proofPreviewUrl = '';
+            this.capturedFile = null;
+            if (this.$refs.fileInput) {
+                this.$refs.fileInput.value = '';
+            }
+            if (this.$refs.mobileCameraInput) {
+                this.$refs.mobileCameraInput.value = '';
+            }
+        },
+
+        closeModal() {
+            this.closeCamera();
+            if (this.modalType === 'start') {
+                this.$dispatch('close-start-modal');
+            } else {
+                this.$dispatch('close-complete-modal');
+            }
+        },
+
+        validateAndSubmit(e) {
+            const fileInput = this.$refs.fileInput;
+            const file = (fileInput && fileInput.files && fileInput.files[0]) || this.capturedFile;
+            if (!file) {
+                e.preventDefault();
+                alert(this.modalType === 'start' ? 'A Before-Work photo is required to start this task.' : 'An After-Work / accomplishment photo is required to complete this task.');
+                return;
+            }
+            this.saving = true;
+        }
+    };
+}
 </script>
 @endpush
 @endsection

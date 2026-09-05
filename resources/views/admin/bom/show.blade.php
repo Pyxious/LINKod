@@ -47,6 +47,12 @@
         </div>
     </div>
 
+@php
+    $nonEditableStatuses = ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'];
+    $isBomEditable = !in_array($project->current_status, $nonEditableStatuses) 
+                  && !in_array($project->request?->current_status, $nonEditableStatuses);
+@endphp
+
     <!-- Main Pricing Table Form Area -->
     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-7 shadow-sm"
          x-data="{
@@ -117,15 +123,19 @@
                                         <div class="font-bold text-slate-900 dark:text-white text-sm" x-text="item.material_name"></div>
                                     </td>
 
-                                    <!-- Quantity Input (Step 1 for discrete units, 0.01 for continuous) -->
+                                    <!-- Quantity Input / Badge -->
                                     <td class="py-3.5 px-3 text-center">
-                                        <input type="number" 
-                                               :name="'items[' + idx + '][qty]'" 
-                                               x-model.number="item.qty" 
-                                               :step="isDiscrete(item.unit) ? '1' : '0.01'" 
-                                               :min="isDiscrete(item.unit) ? '1' : '0.01'" 
-                                               class="w-24 px-2.5 py-1.5 text-center font-bold border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#0033a0]" 
-                                               required>
+                                        @if($isBomEditable)
+                                            <input type="number" 
+                                                   :name="'items[' + idx + '][qty]'" 
+                                                   x-model.number="item.qty" 
+                                                   :step="isDiscrete(item.unit) ? '1' : '0.01'" 
+                                                   :min="isDiscrete(item.unit) ? '1' : '0.01'" 
+                                                   class="w-24 px-2.5 py-1.5 text-center font-bold border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#0033a0]" 
+                                                   required>
+                                        @else
+                                            <span class="font-bold text-slate-800 dark:text-gray-200 text-xs px-2.5 py-1 bg-gray-100 dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700" x-text="item.qty"></span>
+                                        @endif
                                     </td>
 
                                     <!-- Unit of Measurement (Non-editable badge) -->
@@ -134,19 +144,25 @@
                                         <input type="hidden" :name="'items[' + idx + '][unit_of_measurement]'" :value="item.unit">
                                     </td>
 
-                                    <!-- Unit Price Input -->
+                                    <!-- Unit Price Input / Badge -->
                                     <td class="py-3.5 px-3 text-right">
-                                        <div class="relative inline-block w-36">
-                                            <span class="absolute left-3 top-2 text-xs font-bold text-gray-400">₱</span>
-                                            <input type="number" 
-                                                   :name="'items[' + idx + '][unit_cost]'" 
-                                                   x-model.number="item.unit_cost" 
-                                                   step="0.01" 
-                                                   min="0" 
-                                                   placeholder="0.00" 
-                                                   class="w-full pl-7 pr-3 py-1.5 text-right font-black border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-[#0033a0] dark:text-blue-400 focus:ring-2 focus:ring-[#0033a0]" 
-                                                   required>
-                                        </div>
+                                        @if($isBomEditable)
+                                            <div class="relative inline-block w-36">
+                                                <span class="absolute left-3 top-2 text-xs font-bold text-gray-400">₱</span>
+                                                <input type="number" 
+                                                       :name="'items[' + idx + '][unit_cost]'" 
+                                                       x-model.number="item.unit_cost" 
+                                                       step="0.01" 
+                                                       min="0" 
+                                                       placeholder="0.00" 
+                                                       class="w-full pl-7 pr-3 py-1.5 text-right font-black border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-[#0033a0] dark:text-blue-400 focus:ring-2 focus:ring-[#0033a0]" 
+                                                       required>
+                                            </div>
+                                        @else
+                                            <span class="font-black text-[#0033a0] dark:text-blue-400 text-xs">
+                                                ₱<span x-text="(parseFloat(item.unit_cost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                                            </span>
+                                        @endif
                                     </td>
 
                                     <!-- Row Total -->
@@ -166,12 +182,16 @@
 
                                     <!-- Delete Item Button -->
                                     <td class="py-3.5 px-3 text-center">
-                                        <button type="button" 
-                                                @click="if(confirm('Remove this material from the BOM?')) { document.getElementById('delete-bom-' + item.bom_id).submit(); }" 
-                                                class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition" 
-                                                title="Delete material">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                        </button>
+                                        @if($isBomEditable)
+                                            <button type="button" 
+                                                    @click="if(confirm('Remove this material from the BOM?')) { document.getElementById('delete-bom-' + item.bom_id).submit(); }" 
+                                                    class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition" 
+                                                    title="Delete material">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        @else
+                                            <span class="text-gray-300 dark:text-zinc-600 text-xs select-none">—</span>
+                                        @endif
                                     </td>
                                 </tr>
                             </template>
@@ -188,22 +208,31 @@
                         </span>
                     </div>
 
-                    <button type="submit" 
-                            :disabled="submitting" 
-                            class="w-full sm:w-auto px-8 py-3 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-sm font-bold transition shadow-md inline-flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer">
-                        <svg x-show="submitting" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span x-text="submitting ? 'Saving & Approving...' : 'Save Prices & Approve BOM'">Save Prices & Approve BOM</span>
-                    </button>
+                    @if($isBomEditable)
+                        <button type="submit" 
+                                :disabled="submitting" 
+                                class="w-full sm:w-auto px-8 py-3 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-sm font-bold transition shadow-md inline-flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer">
+                            <svg x-show="submitting" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span x-text="submitting ? 'Saving & Approving...' : 'Save Prices & Approve BOM'">Save Prices & Approve BOM</span>
+                        </button>
+                    @else
+                        <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 select-none">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            <span>BOM Form Locked ({{ $project->current_status }})</span>
+                        </div>
+                    @endif
                 </div>
             </form>
 
-            <!-- Hidden delete forms -->
-            @foreach($project->billOfMaterials as $bItem)
-                <form id="delete-bom-{{ $bItem->bom_id }}" action="{{ route('admin.bom.destroy-item', ['projectId' => $project->project_id, 'bomId' => $bItem->bom_id]) }}" method="POST" class="hidden">
-                    @csrf
-                    @method('DELETE')
-                </form>
-            @endforeach
+            @if($isBomEditable)
+                <!-- Hidden delete forms -->
+                @foreach($project->billOfMaterials as $bItem)
+                    <form id="delete-bom-{{ $bItem->bom_id }}" action="{{ route('admin.bom.destroy-item', ['projectId' => $project->project_id, 'bomId' => $bItem->bom_id]) }}" method="POST" class="hidden">
+                        @csrf
+                        @method('DELETE')
+                    </form>
+                @endforeach
+            @endif
 
         @else
             <div class="p-12 text-center text-gray-400 bg-gray-50 dark:bg-zinc-800/30 rounded-2xl border border-dashed border-gray-200 dark:border-zinc-700">
@@ -214,6 +243,7 @@
         @endif
     </div>
 
+    @if($isBomEditable)
     <!-- Add Additional Material Card (Admin) -->
     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-7 shadow-sm"
          x-data="{
@@ -354,6 +384,7 @@
             </div>
         </form>
     </div>
+    @endif
 
 </div>
 @endsection

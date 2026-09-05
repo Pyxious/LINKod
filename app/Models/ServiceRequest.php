@@ -15,9 +15,40 @@ class ServiceRequest extends Model
         'client_id', 'category_id', 'title', 'description',
         'campus', 'location', 'complexity', 'urgency', 'priority',
         'attachment', 'submitted_at',
+        'scheduled_date', 'scheduled_time_window', 'schedule_status', 'schedule_decline_reason', 'bom_status',
     ];
 
-    protected $casts = ['submitted_at' => 'datetime'];
+    protected $casts = [
+        'submitted_at'   => 'datetime',
+        'scheduled_date' => 'date',
+    ];
+
+    public function getIsUrgentAttribute(): bool
+    {
+        return in_array(strtolower($this->priority ?? ''), ['urgent', 'high']);
+    }
+
+    public function getIsRoutineAttribute(): bool
+    {
+        return !$this->is_urgent;
+    }
+
+    public function getPriorityLabelAttribute(): string
+    {
+        return $this->is_urgent ? 'Urgent' : 'Routine';
+    }
+
+    public function getFormattedScheduleAttribute(): string
+    {
+        if (!$this->scheduled_date) return '';
+        $windowText = match(strtoupper($this->scheduled_time_window ?? '')) {
+            'AM' => 'Morning (8:00 AM – 12:00 PM)',
+            'PM' => 'Afternoon (1:00 PM – 5:00 PM)',
+            'AM-PM' => 'Whole Day (8:00 AM – 5:00 PM)',
+            default => $this->scheduled_time_window ?: 'Visit'
+        };
+        return $this->scheduled_date->format('M j, Y') . ' • ' . $windowText;
+    }
 
     public function client()
     {
@@ -168,8 +199,60 @@ class ServiceRequest extends Model
         });
     }
 
-    public function getManpowerDetailsAttribute(): array
+    public function getIsManpowerAttribute(): bool
     {
+        $desc = $this->description ?? '';
+        if (str_starts_with(trim($desc), '{') && str_ends_with(trim($desc), '}')) {
+            $data = json_decode($desc, true);
+            if (is_array($data)) {
+                if (($data['type'] ?? '') === 'janitorial' || isset($data['janitorial_areas'])) {
+                    return false;
+                }
+                if (isset($data['prep_details']) || isset($data['assistance_details']) || isset($data['clearing_details']) || isset($data['activity_title']) || isset($data['event_date'])) {
+                    return true;
+                }
+            }
+        }
+
+        $catName = strtolower($this->category->category_name ?? '');
+        if ((int)$this->category_id !== 4 && !str_contains($catName, 'manpower')) {
+            return false;
+        }
+
+        $titleLower = strtolower($this->title ?? '');
+        $janitorialKeywords = ['clean', 'waste', 'garbage', 'sanitation', 'restroom', 'janitor', 'disinfect', 'housekeeping', 'grass', 'lawn', 'mowing'];
+        foreach ($janitorialKeywords as $kw) {
+            if (str_contains($titleLower, $kw)) {
+                return false;
+            }
+        }
+
+        $manpowerKeywords = ['event', 'venue setup', 'relocation', 'furniture', 'hauling', 'manpower', 'stage', 'table / chair', 'bulympics'];
+        foreach ($manpowerKeywords as $kw) {
+            if (str_contains($titleLower, $kw)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function getIsJanitorialAttribute(): bool
+    {
+        $catName = strtolower($this->category->category_name ?? '');
+        if ((int)$this->category_id !== 4 && !str_contains($catName, 'janitor')) {
+            return false;
+        }
+
+        return !$this->is_manpower;
+    }
+
+    public function getManpowerDetailsAttribute(): ?array
+    {
+        if (!$this->is_manpower) {
+            return null;
+        }
+
         $desc = $this->description ?? '';
         if (str_starts_with(trim($desc), '{') && str_ends_with(trim($desc), '}')) {
             $data = json_decode($desc, true);
@@ -231,12 +314,43 @@ class ServiceRequest extends Model
         ];
     }
 
+    public function getJanitorialDetailsAttribute(): ?array
+    {
+        if (!$this->is_janitorial) {
+            return null;
+        }
+
+        $desc = $this->description ?? '';
+        if (str_starts_with(trim($desc), '{') && str_ends_with(trim($desc), '}')) {
+            $data = json_decode($desc, true);
+            if (is_array($data) && (($data['type'] ?? '') === 'janitorial' || isset($data['janitorial_areas']))) {
+                return $data;
+            }
+        }
+        return null;
+    }
+
     public function getDisplayDescriptionAttribute(): string
     {
         $desc = $this->description ?? '';
         if (str_starts_with(trim($desc), '{') && str_ends_with(trim($desc), '}')) {
             $data = json_decode($desc, true);
             if (is_array($data)) {
+                // Non-Janitorial/Manpower requests should only show general description text
+                if ((int)$this->category_id !== 4) {
+                    return $data['general_description'] ?? (string)$desc;
+                }
+
+                if (($data['type'] ?? '') === 'janitorial' || isset($data['janitorial_areas'])) {
+                    $lines = [];
+                    if (!empty($data['janitorial_areas'])) $lines[] = "Target Area(s) / Rooms: " . $data['janitorial_areas'];
+                    if (!empty($data['janitorial_type'])) $lines[] = "Scope of Cleaning: " . $data['janitorial_type'];
+                    if (!empty($data['janitorial_frequency'])) $lines[] = "Preferred Frequency: " . $data['janitorial_frequency'];
+                    if (!empty($data['janitorial_supplies'])) $lines[] = "Special Supplies / Equipment: " . $data['janitorial_supplies'];
+                    if (!empty($data['general_description'])) $lines[] = "Additional Instructions: " . $data['general_description'];
+                    return implode("\n\n", $lines);
+                }
+
                 $lines = [];
                 if (!empty($data['activity_title'])) $lines[] = "Activity: " . $data['activity_title'];
                 if (!empty($data['event_date'])) $lines[] = "Event Date: " . $data['event_date'];

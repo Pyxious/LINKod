@@ -41,7 +41,7 @@ class User extends Authenticatable
     ];
 
     // email_hash is a server-side lookup key — never expose it in responses.
-    protected $hidden = ['password', 'totp_secret', 'email_hash'];
+    protected $hidden = ['password', 'totp_secret', 'email_hash', 'remember_token'];
 
     public $timestamps = false;
 
@@ -76,6 +76,9 @@ class User extends Authenticatable
     public function isClient(): bool  { return $this->role === 'client'; }
     public function isWorker(): bool  { return $this->role === 'worker'; }
     public function isStaff(): bool   { return in_array($this->role, ['admin', 'staff']); }
+    public function isTeamLeader(): bool {
+        return $this->staff?->worker?->isTeamLeader() ?? ($this->staff?->teamLeader !== null);
+    }
 
     public function getFullNameAttribute(): string
     {

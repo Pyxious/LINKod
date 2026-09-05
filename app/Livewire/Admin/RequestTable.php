@@ -55,7 +55,14 @@ class RequestTable extends Component
         $query = ServiceRequest::with('client.user', 'category', 'latestHistory', 'project.workers.staff.user', 'project.workers.team');
 
         if ($this->priority) {
-            $query->where('priority', $this->priority);
+            $p = strtolower($this->priority);
+            if ($p === 'urgent' || $p === 'high') {
+                $query->whereIn('priority', ['urgent', 'high']);
+            } elseif ($p === 'routine' || $p === 'medium' || $p === 'low') {
+                $query->whereIn('priority', ['routine', 'medium', 'low']);
+            } else {
+                $query->where('priority', $this->priority);
+            }
         }
 
         if ($this->status === 'Completed') {
