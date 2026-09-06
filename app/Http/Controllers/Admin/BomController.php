@@ -87,7 +87,13 @@ class BomController extends Controller
             'unit_cost'            => 'required|numeric|min:0',
         ]);
 
-        $project = Project::findOrFail($projectId);
+        $project = Project::with('request')->findOrFail($projectId);
+        if ($project->request && !$project->request->isScheduleApproved()) {
+            return redirect()->back()->with('error', 'Materials cannot be added until the client has approved the scheduled date.');
+        }
+        if (in_array($project->current_status, ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'])) {
+            return redirect()->back()->with('error', 'Bill of Materials cannot be modified once work is In Progress or closed.');
+        }
         $staff   = auth()->user()->staff;
 
         $materialId = $validated['material_id'] ?? null;
@@ -155,6 +161,9 @@ class BomController extends Controller
         ]);
 
         $project = Project::with(['client.user', 'billOfMaterials.material', 'workers.staff.user'])->findOrFail($projectId);
+        if (in_array($project->current_status, ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'])) {
+            return redirect()->back()->with('error', 'Bill of Materials cannot be modified once work is In Progress or closed.');
+        }
         $staff   = auth()->user()->staff;
 
         foreach ($validated['items'] as $item) {
@@ -184,33 +193,61 @@ class BomController extends Controller
             }
         }
 
+        $newStatus = 'BOM Verified (Awaiting Client Approval)';
+
+        ProjectHistory::create([
+            'project_id'      => $project->project_id,
+            'previous_status' => $project->current_status,
+            'current_status'  => $newStatus,
+            'remarks'         => 'GSO Admin verified and priced the Bill of Materials. Awaiting final approval and funding confirmation from client.',
+            'updated_at'      => now(),
+            'updated_by'      => auth()->id(),
+        ]);
+
+        if ($project->request_id) {
+            $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
+            if ($serviceRequest) {
+                $serviceRequest->update(['bom_status' => 'awaiting_client']);
+
+                RequestHistory::create([
+                    'request_id'      => $serviceRequest->request_id,
+                    'previous_status' => $serviceRequest->current_status,
+                    'current_status'  => $newStatus,
+                    'remarks'         => 'GSO Admin verified and priced the Bill of Materials. Awaiting final approval and funding confirmation from client.',
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
+            }
+        }
+
         UserLog::create([
             'user_id'    => auth()->id(),
-            'action'     => "Admin priced and approved BOM for project #{$project->project_id}",
+            'action'     => "Admin priced and verified BOM for project #{$project->project_id}",
             'ip_address' => request()->ip(),
             'created_at' => now(),
         ]);
 
-        // Notify client that BOM is approved with cost
+        $projectTitle = $project->request?->title ?? "Project #{$project->project_id}";
+
+        // Notify client that BOM is verified with cost and awaits client confirmation
         if ($project->client?->user_id) {
-            $this->notifications->bomAvailable(
+            $this->notifications->bomVerifiedAwaitingClient(
                 $project->client->user_id,
-                $project->request?->title ?? "Project #{$project->project_id}",
-                $project->project_id
+                $projectTitle,
+                $project->request_id ?? $project->project_id
             );
         }
 
-        // Notify assigned workers that materials are approved and job can resume
+        // Notify assigned workers that BOM has been verified by admin
         if ($project->workers) {
-            $projectTitle = $project->request?->title ?? "Project #{$project->project_id}";
             foreach ($project->workers as $pw) {
                 $workerUserId = $pw->staff?->user_id ?? $pw->user?->user_id;
                 if ($workerUserId) {
                     $this->notifications->send(
                         $workerUserId,
-                        'bom_approved',
-                        'BOM Materials Approved',
-                        "The requested materials for \"{$projectTitle}\" have been approved by Admin. You may proceed with the job order.",
+                        'bom_verified',
+                        'BOM Verified by Admin',
+                        "The requested materials for \"{$projectTitle}\" have been verified & priced. Awaiting client approval.",
                         route('worker.job-orders.show', $project->project_id, false)
                     );
                 }
@@ -218,14 +255,19 @@ class BomController extends Controller
         }
 
         if ($request->filled('redirect_to')) {
-            return redirect($request->input('redirect_to'))->with('success', 'BOM prices saved and approved successfully. Client and workers notified.');
+            return redirect($request->input('redirect_to'))->with('success', 'BOM verified and priced successfully. Forwarded to client for approval.');
         }
 
-        return redirect()->back()->with('success', 'BOM prices saved and approved successfully. Client and workers notified.');
+        return redirect()->back()->with('success', 'BOM verified and priced successfully. Forwarded to client for approval.');
     }
 
     public function destroyItem(int $projectId, int $bomId)
     {
+        $project = Project::findOrFail($projectId);
+        if (in_array($project->current_status, ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'])) {
+            return redirect()->back()->with('error', 'Bill of Materials cannot be modified once work is In Progress or closed.');
+        }
+
         $bom = BillOfMaterials::where('project_id', $projectId)->where('bom_id', $bomId)->firstOrFail();
         $materialName = $bom->material?->material_name ?? 'Item';
         $bom->delete();

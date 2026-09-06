@@ -131,8 +131,8 @@
                                             Cancelled
                                         </span>
                                     @elseif(!$isClientPortal)
-                                        <span class="px-1.5 py-0.5 text-[9px] font-extrabold rounded uppercase tracking-wider {{ strtolower($req->priority ?? 'low') === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : (strtolower($req->priority ?? 'low') === 'medium' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300') }}">
-                                            {{ $req->priority ?? $req->urgency ?? 'Low' }}
+                                        <span class="px-1.5 py-0.5 text-[9px] font-extrabold rounded uppercase tracking-wider {{ ($req->is_urgent ?? false) ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' }}">
+                                            {{ $req->priority_label ?? 'Routine' }}
                                         </span>
                                     @endif
                                     @if($unreadThisReq > 0)

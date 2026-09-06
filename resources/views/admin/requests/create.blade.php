@@ -258,7 +258,10 @@
             },
 
             get isManpowerCategory() {
-                return (this.selectedCategoryName || '').toLowerCase().includes('manpower');
+                const cat = (this.selectedCategoryName || '').toLowerCase();
+                if (!cat.includes('manpower') && !cat.includes('janitor')) return false;
+                const c = (this.selectedConcern || '').toLowerCase();
+                return c.includes('event') || c.includes('relocation') || c.includes('hauling') || c === 'other manpower service';
             },
 
             get isEventConcern() {

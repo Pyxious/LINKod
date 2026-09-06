@@ -18,16 +18,16 @@ class DashboardController extends Controller
                 ->get()
             : collect();
 
-        // 1. Pending Tasks (Needs Attention): Pending or On Hold
+        // 1. Pending Tasks (Needs Attention): Pending or On Hold (only with approved schedule)
         $pendingCount = $allAssignments->filter(function($a) {
             $status = $a->project?->current_status;
-            return in_array($status, ['Pending', 'On Hold']);
+            return in_array($status, ['Pending', 'On Hold']) && ($a->project?->request?->isScheduleApproved() ?? false);
         })->count();
 
-        // 2. In Progress (Currently working)
+        // 2. In Progress (Currently working - only with approved schedule)
         $inProgressCount = $allAssignments->filter(function($a) {
             $status = $a->project?->current_status;
-            return $status === 'In Progress';
+            return $status === 'In Progress' && ($a->project?->request?->isScheduleApproved() ?? false);
         })->count();
 
         // 3. Completed Today (Great job!)
@@ -60,9 +60,9 @@ class DashboardController extends Controller
             return false;
         })->count();
 
-        // 4. Active assignments for the task list on dashboard (Pending, On Hold, In Progress)
+        // 4. Active assignments for the task list on dashboard (Pending, On Hold, In Progress - only with approved schedule)
         $assignments = $allAssignments
-            ->filter(fn($a) => $a->project && !in_array($a->project->current_status, ['Completed', 'Cancelled']))
+            ->filter(fn($a) => $a->project && ($a->project->request?->isScheduleApproved() ?? false) && !in_array($a->project->current_status, ['Completed', 'Cancelled']))
             ->sort(function($a, $b) {
                 $prioA = strtolower($a->project?->request?->priority ?? 'low');
                 $prioB = strtolower($b->project?->request?->priority ?? 'low');

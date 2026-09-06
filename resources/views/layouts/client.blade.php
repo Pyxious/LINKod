@@ -34,9 +34,11 @@
 <body class="bg-[#e8eef7] dark:bg-[#111111] min-h-screen text-slate-800 dark:text-gray-200 antialiased flex flex-col transition-colors duration-200">
     <!-- Top Nav -->
     <nav class="bg-white dark:bg-[#18181b] border-b border-gray-200 dark:border-zinc-800 h-16 flex items-center justify-between px-6 md:px-12 sticky top-0 z-50 shadow-sm">
-        <!-- Left: Logo -->
-        <a href="{{ route('home') }}" class="flex items-center gap-2">
-            <img src="{{ asset('images/LINKOD logo.png') }}" alt="BU-GSO LINKOD" class="h-9 w-auto">
+        <!-- Left: Logo with clickable blue BU-GSO -->
+        <a href="{{ route('home') }}" class="flex items-center gap-2.5 group cursor-pointer" title="Return to Home">
+            <span class="text-[#0033a0] dark:text-blue-400 font-extrabold text-base sm:text-lg tracking-tight group-hover:opacity-85 transition">BU-GSO</span>
+            <span class="text-gray-300 dark:text-zinc-700 font-light text-base">|</span>
+            <img src="{{ asset('images/LINKOD logo.png') }}" alt="BU-GSO LINKOD" class="h-9 w-auto group-hover:opacity-95 transition">
         </a>
 
         <!-- Center: Navigation Links -->

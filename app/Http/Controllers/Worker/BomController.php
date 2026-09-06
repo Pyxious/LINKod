@@ -28,9 +28,14 @@ class BomController extends Controller
         $worker = auth()->user()->staff?->worker;
 
         abort_unless(
-            $worker && $project->workers->contains('worker_id', $worker->worker_id),
-            403
+            $worker && $project->workers->contains('worker_id', $worker->worker_id) && $worker->isTeamLeader(),
+            403,
+            'Only Team Leaders are authorized to prepare and submit a Bill of Materials.'
         );
+
+        if ($project->request && !$project->request->isScheduleApproved()) {
+            return redirect()->back()->with('error', 'Materials cannot be requested until the client has approved the scheduled date.');
+        }
 
         $staff = auth()->user()->staff;
         $addedItems = 0;
@@ -80,10 +85,13 @@ class BomController extends Controller
         }
 
         if ($addedItems > 0) {
+            $newStatus = 'Awaiting Verification of Bill of Materials';
+
             \App\Models\ProjectHistory::create([
                 'project_id'      => $project->project_id,
                 'previous_status' => $project->current_status,
-                'current_status'  => 'On Hold',
+                'current_status'  => $newStatus,
+                'remarks'         => 'Team Leader prepared and submitted Bill of Materials for GSO Admin pricing and verification.',
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
@@ -91,10 +99,13 @@ class BomController extends Controller
             if ($project->request_id) {
                 $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
                 if ($serviceRequest) {
+                    $serviceRequest->update(['bom_status' => 'awaiting_admin']);
+
                     \App\Models\RequestHistory::create([
                         'request_id'      => $serviceRequest->request_id,
                         'previous_status' => $serviceRequest->current_status,
-                        'current_status'  => 'On Hold',
+                        'current_status'  => $newStatus,
+                        'remarks'         => 'Team Leader prepared and submitted Bill of Materials for GSO Admin pricing and verification.',
                         'updated_at'      => now(),
                         'updated_by'      => auth()->id(),
                     ]);
@@ -109,15 +120,95 @@ class BomController extends Controller
                 $this->notifications->send(
                     $admin->user_id,
                     'bom_requested',
-                    'New Material Request (BOM)',
-                    "{$workerName} requested materials for \"{$projectTitle}\". Review and set prices before approving.",
+                    'Bill of Materials Awaiting Verification',
+                    "Team Leader {$workerName} submitted a Bill of Materials for \"{$projectTitle}\". Review and set prices before forwarding to client.",
                     route('admin.bom.show', $project->project_id, false)
                 );
             }
         }
 
         return redirect()->route('worker.job-orders.show', $projectId)
-            ->with('success', 'Materials requested successfully. Submitted to Admin for pricing and approval.');
+            ->with('success', 'Materials requested successfully. Status updated to Awaiting Verification of Bill of Materials.');
+    }
+
+    /**
+     * Team Leader Direct Override: Confirm on-site direct cash/materials handed by client
+     */
+    public function teamLeaderApprove(Request $request, int $projectId)
+    {
+        try {
+            $project = Project::with(['workers', 'request.client.user', 'billOfMaterials'])->findOrFail($projectId);
+            $worker = auth()->user()->staff?->worker;
+
+            abort_unless(
+                $worker && $project->workers->contains('worker_id', $worker->worker_id) && $worker->isTeamLeader(),
+                403,
+                'Only the assigned Team Leader is authorized to confirm direct on-site client materials.'
+            );
+
+            if ($project->request && !$project->request->isScheduleApproved()) {
+                return redirect()->back()->with('error', 'Action cannot be performed until the client has approved the scheduled date.');
+            }
+
+            // Mark all project BOM items as approved
+            $project->billOfMaterials()->whereNull('date_approved')->update([
+                'date_approved' => now()->toDateString(),
+                'fulfilled_by'  => auth()->user()->staff?->staff_id,
+            ]);
+
+            $remarks = 'Team Leader confirmed on-site direct materials/cash provided by client. Fast-tracked to In Progress.';
+
+            \App\Models\ProjectHistory::create([
+                'project_id'      => $project->project_id,
+                'previous_status' => $project->current_status,
+                'current_status'  => 'In Progress',
+                'remarks'         => $remarks,
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            if ($project->request_id) {
+                $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
+                if ($serviceRequest) {
+                    $serviceRequest->update(['bom_status' => 'approved']);
+
+                    \App\Models\RequestHistory::create([
+                        'request_id'      => $serviceRequest->request_id,
+                        'previous_status' => $serviceRequest->current_status,
+                        'current_status'  => 'In Progress',
+                        'remarks'         => $remarks,
+                        'updated_at'      => now(),
+                        'updated_by'      => auth()->id(),
+                    ]);
+                }
+            }
+
+            \App\Models\UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Team Leader confirmed direct materials on-site for project #{$project->project_id}",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            // Notify Admins
+            $admins = User::where('role', 'admin')->get();
+            $tlName = auth()->user()->first_name . ' ' . auth()->user()->last_name;
+            $projectTitle = $project->request?->title ?? "Project #{$project->project_id}";
+            foreach ($admins as $admin) {
+                $this->notifications->send(
+                    $admin->user_id,
+                    'bom_client_approved',
+                    'Materials Confirmed On-Site',
+                    "Team Leader {$tlName} confirmed on-site direct materials/cash from client for \"{$projectTitle}\". Work is now In Progress.",
+                    route('admin.requests.show', $project->request_id ?? $project->project_id, false)
+                );
+            }
+
+            return redirect()->route('worker.job-orders.show', $projectId)
+                ->with('success', 'On-site materials confirmed! Project status updated to In Progress.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error confirming materials: ' . $e->getMessage());
+        }
     }
 }
 

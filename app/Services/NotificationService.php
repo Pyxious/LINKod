@@ -145,5 +145,126 @@ class NotificationService
             $actionUrl . '#messages-section'
         );
     }
+
+    /**
+     * Notify client about a proposed visit schedule.
+     */
+    public function scheduleProposed(int $clientUserId, string $requestTitle, string $date, string $window, int $requestId): void
+    {
+        $actionUrl = route('client.requests.show', $requestId, false);
+        $windowText = match($window) {
+            'AM' => 'Morning (AM)',
+            'PM' => 'Afternoon (PM)',
+            'AM-PM' => 'Whole Day (AM - PM)',
+            default => $window
+        };
+
+        $this->send(
+            $clientUserId,
+            'schedule_proposed',
+            'Visit Schedule Proposed',
+            "A maintenance visit schedule for \"{$requestTitle}\" has been set for {$date} ({$windowText}). Please confirm or request reschedule.",
+            $actionUrl
+        );
+    }
+
+    /**
+     * Notify admin that client approved the visit schedule.
+     */
+    public function scheduleApproved(int $adminUserId, string $requestTitle, string $date, string $window, int $requestId): void
+    {
+        $actionUrl = route('admin.requests.show', $requestId, false);
+
+        $this->send(
+            $adminUserId,
+            'schedule_approved',
+            'Visit Schedule Confirmed',
+            "Client confirmed the scheduled visit on {$date} ({$window}) for \"{$requestTitle}\".",
+            $actionUrl
+        );
+    }
+
+    /**
+     * Notify admin that client declined the visit schedule.
+     */
+    public function scheduleDeclined(int $adminUserId, string $requestTitle, string $reason, int $requestId): void
+    {
+        $actionUrl = route('admin.requests.show', $requestId, false);
+
+        $this->send(
+            $adminUserId,
+            'schedule_declined',
+            'Visit Reschedule Requested',
+            "Client requested rescheduling for \"{$requestTitle}\". Reason: {$reason}",
+            $actionUrl
+        );
+    }
+
+    /**
+     * Notify client that BOM is verified and awaiting their approval.
+     */
+    public function bomVerifiedAwaitingClient(int $clientUserId, string $projectTitle, int $requestId): void
+    {
+        $actionUrl = route('client.requests.show', $requestId, false);
+
+        $this->send(
+            $clientUserId,
+            'bom_verified',
+            'Bill of Materials Verified',
+            "The Bill of Materials for \"{$projectTitle}\" has been verified and priced by GSO Admin. Please review and approve.",
+            $actionUrl
+        );
+    }
+
+    /**
+     * Notify admin & workers that client approved the BOM.
+     */
+    public function bomApprovedByClient(int $userId, string $projectTitle, int $requestId, string $role = 'admin'): void
+    {
+        $actionUrl = $role === 'admin'
+            ? route('admin.requests.show', $requestId, false)
+            : route('worker.job-orders.show', $requestId, false);
+
+        $this->send(
+            $userId,
+            'bom_client_approved',
+            'Bill of Materials Approved',
+            "The client approved the Bill of Materials for \"{$projectTitle}\". Work may proceed.",
+            $actionUrl
+        );
+    }
+
+    /**
+     * Notify admin that client declined the BOM.
+     */
+    public function bomDeclinedByClient(int $adminUserId, string $projectTitle, int $requestId, ?string $reason = null): void
+    {
+        $actionUrl = route('admin.requests.show', $requestId, false);
+        $reasonText = $reason ? " Reason: {$reason}" : '';
+
+        $this->send(
+            $adminUserId,
+            'bom_client_declined',
+            'Bill of Materials Declined',
+            "Client declined the Bill of Materials for \"{$projectTitle}\".{$reasonText}",
+            $actionUrl
+        );
+    }
+
+    /**
+     * Remind client to rate a completed service request.
+     */
+    public function ratingReminder(int $clientUserId, string $requestTitle, int $requestId): void
+    {
+        $actionUrl = route('client.requests.show', $requestId, false);
+
+        $this->send(
+            $clientUserId,
+            'rating_reminder',
+            'Service Satisfaction Rating Reminder',
+            "Your maintenance request \"{$requestTitle}\" has been completed. Please take a moment to rate the service received.",
+            $actionUrl
+        );
+    }
 }
 

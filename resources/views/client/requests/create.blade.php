@@ -94,6 +94,13 @@
 
             additionalNotes: '',
 
+            // Janitorial Form State
+            janitorialAreas: '',
+            janitorialType: 'Deep Cleaning & Disinfection',
+            janitorialFrequency: 'One-time',
+            janitorialSupplies: '',
+            janitorialSchedule: '',
+
             // Time preset options
             timePresets: [
                 { value: 'morning',   label: 'Morning (8:00 AM – 12:00 PM)',        time: '8:00 - 12:00' },
@@ -192,17 +199,35 @@
                     'Weed Control & Soil Maintenance',
                     'Other Landscaping Concern'
                 ],
+                'Janitorial and Manpower': [
+                    'Event & Activity Venue Setup',
+                    'Heavy Equipment & Furniture Relocation',
+                    'Hauling & Waste Disposal Assistance',
+                    'Other manpower service',
+                    'Deep Cleaning & Disinfection Service',
+                    'Waste Management & Garbage Collection',
+                    'Restroom Sanitation & Supplies Check',
+                    'Other janitorial service'
+                ],
                 'Manpower': [
                     'Event & Activity Venue Setup',
                     'Heavy Equipment & Furniture Relocation',
                     'Hauling & Waste Disposal Assistance',
-                    'Other Manpower Need'
-                ],
-                'Janitorial': [
+                    'Other manpower service',
                     'Deep Cleaning & Disinfection Service',
                     'Waste Management & Garbage Collection',
                     'Restroom Sanitation & Supplies Check',
-                    'Other Janitorial Service'
+                    'Other janitorial service'
+                ],
+                'Janitorial': [
+                    'Event & Activity Venue Setup',
+                    'Heavy Equipment & Furniture Relocation',
+                    'Hauling & Waste Disposal Assistance',
+                    'Other manpower service',
+                    'Deep Cleaning & Disinfection Service',
+                    'Waste Management & Garbage Collection',
+                    'Restroom Sanitation & Supplies Check',
+                    'Other janitorial service'
                 ]
             },
 
@@ -269,7 +294,8 @@
 
             get availableConcerns() {
                 if (!this.selectedCategoryName) return [];
-                const matchKey = Object.keys(this.concernsMap).find(k => this.selectedCategoryName.toLowerCase().includes(k.toLowerCase()));
+                const catLower = this.selectedCategoryName.toLowerCase();
+                const matchKey = Object.keys(this.concernsMap).find(k => catLower.includes(k.toLowerCase()));
                 return matchKey ? this.concernsMap[matchKey] : [
                     'General Repair & Maintenance Request',
                     'Equipment Repair Request',
@@ -283,8 +309,27 @@
                 return this.locationsMap[this.selectedCampus] || ['General Campus Area', 'Other Location'];
             },
 
-            get isManpowerCategory() {
-                return (this.selectedCategoryName || '').toLowerCase().includes('manpower');
+            get isJanitorialAndManpowerCategory() {
+                const name = (this.selectedCategoryName || '').toLowerCase();
+                return name.includes('manpower') || name.includes('janitor');
+            },
+
+            get isManpowerConcern() {
+                if (!this.isJanitorialAndManpowerCategory) return false;
+                const c = (this.selectedConcern || '').toLowerCase();
+                return c.includes('event') || c.includes('relocation') || c.includes('hauling') || c === 'other manpower service';
+            },
+
+            get isJanitorialConcern() {
+                if (!this.isJanitorialAndManpowerCategory) return false;
+                const c = (this.selectedConcern || '').toLowerCase();
+                return c.includes('clean') || c.includes('waste management') || c.includes('restroom') || c.includes('sanitation') || c === 'other janitorial service';
+            },
+
+            get isOtherCustomService() {
+                return this.selectedConcern === 'Other manpower service' || 
+                       this.selectedConcern === 'Other janitorial service' || 
+                       (this.selectedConcern && this.selectedConcern.includes('Other') && !this.isEventConcern);
             },
 
             get isEventConcern() {
@@ -296,10 +341,10 @@
                 if (this.isEventConcern && this.activityTitle) {
                     return this.activityTitle;
                 }
-                if (this.selectedConcern && this.selectedConcern.includes('Other')) {
-                    return this.customConcern || this.selectedConcern;
+                if (this.isOtherCustomService && this.customConcern) {
+                    return this.customConcern;
                 }
-                return this.selectedConcern;
+                return this.selectedConcern || '';
             },
 
             get finalLocation() {
@@ -502,17 +547,18 @@
                                    name="activity_title" 
                                    placeholder="e.g. 56th Commencement Exercises, University Intramurals, General Assembly" 
                                    class="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white font-semibold focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0]"
+                                   :disabled="!isEventConcern"
                                    :required="isEventConcern">
                             <p class="text-[11px] text-blue-700 dark:text-blue-400 mt-1">Specify the exact event title to be reflected on the official Manpower Request Form.</p>
                         </div>
 
                         <!-- Custom Concern Input if 'Other' is selected and not an event -->
-                        <div x-show="selectedConcern && selectedConcern.includes('Other') && !isEventConcern" x-cloak class="mt-3">
+                        <div x-show="isOtherCustomService" x-cloak class="mt-3">
                             <input type="text" 
                                    x-model="customConcern" 
-                                   placeholder="Please specify your concern / title" 
+                                   :placeholder="selectedConcern === 'Other manpower service' ? 'Please specify your custom manpower service...' : (selectedConcern === 'Other janitorial service' ? 'Please specify your custom janitorial / cleaning service...' : 'Please specify your concern / title')" 
                                    class="w-full px-4 py-2.5 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0]"
-                                   :required="selectedConcern && selectedConcern.includes('Other') && !isEventConcern">
+                                   :required="isOtherCustomService">
                         </div>
 
                         <!-- Hidden Input submitting the final title -->
@@ -579,12 +625,12 @@
                     <!-- ============================================================== -->
                     <!-- CONDITIONAL SECTION: MANPOWER WORK DETAILS & SCHEDULE          -->
                     <!-- ============================================================== -->
-                    <div x-show="isManpowerCategory" x-cloak class="space-y-4 pt-2">
+                    <div x-show="isManpowerConcern" x-cloak class="space-y-4 pt-2">
                         <div class="p-4 bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/80 rounded-xl">
                             <div class="flex items-center gap-2">
                                 <span class="w-2.5 h-2.5 rounded-full bg-[#0033a0] dark:bg-blue-400"></span>
                                 <h3 class="text-xs font-bold tracking-wider text-[#0033a0] dark:text-blue-300 uppercase">
-                                    Work Details To Be Completed For The Event / Request
+                                    Manpower Work Details To Be Completed
                                 </h3>
                             </div>
                             <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Please provide preparation, event assistance, and clearing details with schedule timings.</p>
@@ -609,21 +655,24 @@
                                            class="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
                                 </div>
                             </div>
-                            <input type="hidden" name="prep_date" :value="prepDate">
+                            <input type="hidden" name="prep_date" :value="prepDate" :disabled="!isManpowerConcern">
                             <!-- Details -->
                             <textarea x-model="prepDetails" name="prep_details" rows="2"
                                       placeholder="Describe preparation tasks (e.g. Assist PDMO in ground preparation, stage setup, table & chair arrangement)..."
-                                      class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"></textarea>
+                                      class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"
+                                      :disabled="!isManpowerConcern"></textarea>
                             <!-- Time Row -->
                             <div class="flex flex-wrap items-center gap-4 pt-1 text-xs">
                                 <label class="inline-flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" x-model="prepRegular" name="prep_regular" value="1"
-                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]">
+                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
+                                           :disabled="!isManpowerConcern">
                                     <span class="font-bold text-gray-700 dark:text-gray-300">Regular time:</span>
                                 </label>
                                 <div class="flex items-center gap-2" x-show="prepRegular">
                                     <select x-model="prepTimePreset" @change="applyTimePreset('prep')"
-                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"
+                                            :disabled="!isManpowerConcern">
                                         <template x-for="p in timePresets" :key="p.value">
                                             <option :value="p.value" x-text="p.label"></option>
                                         </template>
@@ -631,18 +680,20 @@
                                     <input type="text" x-model="prepRegularTime"
                                            x-show="prepTimePreset === 'custom'"
                                            placeholder="e.g. 10:00 - 3:00"
-                                           class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium">
+                                           class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
+                                           :disabled="!isManpowerConcern">
                                     <span x-show="prepTimePreset !== 'custom'" class="text-gray-600 dark:text-gray-300 font-medium" x-text="prepRegularTime"></span>
-                                    <input type="hidden" name="prep_regular_time" :value="prepRegularTime">
+                                    <input type="hidden" name="prep_regular_time" :value="prepRegularTime" :disabled="!isManpowerConcern">
                                 </div>
                                 <label class="inline-flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" x-model="prepOvertime" name="prep_overtime" value="1"
-                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]">
+                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
+                                           :disabled="!isManpowerConcern">
                                     <span class="font-bold text-gray-700 dark:text-gray-300">Overtime:</span>
                                     <input type="text" x-model="prepOvertimeTime" name="prep_overtime_time"
                                            placeholder="e.g. 5:00 PM - 8:00 PM"
                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
-                                           :disabled="!prepOvertime">
+                                           :disabled="!isManpowerConcern || !prepOvertime">
                                 </label>
                             </div>
                         </div>
@@ -658,29 +709,34 @@
                                 <div>
                                     <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">From Date</label>
                                     <input type="date" x-model="assistanceDateFrom" @change="if(!assistanceDateTo) assistanceDateTo = assistanceDateFrom"
-                                           class="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                                           class="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"
+                                           :disabled="!isManpowerConcern">
                                 </div>
                                 <div>
                                     <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">To Date</label>
                                     <input type="date" x-model="assistanceDateTo" :min="assistanceDateFrom"
-                                           class="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                                           class="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"
+                                           :disabled="!isManpowerConcern">
                                 </div>
                             </div>
-                            <input type="hidden" name="assistance_date" :value="assistanceDate">
+                            <input type="hidden" name="assistance_date" :value="assistanceDate" :disabled="!isManpowerConcern">
                             <!-- Details -->
                             <textarea x-model="assistanceDetails" name="assistance_details" rows="2"
                                       placeholder="Describe event assistance (e.g. Maintain cleanliness, physical orderliness of venue, ushering assistance)..."
-                                      class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"></textarea>
+                                      class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"
+                                      :disabled="!isManpowerConcern"></textarea>
                             <!-- Time Row -->
                             <div class="flex flex-wrap items-center gap-4 pt-1 text-xs">
                                 <label class="inline-flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" x-model="assistanceRegular" name="assistance_regular" value="1"
-                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]">
+                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
+                                           :disabled="!isManpowerConcern">
                                     <span class="font-bold text-gray-700 dark:text-gray-300">Regular time:</span>
                                 </label>
                                 <div class="flex items-center gap-2" x-show="assistanceRegular">
                                     <select x-model="assistanceTimePreset" @change="applyTimePreset('assistance')"
-                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"
+                                            :disabled="!isManpowerConcern">
                                         <template x-for="p in timePresets" :key="p.value">
                                             <option :value="p.value" x-text="p.label"></option>
                                         </template>
@@ -688,18 +744,20 @@
                                     <input type="text" x-model="assistanceRegularTime"
                                            x-show="assistanceTimePreset === 'custom'"
                                            placeholder="e.g. 10:00 - 3:00"
-                                           class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium">
+                                           class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
+                                           :disabled="!isManpowerConcern">
                                     <span x-show="assistanceTimePreset !== 'custom'" class="text-gray-600 dark:text-gray-300 font-medium" x-text="assistanceRegularTime"></span>
-                                    <input type="hidden" name="assistance_regular_time" :value="assistanceRegularTime">
+                                    <input type="hidden" name="assistance_regular_time" :value="assistanceRegularTime" :disabled="!isManpowerConcern">
                                 </div>
                                 <label class="inline-flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" x-model="assistanceOvertime" name="assistance_overtime" value="1"
-                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]">
+                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
+                                           :disabled="!isManpowerConcern">
                                     <span class="font-bold text-gray-700 dark:text-gray-300">Overtime:</span>
                                     <input type="text" x-model="assistanceOvertimeTime" name="assistance_overtime_time"
                                            placeholder="e.g. 5:00 PM - 10:00 PM"
                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
-                                           :disabled="!assistanceOvertime">
+                                           :disabled="!isManpowerConcern || !assistanceOvertime">
                                 </label>
                             </div>
                         </div>
@@ -715,29 +773,34 @@
                                 <div>
                                     <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">From Date</label>
                                     <input type="date" x-model="clearingDateFrom" @change="if(!clearingDateTo) clearingDateTo = clearingDateFrom"
-                                           class="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                                           class="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"
+                                           :disabled="!isManpowerConcern">
                                 </div>
                                 <div>
                                     <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">To Date</label>
                                     <input type="date" x-model="clearingDateTo" :min="clearingDateFrom"
-                                           class="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                                           class="w-full px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"
+                                           :disabled="!isManpowerConcern">
                                 </div>
                             </div>
-                            <input type="hidden" name="clearing_date" :value="clearingDate">
+                            <input type="hidden" name="clearing_date" :value="clearingDate" :disabled="!isManpowerConcern">
                             <!-- Details -->
                             <textarea x-model="clearingDetails" name="clearing_details" rows="2"
                                       placeholder="Describe clearing tasks (e.g. Collect & stack chairs, dismantle booths, and haul/dispose wastes)..."
-                                      class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"></textarea>
+                                      class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"
+                                      :disabled="!isManpowerConcern"></textarea>
                             <!-- Time Row -->
                             <div class="flex flex-wrap items-center gap-4 pt-1 text-xs">
                                 <label class="inline-flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" x-model="clearingRegular" name="clearing_regular" value="1"
-                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]">
+                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
+                                           :disabled="!isManpowerConcern">
                                     <span class="font-bold text-gray-700 dark:text-gray-300">Regular time:</span>
                                 </label>
                                 <div class="flex items-center gap-2" x-show="clearingRegular">
                                     <select x-model="clearingTimePreset" @change="applyTimePreset('clearing')"
-                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"
+                                            :disabled="!isManpowerConcern">
                                         <template x-for="p in timePresets" :key="p.value">
                                             <option :value="p.value" x-text="p.label"></option>
                                         </template>
@@ -745,18 +808,20 @@
                                     <input type="text" x-model="clearingRegularTime"
                                            x-show="clearingTimePreset === 'custom'"
                                            placeholder="e.g. 10:00 - 3:00"
-                                           class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium">
+                                           class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
+                                           :disabled="!isManpowerConcern">
                                     <span x-show="clearingTimePreset !== 'custom'" class="text-gray-600 dark:text-gray-300 font-medium" x-text="clearingRegularTime"></span>
-                                    <input type="hidden" name="clearing_regular_time" :value="clearingRegularTime">
+                                    <input type="hidden" name="clearing_regular_time" :value="clearingRegularTime" :disabled="!isManpowerConcern">
                                 </div>
                                 <label class="inline-flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" x-model="clearingOvertime" name="clearing_overtime" value="1"
-                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]">
+                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
+                                           :disabled="!isManpowerConcern">
                                     <span class="font-bold text-gray-700 dark:text-gray-300">Overtime:</span>
                                     <input type="text" x-model="clearingOvertimeTime" name="clearing_overtime_time"
                                            placeholder="e.g. 5:00 PM - 8:00 PM"
                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
-                                           :disabled="!clearingOvertime">
+                                           :disabled="!isManpowerConcern || !clearingOvertime">
                                 </label>
                             </div>
                         </div>
@@ -768,14 +833,30 @@
                             </label>
                             <textarea x-model="additionalNotes" name="additional_notes" rows="2"
                                       placeholder="e.g. 100 Monoblock chairs needed, ensure all materials are prepared before the event date..."
-                                      class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"></textarea>
+                                      class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"
+                                      :disabled="!isManpowerConcern"></textarea>
                         </div>
                     </div>
 
                     <!-- ============================================================== -->
-                    <!-- STANDARD DESCRIPTION (FOR ALL NON-MANPOWER CATEGORIES)        -->
+                    <!-- CONDITIONAL SECTION: JANITORIAL BANNER                         -->
                     <!-- ============================================================== -->
-                    <div x-show="!isManpowerCategory" x-cloak>
+                    <div x-show="isJanitorialConcern" x-cloak class="pt-2">
+                        <div class="p-4 bg-teal-50/80 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/80 rounded-xl">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-teal-600 dark:bg-teal-400"></span>
+                                <h3 class="text-xs font-bold tracking-wider text-teal-800 dark:text-teal-300 uppercase">
+                                    Janitorial
+                                </h3>
+                            </div>
+                            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Specify facilities, areas, and sanitation supplies required for this housekeeping request.</p>
+                        </div>
+                    </div>
+
+                    <!-- ============================================================== -->
+                    <!-- DESCRIPTION / SPECIFIC WORK REQUIREMENTS                       -->
+                    <!-- ============================================================== -->
+                    <div x-show="!isManpowerConcern" x-cloak>
                         <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
                             Description / Specific Work Requirements <span class="text-red-500">*</span>
                         </label>
@@ -791,7 +872,7 @@
                                 <button type="button" class="hover:text-gray-700 dark:hover:text-gray-200 px-1">☰</button>
                                 <button type="button" class="hover:text-gray-700 dark:hover:text-gray-200 px-1">❝</button>
                             </div>
-                            <textarea name="description" rows="5" placeholder="Provide complete specifications regarding the problem, symptoms, or requested maintenance work..." class="w-full p-4 bg-white dark:bg-zinc-900 text-sm text-gray-900 dark:text-white focus:outline-none border-none resize-y" :required="!isManpowerCategory"></textarea>
+                            <textarea name="description" rows="5" placeholder="Provide complete specifications regarding the problem, symptoms, or requested maintenance work..." class="w-full p-4 bg-white dark:bg-zinc-900 text-sm text-gray-900 dark:text-white focus:outline-none border-none resize-y" :disabled="isManpowerConcern" :required="!isManpowerConcern"></textarea>
                         </div>
                     </div>
 

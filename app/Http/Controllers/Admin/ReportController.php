@@ -110,6 +110,7 @@ class ReportController extends Controller
                         'category_id'            => $req->category_id,
                         'category_name'          => $req->category->category_name ?? 'General Maintenance',
                         'prefix'                 => $prefix,
+                        'section_name'           => $this->classifySection($req),
                         'category_order'         => $categoryOrder,
                         'title'                  => $taskTitle,
                         'description'            => $taskDesc,
@@ -119,6 +120,7 @@ class ReportController extends Controller
                         'started_date'           => $startedDate,
                         'completion_date'        => $completionDate,
                         'rating'                 => $ratingVal,
+                        'function_ratings'       => $req->evaluation ? $req->evaluation->function_ratings : null,
                         'current_status'         => 'Completed',
                     ];
                 })
@@ -128,7 +130,6 @@ class ReportController extends Controller
                     return $a['request_id'] <=> $b['request_id'];
                 })
                 ->values();
-        });
 
         // Recent report audit log (not cached — must be live)
         $recentReports = UserLog::with('user')
@@ -149,16 +150,21 @@ class ReportController extends Controller
             });
         });
 
+        [$defaultStart, $defaultEnd, $defaultYear, $defaultPeriodText] = $this->resolveDateRange(request());
+        $summarySections = $this->getSectionData($defaultStart, $defaultEnd);
+
         return view('admin.reports.index', compact(
             'totalRequests', 'totalProjects', 'avgRating',
             'availableWorkers', 'requestsByPriority', 'requestsByCategory',
-            'categories', 'workers', 'previewRequests', 'recentReports', 'teamLeaders'
+            'categories', 'workers', 'previewRequests', 'recentReports', 'teamLeaders',
+            'summarySections'
         ));
     }
 
     public function export(Request $request)
     {
         $request->validate([
+            'report_type' => 'nullable|string',
             'category_id' => 'nullable|exists:category,category_id',
             'start_date'  => 'nullable|date',
             'end_date'    => 'nullable|date|after_or_equal:start_date',
@@ -166,26 +172,11 @@ class ReportController extends Controller
             'report_year' => 'nullable|integer'
         ]);
 
-        $year = $request->filled('report_year') ? (int)$request->report_year : now()->year;
-        $period = $request->input('period', 'sem1');
-
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $startDate = Carbon::parse($request->start_date);
-            $endDate   = Carbon::parse($request->end_date);
-            $year      = $startDate->year;
-        } elseif ($period === 'sem1') {
-            $startDate = Carbon::createFromDate($year, 1, 1)->startOfDay();
-            $endDate   = Carbon::createFromDate($year, 6, 30)->endOfDay();
-        } elseif ($period === 'sem2') {
-            $startDate = Carbon::createFromDate($year, 7, 1)->startOfDay();
-            $endDate   = Carbon::createFromDate($year, 12, 31)->endOfDay();
-        } elseif ($period === 'year') {
-            $startDate = Carbon::createFromDate($year, 1, 1)->startOfDay();
-            $endDate   = Carbon::createFromDate($year, 12, 31)->endOfDay();
-        } else {
-            $startDate = now()->month <= 6 ? Carbon::createFromDate($year, 1, 1)->startOfDay() : Carbon::createFromDate($year, 7, 1)->startOfDay();
-            $endDate   = now()->month <= 6 ? Carbon::createFromDate($year, 6, 30)->endOfDay() : Carbon::createFromDate($year, 12, 31)->endOfDay();
+        if ($request->input('report_type') === 'Summary of Accomplishment & Clientele Satisfaction Survey') {
+            return $this->exportSummarySurvey($request);
         }
+
+        [$startDate, $endDate, $year, $periodText, $monthRange] = $this->resolveDateRange($request);
 
         $categoryId = $request->input('category_id');
         $category   = $categoryId ? Category::find($categoryId) : null;
@@ -501,5 +492,449 @@ class ReportController extends Controller
         return response()->download($tempFile, $fileName, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ])->deleteFileAfterSend(true);
+    }
+
+    public function printSummary(Request $request)
+    {
+        $request->validate([
+            'category_id' => 'nullable|exists:category,category_id',
+            'start_date'  => 'nullable|date',
+            'end_date'    => 'nullable|date|after_or_equal:start_date',
+            'period'      => 'nullable|string',
+            'report_year' => 'nullable|integer'
+        ]);
+
+        [$startDate, $endDate, $year, $periodText, $monthRange] = $this->resolveDateRange($request);
+        $categoryId = $request->input('category_id');
+
+        $sections = $this->getSectionData($startDate, $endDate, $categoryId);
+        $sectionsWithSurvey = array_filter($sections, fn($s) => !empty($s['raters']));
+        if (empty($sectionsWithSurvey)) {
+            $sectionsWithSurvey = $sections;
+        }
+
+        return view('admin.reports.print-summary', compact(
+            'sections',
+            'sectionsWithSurvey',
+            'periodText',
+            'year'
+        ));
+    }
+
+    public function exportSummarySurvey(Request $request)
+    {
+        [$startDate, $endDate, $year, $periodText, $monthRange] = $this->resolveDateRange($request);
+        $categoryId = $request->input('category_id');
+        $category   = $categoryId ? Category::find($categoryId) : null;
+        $categoryName = $category ? $category->category_name : 'ALL SERVICE UNITS';
+
+        $sections = $this->getSectionData($startDate, $endDate, $categoryId);
+        $sectionsWithSurvey = array_filter($sections, fn($s) => !empty($s['raters']));
+        if (empty($sectionsWithSurvey)) {
+            $sectionsWithSurvey = $sections;
+        }
+
+        // Audit Log
+        UserLog::create([
+            'user_id' => auth()->id(),
+            'action' => "admin generated Summary & Satisfaction Survey Report from {$startDate->format('M d, Y')} to {$endDate->format('M d, Y')} for {$categoryName}",
+            'ip_address' => request()->ip(),
+            'created_at' => now()
+        ]);
+
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
+
+        // ==========================================
+        // SHEET 1: Summary Report (Photo 1)
+        // ==========================================
+        $sheet1 = $spreadsheet->getActiveSheet();
+        $sheet1->setTitle('Summary Report');
+
+        $sheet1->mergeCells('A2:B2');
+        $sheet1->setCellValue('A2', 'SUMMARY OF ACCOMPLISHMENT REPORT AND CLIENTELE SATISFACTION SURVEY');
+        $sheet1->getStyle('A2')->getFont()->setBold(true)->setSize(12)->setName('Times New Roman');
+        $sheet1->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet1->mergeCells('A3:B3');
+        $sheet1->setCellValue('A3', strtoupper($periodText));
+        $sheet1->getStyle('A3')->getFont()->setBold(true)->setSize(11)->setName('Times New Roman');
+        $sheet1->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $row = 5;
+        $thinBorder = [
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                ],
+            ],
+        ];
+
+        foreach ($sections as $sec) {
+            $sheet1->mergeCells("A{$row}:B{$row}");
+            $sheet1->setCellValue("A{$row}", 'Maintenance Section: ' . $sec['name']);
+            $sheet1->getStyle("A{$row}")->getFont()->setBold(true)->setSize(10);
+            $sheet1->getStyle("A{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF0F0F0');
+
+            $row1 = $row + 1;
+            $sheet1->setCellValue("A{$row1}", 'Total Number of Request Received:');
+            $sheet1->setCellValue("B{$row1}", $sec['total_requests']);
+            $sheet1->getStyle("B{$row1}")->getFont()->setBold(true);
+            $sheet1->getStyle("B{$row1}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $row2 = $row + 2;
+            $sheet1->setCellValue("A{$row2}", 'Clientele Satisfaction Survey Result:');
+            $csVal = $sec['cs_result'] > 0 ? number_format($sec['cs_result'], 2) : '0';
+            $sheet1->setCellValue("B{$row2}", $csVal);
+            $sheet1->getStyle("B{$row2}")->getFont()->setBold(true);
+            $sheet1->getStyle("B{$row2}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $sheet1->getStyle("A{$row}:B{$row2}")->applyFromArray($thinBorder);
+            $row += 4;
+        }
+
+        $sigRow = $row + 1;
+        $sheet1->setCellValue("A{$sigRow}", "Prepared by:");
+        $sheet1->setCellValue("B{$sigRow}", "Certified Correct:");
+
+        $nameRow = $sigRow + 3;
+        $sheet1->setCellValue("A{$nameRow}", "REY A. PADILLA");
+        $sheet1->setCellValue("B{$nameRow}", "MA. MYRA A. CAPARAS");
+        $sheet1->getStyle("A{$nameRow}:B{$nameRow}")->getFont()->setBold(true)->setUnderline(true);
+
+        $titleRow1 = $nameRow + 1;
+        $sheet1->setCellValue("A{$titleRow1}", "Administrative Officer II");
+        $sheet1->setCellValue("B{$titleRow1}", "Acting Chief Administrative Officer");
+
+        $titleRow2 = $nameRow + 2;
+        $sheet1->setCellValue("A{$titleRow2}", "Head, General Services Office");
+        $sheet1->setCellValue("B{$titleRow2}", "For Administrative Services Division");
+
+        $sheet1->getColumnDimension('A')->setWidth(48);
+        $sheet1->getColumnDimension('B')->setWidth(25);
+        $sheet1->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4);
+        $sheet1->getPageSetup()->setOrientation(PageSetup::ORIENTATION_PORTRAIT);
+        $sheet1->getPageSetup()->setFitToWidth(1);
+        $sheet1->getPageSetup()->setFitToHeight(0);
+
+        // ==========================================
+        // SHEET 2: Satisfaction Survey (Photo 2)
+        // ==========================================
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Satisfaction Survey');
+
+        $s2Row = 2;
+        foreach ($sectionsWithSurvey as $sec) {
+            $sheet2->mergeCells("A{$s2Row}:F{$s2Row}");
+            $sheet2->setCellValue("A{$s2Row}", "CLIENTELE SATISFACTION SURVEY");
+            $sheet2->getStyle("A{$s2Row}")->getFont()->setBold(true)->setSize(12)->setName('Times New Roman');
+            $sheet2->getStyle("A{$s2Row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $s2Row++;
+            $sheet2->mergeCells("A{$s2Row}:F{$s2Row}");
+            $sheet2->setCellValue("A{$s2Row}", "Maintenance Section: " . $sec['name']);
+            $sheet2->getStyle("A{$s2Row}")->getFont()->setBold(true)->setSize(11);
+            $sheet2->getStyle("A{$s2Row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $s2Row++;
+            $sheet2->mergeCells("A{$s2Row}:F{$s2Row}");
+            $sheet2->setCellValue("A{$s2Row}", strtoupper($periodText));
+            $sheet2->getStyle("A{$s2Row}")->getFont()->setBold(true)->setSize(10);
+            $sheet2->getStyle("A{$s2Row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $s2Row += 2;
+            $tableStart = $s2Row;
+            $h1 = $s2Row;
+            $h2 = $s2Row + 1;
+            $sheet2->mergeCells("A{$h1}:A{$h2}");
+            $sheet2->setCellValue("A{$h1}", "Number of\nRater");
+
+            $sheet2->mergeCells("B{$h1}:F{$h1}");
+            $sheet2->setCellValue("B{$h1}", "Functions");
+
+            $sheet2->setCellValue("B{$h2}", "Quality of\nService");
+            $sheet2->setCellValue("C{$h2}", "Attitude");
+            $sheet2->setCellValue("D{$h2}", "Safety\nPrecautions\nAwareness");
+            $sheet2->setCellValue("E{$h2}", "Time\nBounded");
+            $sheet2->setCellValue("F{$h2}", "Workplace\nHousekeeping");
+
+            $sheet2->getStyle("A{$h1}:F{$h2}")->getFont()->setBold(true)->setSize(9.5);
+            $sheet2->getStyle("A{$h1}:F{$h2}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet2->getStyle("A{$h1}:F{$h2}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet2->getStyle("A{$h1}:F{$h2}")->getAlignment()->setWrapText(true);
+
+            $s2Row += 2;
+            if (empty($sec['raters'])) {
+                $sheet2->mergeCells("A{$s2Row}:F{$s2Row}");
+                $sheet2->setCellValue("A{$s2Row}", "No survey responses recorded for this section.");
+                $sheet2->getStyle("A{$s2Row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet2->getStyle("A{$s2Row}")->getFont()->setItalic(true);
+                $sheet2->getStyle("A{$tableStart}:F{$s2Row}")->applyFromArray($thinBorder);
+                $s2Row += 3;
+            } else {
+                foreach ($sec['raters'] as $r) {
+                    $sheet2->setCellValue("A{$s2Row}", $r['rater_no']);
+                    $sheet2->setCellValue("B{$s2Row}", $r['quality']);
+                    $sheet2->setCellValue("C{$s2Row}", $r['attitude']);
+                    $sheet2->setCellValue("D{$s2Row}", $r['safety']);
+                    $sheet2->setCellValue("E{$s2Row}", $r['time']);
+                    $sheet2->setCellValue("F{$s2Row}", $r['housekeeping']);
+                    $sheet2->getStyle("A{$s2Row}:F{$s2Row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet2->getStyle("A{$s2Row}")->getFont()->setBold(true);
+                    $s2Row++;
+                }
+                $sheet2->getStyle("A{$tableStart}:F" . ($s2Row - 1))->applyFromArray($thinBorder);
+
+                // Counts
+                $s2Row += 1;
+                foreach ([5, 4] as $score) {
+                    $sheet2->setCellValue("A{$s2Row}", $score);
+                    $sheet2->setCellValue("B{$s2Row}", $sec['counts'][$score]['quality'] ?? 0);
+                    $sheet2->setCellValue("C{$s2Row}", $sec['counts'][$score]['attitude'] ?? 0);
+                    $sheet2->setCellValue("D{$s2Row}", $sec['counts'][$score]['safety'] ?? 0);
+                    $sheet2->setCellValue("E{$s2Row}", $sec['counts'][$score]['time'] ?? 0);
+                    $sheet2->setCellValue("F{$s2Row}", $sec['counts'][$score]['housekeeping'] ?? 0);
+                    $sheet2->getStyle("A{$s2Row}:F{$s2Row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet2->getStyle("A{$s2Row}")->getFont()->setBold(true);
+                    $s2Row++;
+                }
+
+                // Points
+                $s2Row += 1;
+                foreach ([5, 4] as $score) {
+                    $sheet2->setCellValue("A{$s2Row}", $score);
+                    $sheet2->setCellValue("B{$s2Row}", $sec['points'][$score]['quality'] ?? 0);
+                    $sheet2->setCellValue("C{$s2Row}", $sec['points'][$score]['attitude'] ?? 0);
+                    $sheet2->setCellValue("D{$s2Row}", $sec['points'][$score]['safety'] ?? 0);
+                    $sheet2->setCellValue("E{$s2Row}", $sec['points'][$score]['time'] ?? 0);
+                    $sheet2->setCellValue("F{$s2Row}", $sec['points'][$score]['housekeeping'] ?? 0);
+                    $sheet2->getStyle("A{$s2Row}:F{$s2Row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet2->getStyle("A{$s2Row}")->getFont()->setBold(true);
+                    $s2Row++;
+                }
+
+                // Means
+                $s2Row += 1;
+                $sheet2->setCellValue("B{$s2Row}", number_format($sec['means']['quality'] ?? 0, 2));
+                $sheet2->setCellValue("C{$s2Row}", number_format($sec['means']['attitude'] ?? 0, 2));
+                $sheet2->setCellValue("D{$s2Row}", number_format($sec['means']['safety'] ?? 0, 2));
+                $sheet2->setCellValue("E{$s2Row}", number_format($sec['means']['time'] ?? 0, 2));
+                $sheet2->setCellValue("F{$s2Row}", number_format($sec['means']['housekeeping'] ?? 0, 2));
+                $sheet2->getStyle("B{$s2Row}:F{$s2Row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet2->getStyle("B{$s2Row}:F{$s2Row}")->getFont()->setBold(true);
+
+                // Overall Box
+                $s2Row += 2;
+                $sheet2->mergeCells("D{$s2Row}:E{$s2Row}");
+                $sheet2->setCellValue("D{$s2Row}", $sec['name']);
+                $sheet2->setCellValue("F{$s2Row}", number_format($sec['overall_mean'] ?? 0, 2));
+                $sheet2->getStyle("D{$s2Row}:F{$s2Row}")->getFont()->setBold(true);
+                $sheet2->getStyle("D{$s2Row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet2->getStyle("F{$s2Row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet2->getStyle("D{$s2Row}:F{$s2Row}")->applyFromArray($thinBorder);
+
+                $s2Row += 2;
+                $sheet2->setBreak("A{$s2Row}", \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::BREAK_ROW);
+                $s2Row++;
+            }
+        }
+
+        $sheet2->getColumnDimension('A')->setWidth(16);
+        $sheet2->getColumnDimension('B')->setWidth(16);
+        $sheet2->getColumnDimension('C')->setWidth(16);
+        $sheet2->getColumnDimension('D')->setWidth(18);
+        $sheet2->getColumnDimension('E')->setWidth(16);
+        $sheet2->getColumnDimension('F')->setWidth(18);
+        $sheet2->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4);
+        $sheet2->getPageSetup()->setOrientation(PageSetup::ORIENTATION_PORTRAIT);
+        $sheet2->getPageSetup()->setFitToWidth(1);
+        $sheet2->getPageSetup()->setFitToHeight(0);
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        $cleanPeriod = str_replace(' ', '_', $periodText);
+        $fileName = "Summary_Accomplishment_and_CS_Survey_{$cleanPeriod}.xlsx";
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'linkod_summary_') . '.xlsx';
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    public function getSectionData(Carbon $startDate, Carbon $endDate, ?int $categoryId = null): array
+    {
+        $definedSections = [
+            'PLUMBING SERVICES' => 1,
+            'ELECTRICAL SERVICES' => 2,
+            'CARPENTRY/MASONRY SERVICES' => 3,
+            'LANDSCAPING SERVICES' => 4,
+            'JANITORIAL SERVICES' => 5,
+            'PAINTING SERVICES' => 6,
+            'MANPOWER SERVICES FOR SPECIAL EVENTS' => 7,
+        ];
+
+        $query = ServiceRequest::with(['category', 'evaluation', 'latestHistory', 'project.latestHistory'])
+            ->where(function($q) {
+                $q->whereHas('latestHistory', function($lh) {
+                    $lh->where('current_status', 'Completed');
+                })->orWhereHas('project.latestHistory', function($plh) {
+                    $plh->where('current_status', 'Completed');
+                });
+            })
+            ->whereBetween('submitted_at', [$startDate, $endDate]);
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        $requests = $query->get();
+
+        $sectionsData = [];
+        foreach ($definedSections as $secName => $order) {
+            if ($categoryId) {
+                $secReqs = $requests->filter(fn($r) => $this->classifySection($r) === $secName);
+                $belongsToCategory = match($categoryId) {
+                    1 => in_array($secName, ['ELECTRICAL SERVICES', 'CARPENTRY/MASONRY SERVICES']),
+                    2 => $secName === 'PLUMBING SERVICES',
+                    3 => $secName === 'PAINTING SERVICES',
+                    4 => in_array($secName, ['JANITORIAL SERVICES', 'MANPOWER SERVICES FOR SPECIAL EVENTS']),
+                    6 => $secName === 'LANDSCAPING SERVICES',
+                    default => false,
+                };
+                if (!$belongsToCategory && $secReqs->isEmpty()) {
+                    continue;
+                }
+            } else {
+                $secReqs = $requests->filter(fn($r) => $this->classifySection($r) === $secName);
+            }
+
+            $evaluations = $secReqs->pluck('evaluation')->filter();
+
+            $raters = [];
+            $rNum = 1;
+            $counts = [
+                5 => ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0],
+                4 => ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0],
+                3 => ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0],
+                2 => ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0],
+                1 => ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0],
+            ];
+            $points = [
+                5 => ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0],
+                4 => ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0],
+                3 => ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0],
+                2 => ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0],
+                1 => ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0],
+            ];
+            $totals = ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0];
+
+            foreach ($evaluations as $ev) {
+                $fr = $ev->function_ratings;
+                $raters[] = array_merge(['rater_no' => $rNum++], $fr);
+                foreach (['quality', 'attitude', 'safety', 'time', 'housekeeping'] as $f) {
+                    $score = (int)($fr[$f] ?? 5);
+                    if ($score < 1) $score = 1;
+                    if ($score > 5) $score = 5;
+                    $counts[$score][$f]++;
+                    $points[$score][$f] += $score;
+                    $totals[$f] += $score;
+                }
+            }
+
+            $rCount = count($raters);
+            $means = ['quality' => 0, 'attitude' => 0, 'safety' => 0, 'time' => 0, 'housekeeping' => 0];
+            $overallMean = 0;
+
+            if ($rCount > 0) {
+                foreach (['quality', 'attitude', 'safety', 'time', 'housekeeping'] as $f) {
+                    $means[$f] = round($totals[$f] / $rCount, 2);
+                }
+                $overallMean = round(array_sum($means) / 5, 2);
+            }
+
+            $sectionsData[$secName] = [
+                'name'           => $secName,
+                'order'          => $order,
+                'total_requests' => $secReqs->count(),
+                'cs_result'      => $overallMean,
+                'raters'         => $raters,
+                'counts'         => $counts,
+                'points'         => $points,
+                'means'          => $means,
+                'overall_mean'   => $overallMean,
+            ];
+        }
+
+        return $sectionsData;
+    }
+
+    public function classifySection($req): string
+    {
+        $catName = strtolower($req->category->category_name ?? '');
+        $title = strtolower($req->title ?? '');
+
+        if (str_contains($catName, 'plumbing')) {
+            return 'PLUMBING SERVICES';
+        }
+        if (str_contains($catName, 'landscaping')) {
+            return 'LANDSCAPING SERVICES';
+        }
+        if (str_contains($catName, 'painting') || str_contains($catName, 'paint')) {
+            return 'PAINTING SERVICES';
+        }
+        if (str_contains($catName, 'janitorial') || str_contains($catName, 'manpower') || str_contains($catName, 'event')) {
+            return (!empty($req->is_manpower) || str_contains($title, 'event') || str_contains($catName, 'manpower') || str_contains($catName, 'event'))
+                ? 'MANPOWER SERVICES FOR SPECIAL EVENTS' 
+                : 'JANITORIAL SERVICES';
+        }
+
+        $isElectrical = str_contains($title, 'electric') || str_contains($title, 'light') || str_contains($title, 'aircon') 
+            || str_contains($title, 'wire') || str_contains($title, 'breaker') || str_contains($title, 'fan') 
+            || str_contains($title, 'outlet') || str_contains($title, 'switch') || str_contains($title, 'power')
+            || str_contains($catName, 'electric');
+
+        return $isElectrical ? 'ELECTRICAL SERVICES' : 'CARPENTRY/MASONRY SERVICES';
+    }
+
+    public function resolveDateRange(?Request $request = null): array
+    {
+        $req = $request ?? request();
+        $year = $req->filled('report_year') ? (int)$req->report_year : now()->year;
+        $period = $req->input('period', 'sem1');
+
+        if ($req->filled('start_date') && $req->filled('end_date')) {
+            $startDate = Carbon::parse($req->start_date)->startOfDay();
+            $endDate   = Carbon::parse($req->end_date)->endOfDay();
+            $year      = $startDate->year;
+            $startMonthStr = strtoupper($startDate->format('F'));
+            $endMonthStr   = strtoupper($endDate->format('F'));
+            $monthRange = ($startMonthStr === $endMonthStr) ? $startMonthStr : "{$startMonthStr} TO {$endMonthStr}";
+            $periodText = ($startMonthStr === $endMonthStr) ? "{$startMonthStr} {$year}" : "{$startMonthStr} TO {$endMonthStr} {$year}";
+        } elseif ($period === 'sem1') {
+            $startDate = Carbon::createFromDate($year, 1, 1)->startOfDay();
+            $endDate   = Carbon::createFromDate($year, 6, 30)->endOfDay();
+            $monthRange = 'JANUARY TO JUNE';
+            $periodText = "JANUARY TO JUNE {$year}";
+        } elseif ($period === 'sem2') {
+            $startDate = Carbon::createFromDate($year, 7, 1)->startOfDay();
+            $endDate   = Carbon::createFromDate($year, 12, 31)->endOfDay();
+            $monthRange = 'JULY TO DECEMBER';
+            $periodText = "JULY TO DECEMBER {$year}";
+        } elseif ($period === 'year') {
+            $startDate = Carbon::createFromDate($year, 1, 1)->startOfDay();
+            $endDate   = Carbon::createFromDate($year, 12, 31)->endOfDay();
+            $monthRange = 'JANUARY TO DECEMBER';
+            $periodText = "JANUARY TO DECEMBER {$year}";
+        } else {
+            $startDate = now()->month <= 6 ? Carbon::createFromDate($year, 1, 1)->startOfDay() : Carbon::createFromDate($year, 7, 1)->startOfDay();
+            $endDate   = now()->month <= 6 ? Carbon::createFromDate($year, 6, 30)->endOfDay() : Carbon::createFromDate($year, 12, 31)->endOfDay();
+            $monthRange = now()->month <= 6 ? 'JANUARY TO JUNE' : 'JULY TO DECEMBER';
+            $periodText = now()->month <= 6 ? "JANUARY TO JUNE {$year}" : "JULY TO DECEMBER {$year}";
+        }
+
+        return [$startDate, $endDate, $year, $periodText, $monthRange];
     }
 }

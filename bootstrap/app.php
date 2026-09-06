@@ -30,6 +30,17 @@ return Application::configure(basePath: dirname(__DIR__))
             }
             return route('login');
         });
+
+        $middleware->redirectUsersTo(function (Request $request) {
+            $user = $request->user();
+            if ($user?->isAdmin()) {
+                return route('admin.dashboard');
+            }
+            if ($user?->isWorker()) {
+                return route('worker.dashboard');
+            }
+            return route('client.dashboard');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

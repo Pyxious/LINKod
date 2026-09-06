@@ -374,31 +374,31 @@
         <nav class="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto" @click="if (window.innerWidth < 768) sidebarOpen = false">
             <a href="{{ route('admin.dashboard') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('admin.dashboard') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <img src="{{ asset('images/DASHBOARD LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Dashboard">
+                <img src="{{ asset('images/DASHBOARD LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:brightness-0 dark:invert" alt="Dashboard">
                 Dashboard
             </a>
 
             <a href="{{ route('admin.users.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('admin.users.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <img src="{{ asset('images/USERS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Users">
+                <img src="{{ asset('images/USERS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:brightness-0 dark:invert" alt="Users">
                 Users
             </a>
 
             <a href="{{ route('admin.workforce.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('admin.workforce.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <img src="{{ asset('images/UNITS Logo.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Units">
+                <img src="{{ asset('images/UNITS Logo.png') }}" class="w-5 h-5 shrink-0 object-contain dark:brightness-0 dark:invert" alt="Units">
                 Units
             </a>
 
             <a href="{{ route('admin.requests.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('admin.requests.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <img src="{{ asset('images/REQUESTS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Requests">
+                <img src="{{ asset('images/REQUESTS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:brightness-0 dark:invert" alt="Requests">
                 Requests
             </a>
 
             <a href="{{ route('admin.messages.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('admin.messages.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <img src="{{ asset('images/MESSAGES LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Messages">
+                <img src="{{ asset('images/MESSAGES LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:brightness-0 dark:invert" alt="Messages">
                 <span>Messages</span>
                 <span data-messages-badge class="ml-auto bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs {{ $adminUnreadMessagesCount > 0 ? '' : 'hidden' }}">
                     {{ $adminUnreadMessagesCount > 99 ? '99+' : $adminUnreadMessagesCount }}
@@ -407,13 +407,13 @@
 
             <a href="{{ route('admin.reports.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('admin.reports.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <img src="{{ asset('images/REPORTS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Reports">
+                <img src="{{ asset('images/REPORTS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:brightness-0 dark:invert" alt="Reports">
                 Reports
             </a>
 
             <a href="{{ route('admin.audit.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('admin.audit.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <svg class="w-5 h-5 shrink-0 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg class="w-5 h-5 shrink-0 text-gray-500 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
                 Audit Logs

@@ -72,5 +72,25 @@ class Worker extends Model
         $this->update(['is_available' => $isAvailable]);
         return $isAvailable;
     }
+
+    public function isTeamLeader(): bool
+    {
+        if ($this->staff?->role === 'Team Leader') {
+            return true;
+        }
+
+        if ($this->staff && \App\Models\TeamLeader::where('staff_id', $this->staff_id)->exists()) {
+            return true;
+        }
+
+        if ($this->team_id && $this->team && $this->staff) {
+            $tl = \App\Models\TeamLeader::find($this->team->team_leader);
+            if ($tl && $tl->staff_id === $this->staff_id) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 

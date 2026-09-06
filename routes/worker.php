@@ -17,6 +17,7 @@ Route::middleware(['auth', '2fa', 'role:worker'])->prefix('worker')->name('worke
     Route::post('/job-orders/{id}/messages/mark-read', [\App\Http\Controllers\RequestMessageController::class, 'markAsRead'])->name('job-orders.messages.mark-read');
 
     Route::post('/job-orders/{id}/bom',   [\App\Http\Controllers\Worker\BomController::class, 'store'])->name('bom.store')->middleware('throttle:10,1');
+    Route::post('/job-orders/{id}/bom/team-leader-approve', [\App\Http\Controllers\Worker\BomController::class, 'teamLeaderApprove'])->name('bom.team-leader-approve')->middleware('throttle:10,1');
 
     Route::put('/job-orders/{id}/progress', [TaskProgressController::class, 'update'])->name('task-progress.update')->middleware('throttle:10,1');
     Route::post('/job-orders/{id}/sync-progress', [TaskProgressController::class, 'syncProgress'])->name('task-progress.sync');

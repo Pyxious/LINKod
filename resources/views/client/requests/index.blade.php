@@ -132,9 +132,20 @@
                         <div class="flex flex-col gap-1 flex-1 min-w-0">
                             <!-- Top Line: Code & Status Pill -->
                             <div class="flex items-center justify-between gap-2 flex-wrap mb-1">
-                                <span class="bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 font-mono font-extrabold px-2.5 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 text-[11px] sm:text-xs">
-                                    {{ $prefix }}-{{ str_pad($r->request_id, 3, '0', STR_PAD_LEFT) }}
-                                </span>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 font-mono font-extrabold px-2.5 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 text-[11px] sm:text-xs">
+                                        {{ $prefix }}-{{ str_pad($r->request_id, 3, '0', STR_PAD_LEFT) }}
+                                    </span>
+                                    @if($r->scheduled_date && $r->is_routine)
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300">
+                                            <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                            Visit: {{ \Carbon\Carbon::parse($r->scheduled_date)->format('M d') }} ({{ $r->scheduled_time_window ?? 'Whole Day' }})
+                                            @if($r->schedule_status === 'pending_client')
+                                                <span class="text-amber-600 font-extrabold animate-pulse">Action Required</span>
+                                            @endif
+                                        </span>
+                                    @endif
+                                </div>
 
                                 <span class="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#0038A8] dark:text-blue-400">
                                     <span>{{ $displayStatus }}</span>

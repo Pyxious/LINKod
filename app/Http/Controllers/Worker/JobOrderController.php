@@ -36,7 +36,13 @@ class JobOrderController extends Controller
             $status = $project->current_status;
             $prio   = ucfirst(strtolower($req?->priority ?? 'Low'));
 
+            // Do not display on worker's job order until client approves the scheduled date
+            if (!$req || !$req->isScheduleApproved()) {
+                return false;
+            }
+
             // 1. Status Filtering (Default = active tasks only, excluding Completed)
+
             if (empty($statusFilter) || $statusFilter === 'active') {
                 if ($status === 'Completed') {
                     return false;
@@ -53,8 +59,14 @@ class JobOrderController extends Controller
 
             // 2. Priority Filtering
             if (!empty($priorityFilter) && strtolower($priorityFilter) !== 'all') {
-                if (strtolower($prio) !== strtolower($priorityFilter)) {
-                    return false;
+                $target = strtolower($priorityFilter);
+                $prioLower = strtolower($req?->priority ?? 'routine');
+                if ($target === 'urgent' || $target === 'high') {
+                    if (!in_array($prioLower, ['urgent', 'high'])) return false;
+                } elseif ($target === 'routine' || $target === 'medium' || $target === 'low') {
+                    if (!in_array($prioLower, ['routine', 'medium', 'low'])) return false;
+                } else {
+                    if ($prioLower !== $target) return false;
                 }
             }
 
@@ -109,12 +121,12 @@ class JobOrderController extends Controller
                 return $direction === 'desc' ? strcasecmp($statusB, $statusA) : strcasecmp($statusA, $statusB);
             }
 
-            // Priority sorting (Default: High Priority first)
-            $prioA = strtolower($reqA?->priority ?? 'low');
-            $prioB = strtolower($reqB?->priority ?? 'low');
+            // Priority sorting (Default: Urgent / High Priority first)
+            $prioA = strtolower($reqA?->priority ?? 'routine');
+            $prioB = strtolower($reqB?->priority ?? 'routine');
 
-            $isHighA = ($prioA === 'high');
-            $isHighB = ($prioB === 'high');
+            $isHighA = in_array($prioA, ['high', 'urgent']);
+            $isHighB = in_array($prioB, ['high', 'urgent']);
 
             if ($direction === 'desc' || $sort === 'priority_asc') {
                 if (!$isHighA && $isHighB) return -1;
@@ -160,6 +172,12 @@ class JobOrderController extends Controller
             $worker && $project->workers->contains('worker_id', $worker->worker_id),
             403
         );
+
+        // Do not display/allow access until client approves the scheduled date
+        if (!$project->request || !$project->request->isScheduleApproved()) {
+            return redirect()->route('worker.job-orders.index')
+                ->with('error', 'This job order is not available yet. The visit schedule must be approved by the client.');
+        }
 
         // Mark viewed conversation messages as read
         if (auth()->check() && $project->request_id) {

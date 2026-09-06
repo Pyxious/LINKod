@@ -28,17 +28,20 @@ class DecisionTreeService
 
         // Check if any urgent keywords are present
         if ($this->hasUrgentKeywords($categoryName, $combinedText)) {
-            return 'high';
+            return 'urgent';
         }
 
-        // If no urgent keywords, priority depends on Location being "BU Main"
-        $locationLower = strtolower($request->campus ?? ''); // The form uses "campus" for BU Main, BU Daraga etc.
-        if (str_contains($locationLower, 'main')) {
-            return 'medium';
-        }
+        // All non-emergency maintenance tasks are Routine under BU GSO WORK-I
+        return 'routine';
+    }
 
-        // Default to low if not main campus and not urgent
-        return 'low';
+    /**
+     * Normalize priority values for display and backwards compatibility
+     */
+    public static function normalize(string $priority): string
+    {
+        $p = strtolower(trim($priority));
+        return in_array($p, ['urgent', 'high']) ? 'Urgent' : 'Routine';
     }
 
     protected function hasUrgentKeywords(string $category, string $text): bool

@@ -23,17 +23,13 @@
            class="flex-1 md:flex-initial text-center px-3 py-1.5 text-xs font-bold rounded-lg transition whitespace-nowrap {{ empty($priorityFilter) ? 'bg-white dark:bg-zinc-900 text-[#0038A8] dark:text-blue-400 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
             All Priorities
         </a>
-        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => 'High'])) }}"
-           class="flex-1 md:flex-initial text-center px-3 py-1.5 text-xs font-bold rounded-lg transition whitespace-nowrap {{ $priorityFilter === 'High' ? 'bg-red-50 text-red-600 border border-red-200 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
-            High
+        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => 'Urgent'])) }}"
+           class="flex-1 md:flex-initial text-center px-3 py-1.5 text-xs font-bold rounded-lg transition whitespace-nowrap {{ in_array(strtolower($priorityFilter), ['urgent', 'high']) ? 'bg-red-50 text-red-600 border border-red-200 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
+            Urgent
         </a>
-        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => 'Medium'])) }}"
-           class="flex-1 md:flex-initial text-center px-3 py-1.5 text-xs font-bold rounded-lg transition whitespace-nowrap {{ $priorityFilter === 'Medium' ? 'bg-amber-50 text-amber-700 border border-amber-300 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
-            Medium
-        </a>
-        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => 'Low'])) }}"
-           class="flex-1 md:flex-initial text-center px-3 py-1.5 text-xs font-bold rounded-lg transition whitespace-nowrap {{ $priorityFilter === 'Low' ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
-            Low
+        <a href="{{ route('worker.job-orders.index', array_merge(request()->query(), ['priority' => 'Routine'])) }}"
+           class="flex-1 md:flex-initial text-center px-3 py-1.5 text-xs font-bold rounded-lg transition whitespace-nowrap {{ in_array(strtolower($priorityFilter), ['routine', 'medium', 'low']) ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
+            Routine
         </a>
     </div>
 
@@ -106,12 +102,10 @@
                     default => 'REQ'
                 };
                 $ipReqCode = $ipReqId ? ($ipPrefix . '-' . str_pad($ipReqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($inProg->project_id, 3, '0', STR_PAD_LEFT));
-                $ipPrio = ucfirst(strtolower($inProg->project?->request?->priority ?? 'Low'));
-                $ipPrioClass = match($ipPrio) {
-                    'High' => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
-                    'Medium' => 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
-                    default => 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                };
+                $ipPrio = $inProg->project?->request?->priority_label ?? 'Routine';
+                $ipPrioClass = ($inProg->project?->request?->is_urgent ?? false) 
+                    ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800' 
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
             @endphp
             <div class="bg-white dark:bg-[#1c1c1e] border-2 border-amber-400 dark:border-amber-500/80 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div class="space-y-2 min-w-0 flex-1">
@@ -198,12 +192,10 @@
                     default => 'REQ'
                 };
                 $reqCode = $reqId ? ($prefix . '-' . str_pad($reqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($a->project_id, 3, '0', STR_PAD_LEFT));
-                $prio = ucfirst(strtolower($a->project?->request?->priority ?? 'Low'));
-                $prioClass = match($prio) {
-                    'High' => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
-                    'Medium' => 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
-                    default => 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                };
+                $prio = $a->project?->request?->priority_label ?? 'Routine';
+                $prioClass = ($a->project?->request?->is_urgent ?? false)
+                    ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
             @endphp
 
             <div class="p-4 space-y-3">
@@ -356,12 +348,10 @@
                             default => 'REQ'
                         };
                         $reqCode = $reqId ? ($prefix . '-' . str_pad($reqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($a->project_id, 3, '0', STR_PAD_LEFT));
-                        $prio = ucfirst(strtolower($a->project?->request?->priority ?? 'Low'));
-                        $prioClass = match($prio) {
-                            'High' => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
-                            'Medium' => 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
-                            default => 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                        };
+                        $prio = $a->project?->request?->priority_label ?? 'Routine';
+                        $prioClass = ($a->project?->request?->is_urgent ?? false)
+                            ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
                     @endphp
                     <tr class="hover:bg-gray-50/70 dark:hover:bg-zinc-800/50 transition group">
                         <!-- Queue Number -->

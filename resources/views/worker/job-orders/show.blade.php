@@ -24,6 +24,8 @@
     $clientEmail = $clientUser?->email_account ?? 'No email provided';
     $clientPhone = $clientUser?->contact_number ?? $req?->client?->contact_number ?? 'Not Provided';
     $initials = strtoupper(substr($clientUser?->first_name ?? 'K', 0, 1));
+    $currentWorker = auth()->user()->staff?->worker;
+    $isTeamLeader = $currentWorker ? $currentWorker->isTeamLeader() : false;
 @endphp
 
 <!-- Header -->
@@ -33,15 +35,30 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
             Back to Job Orders
         </a>
-        <h1 class="text-[#042B74] dark:text-blue-400 text-2xl font-bold flex items-center gap-3">
-            Requisition #{{ $reqCode }}
+        <h1 class="text-[#042B74] dark:text-blue-400 text-2xl font-bold flex items-center gap-3 flex-wrap">
+            <span>Requisition #{{ $reqCode }}</span>
+            @if($req)
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider border
+                    {{ $req->is_urgent ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300' }}">
+                    {{ $req->priority_label }}
+                </span>
+            @endif
             <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider
                 @if($project->current_status === 'Pending') bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300
+                @elseif($project->current_status === 'Awaiting Verification of Bill of Materials') bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300
+                @elseif($project->current_status === 'BOM Verified (Awaiting Client Approval)') bg-indigo-50 text-indigo-800 border border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300
                 @elseif($project->current_status === 'In Progress') bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300
                 @elseif($project->current_status === 'Pending Verification') bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300
-                @else bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 @endif">
+                @elseif($project->current_status === 'Completed') bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300
+                @else bg-gray-50 text-gray-700 border border-gray-200 dark:bg-zinc-800 dark:text-gray-300 @endif">
                 {{ $project->current_status }}
             </span>
+            @if($isTeamLeader)
+                <span class="px-2.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-950/40 dark:text-purple-300">
+                    Team Leader
+                </span>
+            @endif
+        </h1>
     </div>
 </div>
 
@@ -54,8 +71,7 @@
         <!-- 1st Box: Issue Description & Supporting Documents -->
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">
             @php
-                $catName = strtolower($req->category->category_name ?? '');
-                $isManpower = str_contains($catName, 'manpower') || str_contains($catName, 'event');
+                $isManpower = $req->is_manpower ?? false;
                 $m = $req->manpower_details ?? [];
             @endphp
 
@@ -275,169 +291,54 @@
             $beforeHistory = $project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->last();
             $afterHistory = $project->histories->whereIn('current_status', ['Pending Verification', 'Completed'])->whereNotNull('proof_attachment')->last();
             $hasProofPhotos = ($beforeHistory && $beforeHistory->proof_attachment) || ($afterHistory && $afterHistory->proof_attachment);
+            $hasBeforePhoto = !empty($beforeHistory?->proof_attachment);
+            $hasAfterPhoto  = !empty($afterHistory?->proof_attachment);
+            $isWorkingInProgress = ($project->current_status === 'In Progress') || $hasBeforePhoto;
+            $defaultNextStatus   = $isWorkingInProgress ? 'Completed' : 'In Progress';
         @endphp
 
-        @if($hasProofPhotos)
-            <!-- Photo Evidence & Proof of Work Card (Visible to Worker at all stages) -->
-            <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm p-6 space-y-4"
-                 x-data="{ lightboxOpen: false, lightboxImg: '', lightboxTitle: '' }">
-                
-                <div class="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-3 flex-wrap gap-2">
-                    <div>
-                        <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400">
-                            Submitted Photo Proofs
-                        </h2>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            Photos captured and submitted as evidence for this job order.
-                        </p>
-                    </div>
-                    <span class="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-100 dark:border-blue-900 rounded-lg text-xs font-bold">
-                        Proof of Work
-                    </span>
-                </div>
 
-                <!-- 2-Column Photo Grid: Before Photo & After Photo -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <!-- Before Photo Card -->
-                    <div class="bg-gray-50/70 dark:bg-zinc-800/40 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between gap-2 mb-3">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-[10.5px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shrink-0">
-                                    BEFORE WORK PHOTO
-                                </span>
-                                @if($beforeHistory)
-                                    <span class="text-[10px] text-gray-400 font-medium whitespace-nowrap shrink-0">{{ \Carbon\Carbon::parse($beforeHistory->updated_at)->format('M d, Y h:i A') }}</span>
-                                @endif
-                            </div>
-
-                            @if($beforeHistory && $beforeHistory->proof_attachment)
-                                <div @click="lightboxOpen = true; lightboxImg = '{{ Storage::url($beforeHistory->proof_attachment) }}'; lightboxTitle = 'Before Work Photo'" 
-                                     class="block group relative overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-black/5 dark:bg-black/40 p-2 cursor-pointer transition hover:border-amber-400">
-                                    <img src="{{ Storage::url($beforeHistory->proof_attachment) }}" alt="Before Work" class="w-full max-h-56 object-contain rounded-lg group-hover:scale-[1.01] transition duration-200 mx-auto">
-                                    <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5 rounded-xl">
-                                        <span class="bg-black/70 px-3 py-1.5 rounded-lg backdrop-blur-xs shadow-sm flex items-center gap-1.5">
-                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                            <span>Click to View Full</span>
-                                        </span>
-                                    </div>
-                                </div>
-                            @else
-                                <div class="min-h-[140px] bg-gray-100 dark:bg-zinc-800/40 rounded-xl flex items-center justify-center text-xs text-gray-400 font-medium border border-dashed border-gray-200 dark:border-zinc-700">
-                                    No before photo recorded
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-
-                    <!-- After Photo Card -->
-                    <div class="bg-gray-50/70 dark:bg-zinc-800/40 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between gap-2 mb-3">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-[10.5px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shrink-0">
-                                    AFTER WORK PHOTO (COMPLETION)
-                                </span>
-                                @if($afterHistory)
-                                    <span class="text-[10px] text-gray-400 font-medium whitespace-nowrap shrink-0">{{ \Carbon\Carbon::parse($afterHistory->updated_at)->format('M d, Y h:i A') }}</span>
-                                @endif
-                            </div>
-
-                            @if($afterHistory && $afterHistory->proof_attachment)
-                                <div @click="lightboxOpen = true; lightboxImg = '{{ Storage::url($afterHistory->proof_attachment) }}'; lightboxTitle = 'After Work Photo (Completion)'" 
-                                     class="block group relative overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-black/5 dark:bg-black/40 p-2 cursor-pointer transition hover:border-emerald-400">
-                                    <img src="{{ Storage::url($afterHistory->proof_attachment) }}" alt="After Work" class="w-full max-h-56 object-contain rounded-lg group-hover:scale-[1.01] transition duration-200 mx-auto">
-                                    <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5 rounded-xl">
-                                        <span class="bg-black/70 px-3 py-1.5 rounded-lg backdrop-blur-xs shadow-sm flex items-center gap-1.5">
-                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                            <span>Click to View Full</span>
-                                        </span>
-                                    </div>
-                                </div>
-                            @else
-                                <div class="min-h-[140px] bg-gray-100 dark:bg-zinc-800/40 rounded-xl flex items-center justify-center text-xs text-gray-400 font-medium border border-dashed border-gray-200 dark:border-zinc-700">
-                                    Pending completion photo upload
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Lightbox Preview Modal -->
-                <div x-show="lightboxOpen" 
-                     x-cloak 
-                     class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs" 
-                     @click.outside="lightboxOpen = false" 
-                     @keydown.escape.window="lightboxOpen = false">
-                    <div class="relative max-w-4xl w-full max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 flex flex-col">
-                        <div class="w-full flex items-center justify-between py-3 px-5 bg-zinc-800 text-white border-b border-zinc-700 shrink-0">
-                            <span class="text-xs font-bold uppercase tracking-wider text-gray-200" x-text="lightboxTitle">Photo Preview</span>
-                            <div class="flex items-center gap-2">
-                                <a :href="lightboxImg" target="_blank" download class="p-1.5 text-gray-300 hover:text-white hover:bg-zinc-700 rounded-lg transition" title="Open in New Tab / Download">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                                </a>
-                                <button type="button" @click="lightboxOpen = false" class="p-1.5 text-gray-400 hover:text-white hover:bg-zinc-700 rounded-lg transition">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="w-full p-4 flex items-center justify-center overflow-auto max-h-[78vh] bg-black/60">
-                            <img :src="lightboxImg" alt="Proof Preview" class="max-h-[72vh] w-auto max-w-full object-contain rounded-lg shadow-lg">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
 
         @if(!in_array($project->current_status, ['Completed', 'Pending Verification']))
 
         <!-- 2nd Box: Update Task Progress & Attach Proofs -->
         @php
-            // On Hold = BOM submitted/approved, next step is In Progress
-            // In Progress = currently working, next step is Completed
-            $defaultNextStatus = ($project->current_status === 'In Progress') ? 'Completed' : 'In Progress';
+            $hasBeforePhoto = !empty($beforeHistory?->proof_attachment);
+            $hasAfterPhoto  = !empty($afterHistory?->proof_attachment);
+            $isWorkingInProgress = ($project->current_status === 'In Progress') || $hasBeforePhoto;
+            $defaultNextStatus   = $isWorkingInProgress ? 'Completed' : 'In Progress';
         @endphp
-        <div class="bg-white dark:bg-[#1c1c1e] border-2 border-[#1a3c8f]/30 dark:border-blue-700/60 rounded-2xl shadow-sm p-6 sm:p-7"
+        <div class="bg-white dark:bg-[#1c1c1e] border-2 border-[#1a3c8f]/30 dark:border-blue-700/60 rounded-2xl shadow-sm p-5 sm:p-7"
              x-data="workerTaskProgress({{ $project->project_id }}, '{{ $defaultNextStatus }}', {{ json_encode($project->request->title ?? 'Project #' . $project->project_id) }}, '{{ route('worker.task-progress.sync', $project->project_id) }}')">
 
-             <div class="flex items-center justify-between gap-3 mb-5 pb-3 border-b border-gray-100 dark:border-zinc-800">
-                 <h3 class="text-[#1a3c8f] dark:text-blue-400 font-extrabold text-lg flex items-center gap-2">
-                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                     <span>Update Task Progress</span>
-                 </h3>
-                 <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                     Action Required
-                 </span>
-             </div>
+             <div class="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100 dark:border-zinc-800">
+                  <h3 class="text-[#1a3c8f] dark:text-blue-400 font-extrabold text-base sm:text-lg flex items-center gap-2 min-w-0">
+                      <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                      <span class="truncate">Update Task Progress</span>
+                  </h3>
+                  <span class="text-xs font-bold px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap shrink-0 leading-none">
+                      Action Required
+                  </span>
+              </div>
 
               @php
                   $hasPendingBom = $project->billOfMaterials->where('date_approved', null)->isNotEmpty();
-                  $hasApprovedBom = $project->billOfMaterials->where('date_approved', '!=', null)->isNotEmpty();
               @endphp
 
-              @if($project->current_status === 'On Hold' && $hasPendingBom)
-              {{-- BOM still awaiting admin approval — don't let worker update yet --}}
+              @if(in_array($project->current_status, ['On Hold', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)']) && $hasPendingBom)
+              {{-- BOM still awaiting admin/client approval — don't let worker update yet --}}
               <div class="p-4 bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700 rounded-2xl mb-5 text-slate-800 dark:text-amber-100 text-xs sm:text-sm font-semibold flex items-start gap-3 shadow-xs">
                   <div class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                   </div>
                   <div>
                       <p class="font-bold text-amber-800 dark:text-amber-200 mb-0.5">Awaiting Material Approval (BOM)</p>
-                      <p class="text-amber-700 dark:text-amber-300 font-medium text-xs leading-relaxed">Your Bill of Materials request is pending admin review and pricing. You can proceed to update task progress once the BOM is approved.</p>
-                  </div>
-              </div>
-              @elseif($project->current_status === 'On Hold' && $hasApprovedBom)
-              {{-- BOM approved — show info that worker can now proceed --}}
-              <div class="p-4 bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-700 rounded-2xl mb-5 text-slate-800 dark:text-emerald-100 text-xs sm:text-sm font-semibold flex items-start gap-3 shadow-xs">
-                  <div class="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                  </div>
-                  <div>
-                      <p class="font-bold text-emerald-800 dark:text-emerald-200 mb-0.5">Materials Approved — Ready to Begin</p>
-                      <p class="text-emerald-700 dark:text-emerald-300 font-medium text-xs leading-relaxed">Your BOM has been approved by admin. Take a before-work photo and set the task to In Progress to proceed.</p>
+                      <p class="text-amber-700 dark:text-amber-300 font-medium text-xs leading-relaxed">Your Bill of Materials request is pending review/client confirmation. You can proceed to update task progress once the BOM is approved.</p>
                   </div>
               </div>
               @endif
 
-              @if(!($project->current_status === 'On Hold' && $hasPendingBom))
+              @if(!(in_array($project->current_status, ['On Hold', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)']) && $hasPendingBom))
               {{-- Only show update form if not blocked by pending BOM --}}
 
               <!-- Offline Success Notice (Step 1) -->
@@ -472,143 +373,157 @@
                  @csrf
                  @method('PUT')
 
-                 <!-- Status Selector -->
-                 <div>
-                     <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2">
-                         Mark Current Status As <span class="text-red-500">*</span>:
-                     </label>
-                     <select name="status" x-model="currentStatusVal" class="w-full px-4 py-3 border border-gray-300 dark:border-zinc-700 rounded-xl text-sm font-semibold bg-gray-50 dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-[#1a3c8f] focus:border-[#1a3c8f] transition" required>
-                         <option value="In Progress">In Progress (Currently working — Requires Before-Work Photo)</option>
-                         <option value="Completed">Completed (Ready for Verification — Requires After-Work Photo)</option>
-                     </select>
-                 </div>
+                 <!-- Hidden Status Value (Automated by current step - zero confusing dropdown for workers) -->
+                 <input type="hidden" name="status" :value="currentStatusVal">
 
-                 <!-- Completed Options (Full Repair vs Inspection Only) -->
-                 <div x-show="currentStatusVal === 'Completed'" x-cloak class="pt-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
-                     <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                         Nature of Work Executed:
-                     </label>
-                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                         <label class="flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition"
-                                :class="completionType === 'Full Repair' ? 'border-[#1a3c8f] bg-blue-50/70 dark:bg-blue-950/40' : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'">
-                             <input type="radio" name="completion_type" value="Full Repair" x-model="completionType" class="mt-1 text-[#1a3c8f] focus:ring-[#1a3c8f]">
-                             <div>
-                                 <div class="text-xs font-bold text-slate-900 dark:text-white">Direct Repair / Maintenance Done</div>
-                                 <div class="text-[11px] text-gray-500 mt-0.5">Physical repair, replacement, or maintenance executed.</div>
-                             </div>
-                         </label>
+                 <!-- High-Visibility Step Indicator Header -->
+                  <div class="p-3.5 rounded-xl border flex items-center justify-between gap-3"
+                       :class="currentStatusVal === 'In Progress' ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800' : 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'">
+                      <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black shadow-xs shrink-0"
+                               :class="currentStatusVal === 'In Progress' ? 'bg-[#0033a0]' : 'bg-emerald-600'">
+                              <span x-text="currentStatusVal === 'In Progress' ? '1' : '2'"></span>
+                          </div>
+                          <div class="min-w-0 flex-1">
+                              <div class="text-xs font-black tracking-wide truncate"
+                                   :class="currentStatusVal === 'In Progress' ? 'text-[#0033a0] dark:text-blue-300' : 'text-emerald-800 dark:text-emerald-300'"
+                                   x-text="currentStatusVal === 'In Progress' ? 'STEP 1: START WORK' : 'STEP 2: FINISH & COMPLETE TASK'">
+                              </div>
+                              <div class="text-[11px] text-gray-500 dark:text-gray-400 font-medium truncate"
+                                   x-text="currentStatusVal === 'In Progress' ? 'Capture before-work photo on site' : 'Capture photo of completed repair'">
+                              </div>
+                          </div>
+                      </div>
+                      <span class="px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide whitespace-nowrap shrink-0 leading-none"
+                            :class="currentStatusVal === 'In Progress' ? 'bg-blue-100 dark:bg-blue-900/60 text-[#0033a0] dark:text-blue-200' : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200'"
+                            x-text="currentStatusVal === 'In Progress' ? 'In Progress' : 'To Complete'">
+                      </span>
+                  </div>
 
-                         <label class="flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition"
-                                :class="completionType === 'Inspection Only' ? 'border-[#1a3c8f] bg-blue-50/70 dark:bg-blue-950/40' : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'">
-                             <input type="radio" name="completion_type" value="Inspection Only" x-model="completionType" class="mt-1 text-[#1a3c8f] focus:ring-[#1a3c8f]">
-                             <div>
-                                 <div class="text-xs font-bold text-slate-900 dark:text-white">Inspection &amp; Assessment Only</div>
-                                 <div class="text-[11px] text-gray-500 mt-0.5">Site inspected and assessed without direct physical repairs.</div>
-                             </div>
-                         </label>
-                     </div>
+                  <!-- Proof Photo Upload & Camera Card -->
+                  <div class="pt-2">
+                      <div class="flex items-center justify-between gap-2 mb-2.5">
+                          <div class="flex items-center gap-2">
+                              <label class="block text-xs font-black uppercase tracking-wider text-[#1a3c8f] dark:text-blue-300">
+                                  <span x-show="currentStatusVal === 'In Progress'">Before-Work Photo</span>
+                                  <span x-show="currentStatusVal === 'Completed'">Proof of Completion Photo</span>
+                              </label>
+                              <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300 border border-rose-300 dark:border-rose-800 flex items-center gap-1">
+                                  <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+                                  <span>Required</span>
+                              </span>
+                          </div>
+                          <span class="text-[11px] text-gray-400 shrink-0 font-medium">JPG, PNG, WEBP</span>
+                      </div>
 
-                     <div>
-                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                             <span x-show="completionType === 'Inspection Only'">Inspection Findings &amp; Recommendation (Optional):</span>
-                             <span x-show="completionType === 'Full Repair'">Work Notes / Summary (Optional):</span>
-                         </label>
-                         <textarea name="recommendation" 
-                                   rows="2" 
-                                   class="w-full px-3 py-2.5 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-[#1a3c8f] focus:border-[#1a3c8f]"
-                                   :placeholder="completionType === 'Inspection Only' ? 'e.g. Inspected circuit breaker; no major wiring damage found.' : 'e.g. Replaced leaking faucet gasket and tested water pressure.'"></textarea>
-                     </div>
-                 </div>
+                      <!-- Hidden File Input (Standard File Picker) -->
+                      <input type="file" 
+                             name="proof" 
+                             x-ref="workerFileInput" 
+                             accept="image/*,application/pdf" 
+                             @change="handleFile($event.target.files[0])" 
+                             class="hidden">
 
-                 <!-- Proof Photo Upload & Camera Card -->
-                 <div class="pt-4 border-t border-gray-100 dark:border-zinc-800">
-                     <div class="flex items-center justify-between mb-2">
-                         <label class="block text-xs font-bold uppercase tracking-wider text-[#1a3c8f] dark:text-blue-300">
-                             <span x-show="currentStatusVal === 'In Progress'">Before-Work Photo <span class="text-red-500 font-black">*</span></span>
-                             <span x-show="currentStatusVal === 'Completed'">Proof of Completion Photo <span class="text-red-500 font-black">*</span></span>
-                         </label>
-                         <span class="text-[11px] text-gray-400">JPG, PNG, WEBP, PDF</span>
-                     </div>
+                      <!-- Hidden Native Device Camera Input -->
+                      <input type="file" 
+                             x-ref="mobileCameraInput" 
+                             accept="image/*" 
+                             capture="environment" 
+                             @change="handleFile($event.target.files[0])" 
+                             class="hidden">
 
-                     <!-- Hidden File Input (Standard File Picker) -->
-                     <input type="file" 
-                            name="proof" 
-                            x-ref="workerFileInput" 
-                            accept="image/*,application/pdf" 
-                            @change="handleFile($event.target.files[0])" 
-                            class="hidden">
+                      <!-- Option Buttons (When no file chosen - Mobile Friendly) -->
+                      <div x-show="!proofFile" class="border-2 border-dashed border-blue-300 dark:border-blue-900/60 rounded-2xl p-5 sm:p-6 bg-blue-50/20 dark:bg-blue-950/10 text-center">
 
-                     <!-- Hidden Native Device Camera Input -->
-                     <input type="file" 
-                            x-ref="mobileCameraInput" 
-                            accept="image/*" 
-                            capture="environment" 
-                            @change="handleFile($event.target.files[0])" 
-                            class="hidden">
+                          <div class="flex flex-col sm:flex-row items-stretch justify-center gap-3 max-w-md mx-auto">
+                              <!-- Primary: Snap Photo with Camera -->
+                              <button type="button" 
+                                      @click="takePhoto()" 
+                                      class="w-full sm:flex-1 py-3.5 px-4 bg-[#0038A8] hover:bg-[#002480] text-white rounded-xl text-sm font-extrabold transition shadow-md flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.98]">
+                                  <svg class="w-5 h-5 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                  <span>Snap Photo (Camera)</span>
+                              </button>
 
-                     <!-- Option Buttons (When no file chosen) -->
-                     <div x-show="!proofFile" class="border-2 border-dashed border-blue-300 dark:border-blue-900/60 rounded-2xl p-6 bg-blue-50/30 dark:bg-blue-950/20 text-center">
-                         <div class="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
-                             <!-- Choose Photo / File -->
-                             <button type="button" 
-                                     @click="$refs.workerFileInput.click()" 
-                                     class="w-full sm:flex-1 px-4 py-3 bg-white dark:bg-zinc-800 border-2 border-gray-200 dark:border-zinc-700 hover:border-[#1a3c8f] dark:hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-100 hover:bg-gray-50 transition shadow-xs flex items-center justify-center gap-2 cursor-pointer">
-                                 <svg class="w-4 h-4 text-[#0038A8] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                                 <span>Choose File</span>
-                             </button>
+                              <!-- Secondary: Choose from Gallery / Files -->
+                              <button type="button" 
+                                      @click="$refs.workerFileInput.click()" 
+                                      class="w-full sm:flex-1 py-3.5 px-4 bg-white dark:bg-zinc-800 border-2 border-gray-300 dark:border-zinc-700 hover:border-[#1a3c8f] dark:hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-100 hover:bg-gray-50 transition shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]">
+                                  <svg class="w-4 h-4 text-gray-600 dark:text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                  <span>Choose from Gallery</span>
+                              </button>
+                          </div>
+                          <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-3 font-medium">
+                              <span x-show="currentStatusVal === 'In Progress'">Take a photo of the repair area before starting work.</span>
+                              <span x-show="currentStatusVal === 'Completed'">Take a photo of the completed repair as proof.</span>
+                          </p>
+                      </div>
 
-                             <span class="text-xs text-gray-400 font-bold">or</span>
+                      <!-- Preview Card (When file is chosen) -->
+                      <div x-show="proofFile" x-cloak class="border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-xs">
+                          <div class="flex items-center gap-3.5 min-w-0">
+                              <div class="w-16 h-16 rounded-xl border border-emerald-300 dark:border-emerald-700 shrink-0 shadow-xs overflow-hidden bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
+                                  <template x-if="proofPreviewUrl">
+                                      <img :src="proofPreviewUrl" alt="Proof" class="w-full h-full object-cover">
+                                  </template>
+                                  <template x-if="!proofPreviewUrl">
+                                      <span class="font-bold text-xs text-emerald-800 dark:text-emerald-300">PHOTO</span>
+                                  </template>
+                              </div>
+                              <div class="min-w-0">
+                                  <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                                      <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                      <span>Photo Ready to Submit</span>
+                                  </div>
+                                  <p class="text-[11px] text-gray-600 dark:text-gray-300 truncate mt-0.5" x-text="proofFile"></p>
+                                  <p class="text-[10px] text-gray-400 font-mono" x-text="proofSize"></p>
+                              </div>
+                          </div>
+                          <button type="button" @click="clearProof()" class="px-3.5 py-2 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 rounded-xl transition border border-rose-200 dark:border-rose-800 shrink-0 cursor-pointer active:scale-95">
+                              ✕ Retake
+                          </button>
+                      </div>
+                  </div>
 
-                             <!-- Take Photo with Camera -->
-                             <button type="button" 
-                                     @click="openCamera()" 
-                                     class="w-full sm:flex-1 px-4 py-3 bg-[#0038A8] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-2 cursor-pointer">
-                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                 <span>Snap Photo (Camera)</span>
-                             </button>
-                         </div>
-                         <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-3">
-                             <span x-show="currentStatusVal === 'In Progress'">Take or attach an initial photo before beginning work.</span>
-                             <span x-show="currentStatusVal === 'Completed'">Take or attach a proof photo of the completed repair.</span>
-                         </p>
-                     </div>
+                  <!-- Submit Action Button (Big, Thumb-Friendly, Clear Action) -->
+                  <div class="pt-2">
+                      @if($project->request?->isScheduleApproved())
+                          <button type="submit" 
+                                  :disabled="saving || taskFinishedOffline || !proofFile" 
+                                  :class="[
+                                      (saving || taskFinishedOffline || !proofFile) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer active:scale-[0.99]',
+                                      currentStatusVal === 'In Progress' ? 'bg-[#0033a0] hover:bg-[#002480]' : 'bg-emerald-600 hover:bg-emerald-700'
+                                  ]"
+                                  class="w-full text-white py-4 px-6 rounded-2xl text-base font-extrabold transition shadow-lg flex items-center justify-center gap-2.5">
+                              <svg x-show="saving" x-cloak class="animate-spin -ml-1 mr-1 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                              
+                              <template x-if="currentStatusVal === 'In Progress'">
+                                  <span class="flex items-center gap-2">
+                                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                      <span x-text="saving ? 'Starting Task...' : 'Start Work (Set In Progress)'"></span>
+                                  </span>
+                              </template>
 
-                     <!-- Preview Card (When file is chosen) -->
-                     <div x-show="proofFile" x-cloak class="border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-xs">
-                         <div class="flex items-center gap-3.5 min-w-0">
-                             <div class="w-16 h-20 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0 shadow-xs overflow-hidden bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
-                                 <template x-if="proofPreviewUrl">
-                                     <img :src="proofPreviewUrl" alt="" class="w-full h-full object-cover">
-                                 </template>
-                                 <template x-if="!proofPreviewUrl">
-                                     <span class="font-bold text-xs text-emerald-800 dark:text-emerald-300">DOC</span>
-                                 </template>
-                             </div>
-                             <div class="min-w-0">
-                                 <div class="flex items-center gap-2">
-                                     <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                                     <span class="text-xs font-bold text-gray-900 dark:text-white truncate" x-text="proofFile"></span>
-                                 </div>
-                                 <p class="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold mt-1">Photo attached &amp; ready</p>
-                                 <p class="text-[10px] text-gray-400 font-mono" x-text="proofSize"></p>
-                             </div>
-                         </div>
-                         <button type="button" @click="clearProof()" class="px-3.5 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 rounded-xl transition border border-red-200 dark:border-red-800 shrink-0 cursor-pointer">
-                             ✕ Remove
-                         </button>
-                     </div>
-                 </div>
+                              <template x-if="currentStatusVal === 'Completed'">
+                                  <span class="flex items-center gap-2">
+                                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                      <span x-text="saving ? 'Submitting Completion...' : 'Mark Task as Completed'"></span>
+                                  </span>
+                              </template>
+                          </button>
 
-                 <!-- Submit Action Button -->
-                 <div class="pt-3">
-                     <button type="submit" 
-                             :disabled="saving || taskFinishedOffline" 
-                             :class="(saving || taskFinishedOffline) ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'"
-                             class="w-full sm:w-auto bg-[#1a3c8f] hover:bg-[#152e6e] text-white px-8 py-3.5 rounded-xl text-sm font-bold transition shadow-sm flex items-center justify-center gap-2">
-                         <svg x-show="saving" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                         <span x-text="saving ? 'Saving...' : (currentStatusVal === 'In Progress' ? 'Save Before-Work & Set In Progress' : 'Save & Mark Task as Completed')"></span>
-                     </button>
-                 </div>
+                          <!-- Helper text when photo has not been selected yet -->
+                          <p x-show="!proofFile" class="text-center text-[11.5px] text-amber-700 dark:text-amber-400 font-bold mt-2 flex items-center justify-center gap-1.5">
+                              <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                              <span x-show="currentStatusVal === 'In Progress'">Photo required: Take or choose a Before-Work photo above to start.</span>
+                              <span x-show="currentStatusVal === 'Completed'">Photo required: Take or choose an After-Work photo above to complete.</span>
+                          </p>
+                      @else
+                          <button type="button" disabled class="w-full bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 py-4 px-6 rounded-2xl text-sm font-bold cursor-not-allowed flex items-center justify-center gap-2 opacity-80" title="Client must approve the scheduled date before updating task">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                              <span>Client Schedule Approval Required</span>
+                          </button>
+                      @endif
+                  </div>
              </form>
 
               <!-- Modern Portrait Camera Modal (3:4 Ratio) -->
@@ -684,6 +599,192 @@
          </div>
          @endif
 
+        @if($project->current_status === 'Pending Verification')
+            <!-- Pending Verification Notice Card -->
+            <div class="bg-white dark:bg-[#1c1c1e] border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl shadow-sm p-6 sm:p-7 text-center space-y-4">
+                <div class="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center mx-auto shadow-xs">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-lg text-slate-900 dark:text-white">Task Completed &amp; Submitted</h3>
+                    <p class="text-xs text-slate-600 dark:text-gray-300 max-w-md mx-auto mt-1 leading-relaxed">
+                        Your completion photo and work progress have been submitted. The GSO Admin will verify the physical paperwork and confirm completion.
+                    </p>
+                </div>
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Awaiting GSO Admin Verification</span>
+                </div>
+            </div>
+        @endif
+
+        @if($project->current_status === 'Completed')
+            <!-- Fully Completed Notice Card -->
+            <div class="bg-white dark:bg-[#1c1c1e] border-2 border-blue-300 dark:border-blue-800 rounded-2xl shadow-sm p-6 sm:p-7 text-center space-y-4">
+                <div class="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-200 dark:border-blue-800 flex items-center justify-center mx-auto shadow-xs">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-lg text-slate-900 dark:text-white">Job Order Completed</h3>
+                    <p class="text-xs text-slate-600 dark:text-gray-300 max-w-md mx-auto mt-1 leading-relaxed">
+                        This job order has been officially verified and closed by the GSO Administration.
+                    </p>
+                </div>
+            </div>
+        @endif
+
+        <!-- Photo Evidence & Proof of Work Card (Positioned Under Update Task Progress) -->
+        <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm p-5 sm:p-6 space-y-4"
+             x-data="{ lightboxOpen: false, lightboxImg: '', lightboxTitle: '' }">
+            
+            <div class="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-3 flex-wrap gap-2">
+                <div>
+                    <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 flex items-center gap-2">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span>Submitted Photo Proofs</span>
+                    </h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        On-site photographic evidence for this job order (Before &amp; After).
+                    </p>
+                </div>
+                
+                @if($hasBeforePhoto && $hasAfterPhoto)
+                    <span class="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-extrabold flex items-center gap-1.5 whitespace-nowrap">
+                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        <span>2 of 2 Photos Recorded</span>
+                    </span>
+                @elseif($hasBeforePhoto)
+                    <span class="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-full text-xs font-extrabold flex items-center gap-1.5 whitespace-nowrap">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        <span>1 of 2 Recorded (After-Work Photo Required)</span>
+                    </span>
+                @else
+                    <span class="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-full text-xs font-extrabold flex items-center gap-1.5 whitespace-nowrap">
+                        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                        <span>Before-Work Photo Required</span>
+                    </span>
+                @endif
+            </div>
+
+            <!-- 2-Column Photo Grid: Before Photo & After Photo -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Before Photo Card -->
+                <div class="p-4 rounded-xl border flex flex-col justify-between {{ $hasBeforePhoto ? 'bg-gray-50/70 dark:bg-zinc-800/40 border-gray-200 dark:border-zinc-700' : 'bg-amber-50/30 dark:bg-amber-950/10 border-dashed border-amber-300 dark:border-amber-800/80' }}">
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10.5px] font-extrabold {{ $hasBeforePhoto ? 'bg-blue-100 text-[#0033a0] dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200 dark:border-blue-800' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700' }} shrink-0">
+                                1. BEFORE WORK PHOTO
+                            </span>
+                            @if($beforeHistory)
+                                <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap shrink-0">{{ \Carbon\Carbon::parse($beforeHistory->updated_at)->format('M d, Y h:i A') }}</span>
+                            @else
+                                <span class="text-[10px] font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap shrink-0">Required to Begin</span>
+                            @endif
+                        </div>
+
+                        @if($hasBeforePhoto)
+                            <div @click="lightboxOpen = true; lightboxImg = '{{ Storage::url($beforeHistory->proof_attachment) }}'; lightboxTitle = 'Before Work Photo'" 
+                                 class="block group relative overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-black/5 dark:bg-black/40 p-2 cursor-pointer transition hover:border-[#1a3c8f]">
+                                <img src="{{ Storage::url($beforeHistory->proof_attachment) }}" alt="Before Work" class="w-full max-h-56 object-contain rounded-lg group-hover:scale-[1.01] transition duration-200 mx-auto">
+                                <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5 rounded-xl">
+                                    <span class="bg-black/70 px-3 py-1.5 rounded-lg backdrop-blur-xs shadow-sm flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <span>Click to View Full</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="mt-2.5 flex items-center justify-between text-[11px] text-emerald-700 dark:text-emerald-400 font-bold">
+                                <span class="flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                    <span>Recorded on file</span>
+                                </span>
+                            </div>
+                        @else
+                            <div class="min-h-[140px] rounded-xl flex flex-col items-center justify-center text-center p-4">
+                                <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2 shadow-2xs">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                </div>
+                                <span class="text-xs font-bold text-slate-800 dark:text-amber-200">Before-Work Photo Required</span>
+                                <span class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 max-w-xs">
+                                    Capture an on-site photo in Step 1 to officially begin work.
+                                </span>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- After Photo Card -->
+                <div class="p-4 rounded-xl border flex flex-col justify-between {{ $hasAfterPhoto ? 'bg-gray-50/70 dark:bg-zinc-800/40 border-gray-200 dark:border-zinc-700' : 'bg-blue-50/20 dark:bg-blue-950/10 border-dashed border-blue-200 dark:border-blue-900/60' }}">
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10.5px] font-extrabold {{ $hasAfterPhoto ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700' : 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-gray-300 border border-gray-300 dark:border-zinc-700' }} shrink-0">
+                                2. AFTER WORK PHOTO (COMPLETION)
+                            </span>
+                            @if($afterHistory)
+                                <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap shrink-0">{{ \Carbon\Carbon::parse($afterHistory->updated_at)->format('M d, Y h:i A') }}</span>
+                            @else
+                                <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 whitespace-nowrap shrink-0">Required to Complete</span>
+                            @endif
+                        </div>
+
+                        @if($hasAfterPhoto)
+                            <div @click="lightboxOpen = true; lightboxImg = '{{ Storage::url($afterHistory->proof_attachment) }}'; lightboxTitle = 'After Work Photo (Completion)'" 
+                                 class="block group relative overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-black/5 dark:bg-black/40 p-2 cursor-pointer transition hover:border-emerald-400">
+                                <img src="{{ Storage::url($afterHistory->proof_attachment) }}" alt="After Work" class="w-full max-h-56 object-contain rounded-lg group-hover:scale-[1.01] transition duration-200 mx-auto">
+                                <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5 rounded-xl">
+                                    <span class="bg-black/70 px-3 py-1.5 rounded-lg backdrop-blur-xs shadow-sm flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <span>Click to View Full</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="mt-2.5 flex items-center justify-between text-[11px] text-emerald-700 dark:text-emerald-400 font-bold">
+                                <span class="flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                    <span>Recorded on file</span>
+                                </span>
+                            </div>
+                        @else
+                            <div class="min-h-[140px] rounded-xl flex flex-col items-center justify-center text-center p-4">
+                                <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 flex items-center justify-center mb-2 shadow-2xs">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </div>
+                                <span class="text-xs font-bold text-slate-800 dark:text-blue-200">After-Work Photo Required</span>
+                                <span class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 max-w-xs">
+                                    Capture a photo of the completed repair in Step 2 to finish this task.
+                                </span>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lightbox Preview Modal -->
+            <div x-show="lightboxOpen" 
+                 x-cloak 
+                 class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs" 
+                 @click.outside="lightboxOpen = false" 
+                 @keydown.escape.window="lightboxOpen = false">
+                <div class="relative max-w-4xl w-full max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 flex flex-col">
+                    <div class="w-full flex items-center justify-between py-3 px-5 bg-zinc-800 text-white border-b border-zinc-700 shrink-0">
+                        <span class="text-xs font-bold uppercase tracking-wider text-gray-200" x-text="lightboxTitle">Photo Preview</span>
+                        <div class="flex items-center gap-2">
+                            <a :href="lightboxImg" target="_blank" download class="p-1.5 text-gray-300 hover:text-white hover:bg-zinc-700 rounded-lg transition" title="Open in New Tab / Download">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                            </a>
+                            <button type="button" @click="lightboxOpen = false" class="p-1.5 text-gray-400 hover:text-white hover:bg-zinc-700 rounded-lg transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="w-full p-4 flex items-center justify-center overflow-auto max-h-[78vh] bg-black/60">
+                        <img :src="lightboxImg" alt="Proof Preview" class="max-h-[72vh] w-auto max-w-full object-contain rounded-lg shadow-lg">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
         <script>
             function workerTaskProgress(projectId, defaultNextStatus, projectTitle, syncUrl) {
                 return {
@@ -715,6 +816,16 @@
                             reader.readAsDataURL(file);
                         } else {
                             this.proofPreviewUrl = '';
+                        }
+                    },
+
+                    takePhoto() {
+                        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                            this.openCamera();
+                        } else if (this.$refs.mobileCameraInput) {
+                            this.$refs.mobileCameraInput.click();
+                        } else {
+                            this.$refs.workerFileInput.click();
                         }
                     },
 
@@ -903,7 +1014,6 @@
 
                         this.saving = true;
                         const formEl = e.target;
-                        const recVal = formEl.querySelector('textarea[name="recommendation"]')?.value || '';
                         const submittedStatus = this.currentStatusVal;
 
                         // 2. If currently offline, queue in IndexedDB outbox
@@ -914,9 +1024,9 @@
                                     projectTitle: projectTitle,
                                     syncUrl: syncUrl,
                                     status: submittedStatus,
-                                    completionType: submittedStatus === 'Completed' ? this.completionType : null,
-                                    natureOfWork: submittedStatus === 'Completed' ? (this.completionType === 'Inspection Only' ? 'Inspection & Assessment Only' : 'Direct Repair') : null,
-                                    recommendation: recVal,
+                                    completionType: null,
+                                    natureOfWork: null,
+                                    recommendation: null,
                                     photoBlob: file,
                                     photoName: file.name,
                                     offlinePerformedAt: new Date().toISOString(),
@@ -983,9 +1093,9 @@
                                     projectTitle: projectTitle,
                                     syncUrl: syncUrl,
                                     status: submittedStatus,
-                                    completionType: submittedStatus === 'Completed' ? this.completionType : null,
-                                    natureOfWork: submittedStatus === 'Completed' ? (this.completionType === 'Inspection Only' ? 'Inspection & Assessment Only' : 'Direct Repair') : null,
-                                    recommendation: recVal,
+                                    completionType: null,
+                                    natureOfWork: null,
+                                    recommendation: null,
                                     photoBlob: file,
                                     photoName: file.name,
                                     offlinePerformedAt: new Date().toISOString(),
@@ -1024,7 +1134,8 @@
             }
         </script>
 
-        <!-- 3rd Box: Material Requisition (Optional) -->
+        <!-- 3rd Box: Material Requisition (Optional - Hidden when In Progress or Completed) -->
+        @if(!$isWorkingInProgress && !in_array($project->current_status, ['In Progress', 'Pending Verification', 'Completed']))
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">
 
             <h3 class="text-gray-900 dark:text-white font-bold text-lg mb-2 flex items-center gap-2">
@@ -1077,11 +1188,34 @@
             @endif
 
             @if($project->current_status !== 'Completed' && $project->current_status !== 'Pending Verification')
-                <div x-data="{
-                    submittingBOM: false,
-                    rows: [
-                        { material_id: '', custom_name: '', unit: 'pcs', qty: 1 }
-                    ],
+                @if($isTeamLeader)
+                    <!-- Team Leader Direct Fast-Track Button if BOM pending -->
+                    @if($project->billOfMaterials->whereNull('date_approved')->count() > 0 || in_array($project->current_status, ['Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)']))
+                        <div class="mb-5 p-4 bg-emerald-50/80 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    Team Leader On-Site Direct Override
+                                </h4>
+                                <p class="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
+                                    Did the client purchase or provide the requested materials/cash directly to the team on-site?
+                                </p>
+                            </div>
+                            <form action="{{ route('worker.bom.team-leader-approve', $project->project_id) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 whitespace-nowrap">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    Confirm Materials Received &amp; Start Work
+                                </button>
+                            </form>
+                        </div>
+                    @endif
+
+                    <div x-data="{
+                        submittingBOM: false,
+                        rows: [
+                            { material_id: '', custom_name: '', unit: 'pcs', qty: 1 }
+                        ],
                     catalog: {{ Js::from($materials->map(fn($m) => ['id' => $m->material_id, 'name' => $m->material_name, 'unit' => $m->unit_of_measurement ?? 'pcs'])) }},
                     isDiscrete(unit) {
                         if (!unit) return true;
@@ -1217,24 +1351,39 @@
 
                         
                         <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                            <button type="button" 
-                                    @click="addRow()" 
-                                    class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold hover:underline inline-flex items-center gap-1.5 cursor-pointer">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                <span>Add Another Material Item</span>
-                            </button>
+                            @if($project->request?->isScheduleApproved())
+                                <button type="button" 
+                                        @click="addRow()" 
+                                        class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold hover:underline inline-flex items-center gap-1.5 cursor-pointer">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                    <span>Add Another Material Item</span>
+                                </button>
 
-                            <button type="submit" 
-                                    :disabled="submittingBOM" 
-                                    class="w-full sm:w-auto bg-[#0033a0] hover:bg-[#002480] text-white px-6 py-2.5 rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer">
-                                <svg x-show="submittingBOM" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                <span x-text="submittingBOM ? 'Submitting...' : 'Submit Material Request'">Submit Material Request</span>
-                            </button>
+                                <button type="submit" 
+                                        :disabled="submittingBOM" 
+                                        class="w-full sm:w-auto bg-[#0033a0] hover:bg-[#002480] text-white px-6 py-2.5 rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer">
+                                    <svg x-show="submittingBOM" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    <span x-text="submittingBOM ? 'Submitting...' : 'Submit Material Request'">Submit Material Request</span>
+                                </button>
+                            @else
+                                <span class="text-xs text-gray-400 font-medium">Client must approve the visit schedule before materials can be requested.</span>
+                                <button type="button" disabled class="w-full sm:w-auto bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 px-6 py-2.5 rounded-xl text-xs font-bold cursor-not-allowed inline-flex items-center justify-center gap-2 opacity-80">
+                                    <span>Submit Material Request</span>
+                                </button>
+                            @endif
                         </div>
                     </form>
                 </div>
+                @else
+                    <div class="p-4 bg-slate-50 dark:bg-zinc-800/40 rounded-xl border border-gray-200 dark:border-zinc-700 text-center">
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            <strong>Role Notice:</strong> Only the assigned <strong>Team Leader</strong> or GSO Admin is authorized to prepare and submit a Bill of Materials for this job order.
+                        </p>
+                    </div>
+                @endif
             @endif
         </div>
+        @endif
 
     </div>
 
@@ -1251,17 +1400,26 @@
                 <div>
                     <div class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">PRIORITY LEVEL</div>
                     <div>
-                        @php
-                            $prio2 = ucfirst(strtolower($req->priority ?? 'Low'));
-                            $prioBadge2 = match(strtolower($req->priority ?? 'low')) {
-                                'high' => 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300',
-                                'medium' => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300',
-                                default => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300'
-                            };
-                        @endphp
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border {{ $prioBadge2 }}">{{ $prio2 }} Priority</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border 
+                            {{ $req?->is_urgent ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300' }}">
+                            {{ $req?->priority_label ?? 'Routine' }}
+                        </span>
                     </div>
                 </div>
+                @if($req?->scheduled_date)
+                    <div>
+                        <div class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">SCHEDULED VISIT</div>
+                        <div class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                            <span class="inline-flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-[#0033a0] dark:text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                <span>{{ $req->scheduled_date->format('M d, Y') }}</span>
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10.5px] bg-[#0033a0] text-white">
+                                {{ $req->scheduled_time_window ?? 'Whole Day' }}
+                            </span>
+                        </div>
+                    </div>
+                @endif
                 <div>
                     <div class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">CAMPUS</div>
                     <div class="text-sm font-bold text-gray-900 dark:text-white">{{ $req->campus ?? 'BU Main' }}</div>

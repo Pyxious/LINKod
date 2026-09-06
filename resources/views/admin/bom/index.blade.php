@@ -228,16 +228,67 @@
 
                         <!-- Assigned Personnel -->
                         <td class="py-4 border-y border-gray-200 dark:border-zinc-800">
-                            @if($assignedWorkers->count() > 0)
-                                <div class="flex flex-wrap gap-1 items-center">
-                                    @foreach($assignedWorkers as $w)
-                                        <span class="inline-flex items-center gap-1 bg-blue-50 dark:bg-zinc-800 text-[#1a3c8f] dark:text-blue-300 px-2 py-0.5 rounded-full text-[11px] font-semibold border border-blue-100 dark:border-zinc-700">
-                                            <span class="w-3.5 h-3.5 rounded-full bg-[#1a3c8f] text-white flex items-center justify-center text-[8px] font-extrabold">
-                                                {{ strtoupper(substr($w->staff->user->first_name ?? 'W', 0, 1)) }}
+                            @php
+                                $workerCount = $assignedWorkers->count();
+                            @endphp
+                            @if($workerCount > 0)
+                                <div class="flex items-center gap-1.5 flex-wrap" x-data="{ open: false }">
+                                    @if($workerCount <= 2)
+                                        @foreach($assignedWorkers as $w)
+                                            <span class="inline-flex items-center gap-1 bg-blue-50 dark:bg-zinc-800 text-[#1a3c8f] dark:text-blue-300 px-2 py-0.5 rounded-full text-[11px] font-semibold border border-blue-100 dark:border-zinc-700">
+                                                <span class="w-3.5 h-3.5 rounded-full bg-[#1a3c8f] text-white flex items-center justify-center text-[8px] font-extrabold flex-shrink-0">
+                                                    {{ strtoupper(substr($w->staff->user->first_name ?? 'W', 0, 1)) }}
+                                                </span>
+                                                <span class="truncate max-w-[110px]">{{ $w->staff->user->first_name ?? '' }} {{ $w->staff->user->last_name ?? '' }}</span>
                                             </span>
-                                            {{ $w->staff->user->first_name ?? '' }} {{ $w->staff->user->last_name ?? '' }}
+                                        @endforeach
+                                    @else
+                                        @php
+                                            $firstWorker = $assignedWorkers->first();
+                                            $remainingCount = $workerCount - 1;
+                                            $allNames = $assignedWorkers->map(fn($w) => ($w->staff->user->first_name ?? '') . ' ' . ($w->staff->user->last_name ?? ''))->filter()->join(', ');
+                                        @endphp
+                                        <span class="inline-flex items-center gap-1 bg-blue-50 dark:bg-zinc-800 text-[#1a3c8f] dark:text-blue-300 px-2 py-0.5 rounded-full text-[11px] font-semibold border border-blue-100 dark:border-zinc-700" title="{{ $firstWorker->staff->user->first_name ?? '' }} {{ $firstWorker->staff->user->last_name ?? '' }}">
+                                            <span class="w-3.5 h-3.5 rounded-full bg-[#1a3c8f] text-white flex items-center justify-center text-[8px] font-extrabold flex-shrink-0">
+                                                {{ strtoupper(substr($firstWorker->staff->user->first_name ?? 'W', 0, 1)) }}
+                                            </span>
+                                            <span class="truncate max-w-[100px]">{{ $firstWorker->staff->user->first_name ?? '' }} {{ $firstWorker->staff->user->last_name ?? '' }}</span>
                                         </span>
-                                    @endforeach
+
+                                        <div class="relative inline-block" @click.outside="open = false">
+                                            <button type="button" 
+                                                    @click.stop="open = !open" 
+                                                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 hover:bg-blue-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[#1a3c8f] dark:text-blue-300 border border-blue-200 dark:border-zinc-700 transition cursor-pointer shadow-2xs"
+                                                    title="{{ $allNames }}">
+                                                +{{ $remainingCount }} more
+                                            </button>
+
+                                            <div x-show="open" 
+                                                 x-cloak
+                                                 x-transition:enter="transition ease-out duration-150"
+                                                 x-transition:enter-start="opacity-0 translate-y-1 scale-95"
+                                                 x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                                                 x-transition:leave="transition ease-in duration-100"
+                                                 x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                                                 x-transition:leave-end="opacity-0 translate-y-1 scale-95"
+                                                 class="absolute left-0 bottom-full mb-1.5 z-50 w-64 p-3 bg-white dark:bg-[#1c1c1e] rounded-xl shadow-xl border border-gray-200 dark:border-zinc-700 text-left">
+                                                <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-gray-100 dark:border-zinc-800">
+                                                    <span class="text-[11px] font-bold text-[#1a3c8f] dark:text-blue-400">Assigned Team ({{ $workerCount }})</span>
+                                                    <button type="button" @click.stop="open = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs font-bold leading-none">&times;</button>
+                                                </div>
+                                                <div class="max-h-48 overflow-y-auto space-y-1 pr-1">
+                                                    @foreach($assignedWorkers as $w)
+                                                        <div class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-gray-300 py-0.5">
+                                                            <span class="w-4 h-4 rounded-full bg-[#1a3c8f] text-white flex items-center justify-center text-[8px] font-extrabold flex-shrink-0">
+                                                                {{ strtoupper(substr($w->staff->user->first_name ?? 'W', 0, 1)) }}
+                                                            </span>
+                                                            <span class="truncate text-[11px] font-medium">{{ $w->staff->user->first_name ?? '' }} {{ $w->staff->user->last_name ?? '' }}</span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
                             @else
                                 <span class="text-xs text-gray-400 italic">Unassigned</span>
