@@ -410,14 +410,14 @@
             <!-- Tasks / Job Orders -->
             <a href="{{ route('worker.dashboard') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('worker.dashboard') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <img src="{{ asset('images/DASHBOARD LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Dashboard">
+                <img src="{{ asset('images/DASHBOARD LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:brightness-0 dark:invert" alt="Dashboard">
                 Dashboard
             </a>
 
             <!-- Job Orders -->
             <a href="{{ route('worker.job-orders.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('worker.job-orders.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <img src="{{ asset('images/REQUESTS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Job Orders">
+                <img src="{{ asset('images/REQUESTS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:brightness-0 dark:invert" alt="Job Orders">
                 <span>Job Orders</span>
                 <span data-offline-sync-badge class="hidden ml-auto bg-amber-500 text-slate-900 text-[10px] font-black px-1.5 py-0.2 rounded-full">0</span>
             </a>
@@ -425,14 +425,14 @@
             <!-- Unit / Team -->
             <a href="{{ route('worker.units.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('worker.units.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <img src="{{ asset('images/UNITS Logo.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Units">
+                <img src="{{ asset('images/UNITS Logo.png') }}" class="w-5 h-5 shrink-0 object-contain dark:brightness-0 dark:invert" alt="Units">
                 My Unit
             </a>
 
             <!-- Messages -->
             <a href="{{ route('worker.messages.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('worker.messages.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <img src="{{ asset('images/MESSAGES LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Messages">
+                <img src="{{ asset('images/MESSAGES LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:brightness-0 dark:invert" alt="Messages">
                 <span>Messages</span>
                 <span data-messages-badge class="ml-auto bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs {{ $workerUnreadMessagesCount > 0 ? '' : 'hidden' }}">
                     {{ $workerUnreadMessagesCount > 99 ? '99+' : $workerUnreadMessagesCount }}
@@ -442,7 +442,7 @@
             <!-- Notifications -->
             <a href="{{ route('worker.notifications.index') }}" 
                class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('worker.notifications.*') ? 'bg-[#f0f6ff] dark:bg-gray-800 text-[#1a3c8f] dark:text-white font-bold border border-[#1a3c8f] dark:border-gray-700 shadow-sm' : 'text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                <img src="{{ asset('images/NOTIFICATIONS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:invert" alt="Notifications">
+                <img src="{{ asset('images/NOTIFICATIONS LOGO.png') }}" class="w-5 h-5 shrink-0 object-contain dark:brightness-0 dark:invert" alt="Notifications">
                 <span>Notifications</span>
                 @if($navUnreadCount > 0)
                     <span class="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ $navUnreadCount }}</span>

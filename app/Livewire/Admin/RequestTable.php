@@ -13,14 +13,21 @@ class RequestTable extends Component
     public $search = '';
     public $priority = '';
     public $status = '';
+    public $ratingFilter = '';
     public $sortField = '';
     public $sortDirection = 'asc';
 
-    protected $queryString = ['search', 'priority', 'status', 'sortField', 'sortDirection'];
+    protected $queryString = ['search', 'priority', 'status', 'ratingFilter', 'sortField', 'sortDirection'];
 
     public function setPriority($prio)
     {
         $this->priority = $this->priority === $prio ? '' : $prio;
+        $this->resetPage();
+    }
+
+    public function setRatingFilter($filter)
+    {
+        $this->ratingFilter = $this->ratingFilter === $filter ? '' : $filter;
         $this->resetPage();
     }
 
@@ -42,6 +49,7 @@ class RequestTable extends Component
 
     public function updatingStatus()
     {
+        $this->ratingFilter = '';
         $this->resetPage();
     }
 
@@ -50,9 +58,58 @@ class RequestTable extends Component
         $this->resetPage();
     }
 
+    public function updatingRatingFilter()
+    {
+        $this->resetPage();
+    }
+
+    public function notifyToRate(int $requestId, \App\Services\NotificationService $notificationService)
+    {
+        $request = ServiceRequest::with('client.user', 'evaluation')->find($requestId);
+        if (!$request) {
+            $this->dispatch('rating-reminded', [
+                'success' => false,
+                'message' => 'Service request not found.'
+            ]);
+            return;
+        }
+
+        if ($request->evaluation) {
+            $this->dispatch('rating-reminded', [
+                'success' => false,
+                'message' => 'This request has already been rated by the client.'
+            ]);
+            return;
+        }
+
+        $clientUser = $request->client?->user;
+        if (!$clientUser) {
+            $this->dispatch('rating-reminded', [
+                'success' => false,
+                'message' => 'Client account not found for this request.'
+            ]);
+            return;
+        }
+
+        $notificationService->ratingReminder(
+            $clientUser->user_id,
+            $request->title ?? ('Request #' . $request->request_id),
+            $request->request_id
+        );
+
+        session()->flash('notified_rate_' . $requestId, true);
+
+        $this->dispatch('rating-reminded', [
+            'success' => true,
+            'requestId' => $requestId,
+            'clientName' => trim(($clientUser->first_name ?? '') . ' ' . ($clientUser->last_name ?? '')),
+            'message' => 'Rating reminder sent to ' . trim(($clientUser->first_name ?? '') . ' ' . ($clientUser->last_name ?? '')) . '.'
+        ]);
+    }
+
     public function render()
     {
-        $query = ServiceRequest::with('client.user', 'category', 'latestHistory', 'project.workers.staff.user', 'project.workers.team');
+        $query = ServiceRequest::with('client.user', 'category', 'latestHistory', 'project.workers.staff.user', 'project.workers.team', 'evaluation');
 
         if ($this->priority) {
             $p = strtolower($this->priority);
@@ -69,6 +126,12 @@ class RequestTable extends Component
             $query->whereHas('latestHistory', function($q) {
                 $q->where('current_status', 'Completed');
             });
+
+            if ($this->ratingFilter === 'not_rated') {
+                $query->whereDoesntHave('evaluation');
+            } elseif ($this->ratingFilter === 'rated') {
+                $query->whereHas('evaluation');
+            }
         } elseif ($this->status === 'Pending') {
             $query->whereHas('latestHistory', function($q) {
                 $q->whereIn('current_status', ['Pending', 'Approved', 'Submitted']);
@@ -144,19 +207,38 @@ class RequestTable extends Component
                   ->orderBy('request_id', 'asc');
         } elseif ($this->sortField === 'submitted_at') {
             $dateDir = strtoupper($this->sortDirection) === 'DESC' ? 'DESC' : 'ASC';
-            $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END ASC")
-                  ->orderBy('submitted_at', $dateDir)
-                  ->orderBy('request_id', $dateDir);
+            if ($this->status === 'Completed') {
+                $query->orderBy('submitted_at', $dateDir)
+                      ->orderBy('request_id', $dateDir);
+            } else {
+                $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END ASC")
+                      ->orderBy('submitted_at', $dateDir)
+                      ->orderBy('request_id', $dateDir);
+            }
+        } elseif ($this->sortField === 'rating_status' && $this->status === 'Completed') {
+            $dir = strtoupper($this->sortDirection) === 'DESC' ? 'DESC' : 'ASC';
+            $query->leftJoin('evaluation', 'request.request_id', '=', 'evaluation.request_id')
+                  ->select('request.*')
+                  ->orderByRaw("CASE WHEN evaluation.evaluation_id IS NULL THEN 0 ELSE 1 END {$dir}")
+                  ->orderBy('request.submitted_at', 'desc')
+                  ->orderBy('request.request_id', 'desc');
         } elseif (in_array($this->sortField, ['request_id', 'title', 'campus', 'location'])) {
             $query->orderBy($this->sortField, $this->sortDirection);
         } else {
-            // Default queue: High Priority at top (FCFS), Medium & Low below (FCFS regardless of med/low)
-            $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END ASC")
-                  ->orderBy('submitted_at', 'asc')
-                  ->orderBy('request_id', 'asc');
+            if ($this->status === 'Completed') {
+                // Completed sorting: No need to follow urgent on top!
+                $query->orderBy('submitted_at', 'desc')
+                      ->orderBy('request_id', 'desc');
+            } else {
+                // Default queue: High Priority at top (FCFS), Medium & Low below (FCFS regardless of med/low)
+                $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END ASC")
+                      ->orderBy('submitted_at', 'asc')
+                      ->orderBy('request_id', 'asc');
+            }
         }
 
         $requests = $query->paginate(15);
+        ServiceRequest::warmRecurringCounts($requests->getCollection());
 
         // Dynamic KPI metrics calculated in real-time
         $totalRequests = ServiceRequest::count();
@@ -166,17 +248,24 @@ class RequestTable extends Component
         })->count();
         $onHold = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'On Hold'))->count();
         $inProgress = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', ['In Progress', 'Pending Verification']))->count();
-        $completed = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count();
+        
+        $completedBase = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'));
+        $completed = (clone $completedBase)->count();
+        $completedRated = (clone $completedBase)->whereHas('evaluation')->count();
+        $completedNotRated = (clone $completedBase)->whereDoesntHave('evaluation')->count();
+
         $recurringCount = ServiceRequest::recurring()->count();
 
         return view('livewire.admin.request-table', [
-            'requests'       => $requests,
-            'totalRequests'  => $totalRequests,
-            'submitted'      => $submitted,
-            'onHold'         => $onHold,
-            'inProgress'     => $inProgress,
-            'completed'      => $completed,
-            'recurringCount' => $recurringCount,
+            'requests'          => $requests,
+            'totalRequests'     => $totalRequests,
+            'submitted'         => $submitted,
+            'onHold'            => $onHold,
+            'inProgress'        => $inProgress,
+            'completed'         => $completed,
+            'completedRated'    => $completedRated,
+            'completedNotRated' => $completedNotRated,
+            'recurringCount'    => $recurringCount,
         ]);
     }
 

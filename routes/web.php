@@ -5,6 +5,16 @@ use Illuminate\Support\Facades\Route;
 
 // ── Root ────────────────────────────────────────────────────────────
 Route::get('/', function () {
+    if (auth()->check()) {
+        $user = auth()->user();
+        if ($user->isAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
+        if ($user->isWorker()) {
+            return redirect()->route('worker.dashboard');
+        }
+        return redirect()->route('client.dashboard');
+    }
     return view('welcome');
 })->name('home');
 
@@ -13,13 +23,48 @@ Route::get('/faq', function () {
 })->name('faq');
 
 // ── Auth ─────────────────────────────────────────────────────────────
-Route::get('/login', fn() => view('auth.login'))->name('login');
+Route::get('/login', function () {
+    if (auth()->check()) {
+        $user = auth()->user();
+        if ($user->isAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
+        if ($user->isWorker()) {
+            return redirect()->route('worker.dashboard');
+        }
+        return redirect()->route('client.dashboard');
+    }
+    return view('auth.login');
+})->name('login');
 
 // Legacy login redirects
-Route::get('/admin/login', fn() => redirect()->route('login'))->name('admin.login');
-Route::get('/admin', fn() => redirect()->route('login'));
-Route::get('/staffs/login', fn() => redirect()->route('login'))->name('staff.login');
-Route::get('/staff', fn() => redirect()->route('login'));
+Route::get('/admin/login', function () {
+    if (auth()->check() && auth()->user()->isAdmin()) {
+        return redirect()->route('admin.dashboard');
+    }
+    return redirect()->route('login');
+})->name('admin.login');
+
+Route::get('/admin', function () {
+    if (auth()->check() && auth()->user()->isAdmin()) {
+        return redirect()->route('admin.dashboard');
+    }
+    return redirect()->route('login');
+});
+
+Route::get('/staffs/login', function () {
+    if (auth()->check() && auth()->user()->isWorker()) {
+        return redirect()->route('worker.dashboard');
+    }
+    return redirect()->route('login');
+})->name('staff.login');
+
+Route::get('/staff', function () {
+    if (auth()->check() && auth()->user()->isWorker()) {
+        return redirect()->route('worker.dashboard');
+    }
+    return redirect()->route('login');
+});
 
 // Google SSO (with Rate Limiting)
 Route::get('/admin/auth/google',    fn() => redirect()->route('google.redirect'))->name('admin.google.redirect');

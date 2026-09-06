@@ -23,10 +23,6 @@
                     <span class="px-3 py-1 bg-[#0033a0] text-white text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-sm">
                         Requisition #{{ str_pad($request->request_id, 4, '0', STR_PAD_LEFT) }}
                     </span>
-                    <span class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border 
-                        {{ $request->is_urgent ? 'bg-red-100 text-red-700 border-red-300' : 'bg-blue-100 text-blue-700 border-blue-300' }}">
-                        {{ $request->priority_label }}
-                    </span>
                     <span id="requestStatusBadge" data-request-status-badge class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border
                         @if($request->current_status === 'Completed')
                             bg-emerald-100 text-emerald-700 border-emerald-300
@@ -43,12 +39,6 @@
                         @endif">
                         {{ $request->current_status }}
                     </span>
-                    @if($request->project?->nature_of_work)
-                        <span class="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold rounded-full inline-flex items-center gap-1">
-                            <svg class="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                            {{ $request->project->nature_of_work }}
-                        </span>
-                    @endif
                 </div>
 
                 <h1 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
@@ -58,11 +48,140 @@
 
             <!-- Action Buttons -->
             <div class="flex items-center gap-3 shrink-0">
-                @if($request->current_status === 'Completed' && !$request->evaluation)
-                    <a href="{{ route('client.evaluations.create', $request->request_id) }}" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-full transition shadow-md inline-flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
-                        Rate & Evaluate Service
-                    </a>
+                @if($request->current_status === 'Completed')
+                    @if(!$request->evaluation)
+                        <a href="{{ route('client.evaluations.create', $request->request_id) }}" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-full transition shadow-md inline-flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                            <span>Rate &amp; Evaluate Service</span>
+                        </a>
+                    @else
+                        <div x-data="{ evalModalOpen: false }">
+                            <!-- Service Evaluated Button (No Emoji) -->
+                            <button type="button" 
+                                    @click="evalModalOpen = true" 
+                                    class="px-5 py-2.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 rounded-full text-xs font-bold inline-flex items-center gap-2 shadow-2xs transition cursor-pointer">
+                                <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                <span>Service Evaluated ({{ $request->evaluation->rating }}/5★)</span>
+                            </button>
+
+                            <!-- View Service Rating & Feedback Modal (No Emoji) -->
+                            <div x-show="evalModalOpen" 
+                                 x-cloak 
+                                 class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-xs"
+                                 x-transition:enter="transition ease-out duration-200"
+                                 x-transition:enter-start="opacity-0"
+                                 x-transition:enter-end="opacity-100"
+                                 x-transition:leave="transition ease-in duration-150"
+                                 x-transition:leave-start="opacity-100"
+                                 x-transition:leave-end="opacity-0"
+                                 @click.outside="evalModalOpen = false" 
+                                 @keydown.escape.window="evalModalOpen = false">
+                                
+                                <div class="relative w-full max-w-lg bg-white dark:bg-[#1c1c1e] rounded-2xl shadow-2xl border border-gray-200 dark:border-zinc-800 overflow-hidden transform transition-all p-6 sm:p-7 space-y-5"
+                                     x-transition:enter="transition ease-out duration-200"
+                                     x-transition:enter-start="opacity-0 scale-95"
+                                     x-transition:enter-end="opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-150"
+                                     x-transition:leave-start="opacity-100 scale-100"
+                                     x-transition:leave-end="opacity-0 scale-95"
+                                     @click.stop>
+                                    
+                                    <!-- Modal Header -->
+                                    <div class="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-zinc-800">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/80 flex items-center justify-center shrink-0">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            </div>
+                                            <div>
+                                                <h3 class="text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+                                                    Your Service Rating &amp; Feedback
+                                                </h3>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                    Submitted {{ ($request->evaluation->show_name ?? true) ? 'under your name' : 'anonymously' }} on {{ $request->evaluation->rated_at ? $request->evaluation->rated_at->format('M d, Y h:i A') : 'N/A' }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button type="button" @click="evalModalOpen = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg transition cursor-pointer">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+
+                                    <!-- Overall Score Box (No Emoji) -->
+                                    <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex items-center justify-between gap-4">
+                                        <div>
+                                            <div class="text-[11px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-wider">Overall Rating</div>
+                                            <div class="text-base font-black text-slate-900 dark:text-white mt-0.5">
+                                                {{ match((int)$request->evaluation->rating) {
+                                                    5 => '5 / 5 — Very Satisfied',
+                                                    4 => '4 / 5 — Satisfied',
+                                                    3 => '3 / 5 — Neutral',
+                                                    2 => '2 / 5 — Dissatisfied',
+                                                    default => '1 / 5 — Very Dissatisfied'
+                                                } }}
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-1 text-amber-500 shrink-0">
+                                            @for($i = 1; $i <= 5; $i++)
+                                                <svg class="w-5 h-5 {{ $i <= $request->evaluation->rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-zinc-600 fill-transparent' }}" viewBox="0 0 20 20">
+                                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                                </svg>
+                                            @endfor
+                                        </div>
+                                    </div>
+
+                                    <!-- Written Feedback / Suggestions -->
+                                    <div class="space-y-1.5">
+                                        <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                                            <svg class="w-3.5 h-3.5 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                                            <span>Your Feedback &amp; Suggestions</span>
+                                        </div>
+                                        <div class="p-3.5 bg-slate-50 dark:bg-zinc-800/60 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs sm:text-sm text-slate-800 dark:text-gray-200 italic leading-relaxed">
+                                            "{{ $request->evaluation->feedback_text ?: 'No written feedback was provided.' }}"
+                                        </div>
+                                    </div>
+
+                                    <!-- Detailed Function Breakdown (No Emoji) -->
+                                    @php
+                                        $clientFuncRatings = $request->evaluation->function_ratings;
+                                        $clientFuncLabels = [
+                                            'quality'      => 'Quality of Service',
+                                            'attitude'     => 'Attitude',
+                                            'safety'       => 'Safety Precaution',
+                                            'time'         => 'Time Bound',
+                                            'housekeeping' => 'Housekeeping',
+                                        ];
+                                    @endphp
+                                    @if($clientFuncRatings)
+                                        <div class="space-y-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                                            <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Detailed Function Breakdown
+                                            </div>
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                @foreach($clientFuncLabels as $k => $lbl)
+                                                    @php $sVal = (int)($clientFuncRatings[$k] ?? $request->evaluation->rating); @endphp
+                                                    <div class="p-2.5 bg-slate-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 rounded-lg flex items-center justify-between text-xs">
+                                                        <span class="font-medium text-slate-700 dark:text-gray-300">{{ $lbl }}</span>
+                                                        <span class="font-black text-[#0033a0] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded text-[11px]">
+                                                            {{ $sVal }} / 5★
+                                                        </span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    <!-- Modal Footer -->
+                                    <div class="flex justify-end pt-3 border-t border-gray-100 dark:border-zinc-800">
+                                        <button type="button" @click="evalModalOpen = false" class="px-5 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition cursor-pointer">
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 @endif
 
                 @if(in_array($request->current_status, ['Submitted', 'Pending']))
@@ -246,7 +365,10 @@
                                     Proposed Schedule
                                 </div>
                                 <div class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
-                                    <span>📅 {{ $request->scheduled_date->format('F d, Y') }} ({{ $request->scheduled_date->format('l') }})</span>
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <svg class="w-4 h-4 text-[#0033a0] dark:text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        <span>{{ $request->scheduled_date->format('F d, Y') }} ({{ $request->scheduled_date->format('l') }})</span>
+                                    </span>
                                     <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-[#0033a0] text-white shadow-2xs">
                                         {{ match($request->scheduled_time_window) {
                                             'AM' => 'Morning (8:00 AM - 12:00 PM)',
@@ -737,8 +859,18 @@
                                 </div>
 
                                 @if($history->remarks)
+                                    @php
+                                        $displayRemarks = $history->remarks;
+                                        if ($history->action_title === 'Client Rated Service') {
+                                            $displayRemarks = $history->remarks;
+                                        } elseif ($history->action_title === 'Acceptance' || $history->current_status === 'Pending Verification') {
+                                            $displayRemarks = 'Work accomplished by the maintenance unit. Ready for final acceptance.';
+                                        } elseif ($history->current_status === 'Completed' && !empty($history->remarks)) {
+                                            $displayRemarks = 'Project completed and officially accepted.';
+                                        }
+                                    @endphp
                                     <p class="text-xs text-slate-700 dark:text-gray-300 bg-slate-50 dark:bg-zinc-800/60 rounded-lg px-3 py-1.5 border-l-2 border-slate-300 dark:border-zinc-600 leading-relaxed font-normal">
-                                        {{ $history->remarks }}
+                                        {{ $displayRemarks }}
                                     </p>
                                 @endif
 
@@ -847,6 +979,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 actionTitle = 'BOM Verified';
                             } else if (rem.includes('submitted bill of materials') || actionTitle === 'Awaiting Verification of Bill of Materials') {
                                 actionTitle = 'BOM Submitted';
+                            } else if (actionTitle === 'Pending Verification' || actionTitle === 'Completed (Pending Review)') {
+                                actionTitle = 'Acceptance';
                             } else if (actionTitle === 'Submitted') {
                                 actionTitle = 'Submitted';
                             } else if (actionTitle === 'Approved') {
@@ -863,8 +997,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                 ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900' 
                                 : (isComp ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900' : (isWarn ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900' : 'bg-blue-50 text-[#0038A8] border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900'));
 
-                            const remarksHtml = history.remarks 
-                                ? `<p class="text-xs text-slate-700 dark:text-gray-300 bg-slate-50 dark:bg-zinc-800/60 rounded-lg px-3 py-1.5 border-l-2 border-slate-300 dark:border-zinc-600 leading-relaxed font-normal">${history.remarks}</p>` 
+                            let displayRem = history.remarks || '';
+                            if (actionTitle === 'Acceptance' || history.current_status === 'Pending Verification') {
+                                displayRem = 'Work accomplished by the maintenance unit. Ready for final acceptance.';
+                            } else if (history.current_status === 'Completed') {
+                                displayRem = 'Project completed and officially accepted.';
+                            }
+
+                            const remarksHtml = displayRem 
+                                ? `<p class="text-xs text-slate-700 dark:text-gray-300 bg-slate-50 dark:bg-zinc-800/60 rounded-lg px-3 py-1.5 border-l-2 border-slate-300 dark:border-zinc-600 leading-relaxed font-normal">${displayRem}</p>` 
                                 : '';
 
                             const item = document.createElement('div');

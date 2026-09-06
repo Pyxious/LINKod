@@ -62,13 +62,18 @@ class RequestHistory extends Model
             return 'BOM Submitted';
         }
 
+        // Client evaluation / rating actions
+        if (str_contains($remarks, 'rated the service') || str_contains($remarks, 'client rated') || str_contains($remarks, 'submitted satisfaction') || $status === 'Evaluated' || $status === 'Client Rated Service') {
+            return 'Client Rated Service';
+        }
+
         // Standard Lifecycle actions
         return match($status) {
             'Submitted'            => 'Submitted',
             'Approved'             => 'Approved',
             'Rejected'             => 'Rejected',
             'In Progress'          => 'In Progress',
-            'Pending Verification' => 'Completed (Pending Review)',
+            'Pending Verification' => 'Acceptance',
             'Completed'            => 'Completed',
             'Cancelled'            => 'Cancelled',
             'On Hold'              => 'On Hold',
@@ -87,7 +92,7 @@ class RequestHistory extends Model
             str_contains($title, 'Rejected') || str_contains($title, 'Cancelled') || str_contains($title, 'Declined')
                 => 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900',
 
-            str_contains($title, 'Confirmed') || str_contains($title, 'Approved') || str_contains($title, 'Completed')
+            str_contains($title, 'Confirmed') || str_contains($title, 'Approved') || str_contains($title, 'Completed') || str_contains($title, 'Acceptance') || str_contains($title, 'Client Rated') || str_contains($title, 'Evaluated')
                 => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900',
 
             str_contains($title, 'Proposed') || str_contains($title, 'Submitted') || str_contains($title, 'Pending') || str_contains($title, 'On Hold')
@@ -109,7 +114,7 @@ class RequestHistory extends Model
             str_contains($title, 'Rejected') || str_contains($title, 'Cancelled') || str_contains($title, 'Declined')
                 => 'bg-rose-500 ring-rose-100 dark:ring-rose-950',
 
-            str_contains($title, 'Confirmed') || str_contains($title, 'Approved') || str_contains($title, 'Completed')
+            str_contains($title, 'Confirmed') || str_contains($title, 'Approved') || str_contains($title, 'Completed') || str_contains($title, 'Acceptance') || str_contains($title, 'Client Rated') || str_contains($title, 'Evaluated')
                 => 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-950',
 
             str_contains($title, 'Proposed') || str_contains($title, 'Submitted') || str_contains($title, 'Pending') || str_contains($title, 'On Hold')

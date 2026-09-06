@@ -34,4 +34,8 @@ test_css.php
 test_html.php
 test_pdf.php
 linkod_schema_only.sql
+/database/*.sql
+/scratch/
+/.gemini/
+/.agents/
 

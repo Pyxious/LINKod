@@ -557,13 +557,14 @@ class RequestController extends Controller
             ]);
 
             $previousStatus = $serviceRequest->current_status;
-            $newStatus = 'In Progress';
+            $newStatus = 'Awaiting Materials';
+            $remarks = 'Client approved Bill of Materials (PHP ' . number_format($totalCost, 2) . '). Awaiting materials procurement/delivery before work commences.';
 
             \App\Models\ProjectHistory::create([
                 'project_id'      => $project->project_id,
                 'previous_status' => $project->current_status,
                 'current_status'  => $newStatus,
-                'remarks'         => 'Client approved Bill of Materials (PHP ' . number_format($totalCost, 2) . '). Work may proceed.',
+                'remarks'         => $remarks,
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
@@ -572,7 +573,7 @@ class RequestController extends Controller
                 'request_id'      => $serviceRequest->request_id,
                 'previous_status' => $previousStatus,
                 'current_status'  => $newStatus,
-                'remarks'         => 'Client approved Bill of Materials (PHP ' . number_format($totalCost, 2) . '). Work may proceed.',
+                'remarks'         => $remarks,
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
@@ -609,7 +610,7 @@ class RequestController extends Controller
             }
 
             return redirect()->route('client.requests.show', $id)
-                ->with('success', 'Bill of Materials approved successfully. Work has resumed!');
+                ->with('success', 'Bill of Materials approved successfully. Work may commence once materials are ready!');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error approving Bill of Materials: ' . $e->getMessage());
         }

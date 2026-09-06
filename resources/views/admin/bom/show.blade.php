@@ -376,10 +376,17 @@
 
                 <!-- Submit Button -->
                 <div class="sm:col-span-12 flex justify-end pt-2">
-                    <button type="submit" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                        <span>Add Item to BOM</span>
-                    </button>
+                    @if(!$project->request || $project->request->isScheduleApproved())
+                        <button type="submit" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            <span>Add Item to BOM</span>
+                        </button>
+                    @else
+                        <button type="button" disabled class="px-5 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 rounded-xl text-xs font-bold cursor-not-allowed inline-flex items-center gap-1.5 opacity-80" title="Client must approve the scheduled date before adding materials">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            <span>Add Item to BOM (Schedule Approval Required)</span>
+                        </button>
+                    @endif
                 </div>
             </div>
         </form>

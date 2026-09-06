@@ -40,11 +40,29 @@ class AuthService
         $user = User::where('email_hash', $emailHash)->first();
 
         if (!$user) {
-            // Parse name parts from Google
-            $nameParts = explode(' ', $googleUser->getName(), 3);
-            $firstName  = $nameParts[0] ?? '';
-            $lastName   = $nameParts[1] ?? '';
-            $middleName = $nameParts[2] ?? null;
+            // Parse name parts from Google properly
+            $raw = $googleUser->user ?? [];
+            if (!empty($raw['given_name']) && !empty($raw['family_name'])) {
+                $firstName  = trim($raw['given_name']);
+                $lastName   = trim($raw['family_name']);
+                $middleName = null;
+            } else {
+                $words = array_values(array_filter(explode(' ', trim($googleUser->getName()))));
+                if (count($words) === 1) {
+                    $firstName = $words[0];
+                    $lastName = '';
+                    $middleName = null;
+                } elseif (count($words) === 2) {
+                    $firstName = $words[0];
+                    $lastName = $words[1];
+                    $middleName = null;
+                } else {
+                    // E.g. "Justin Vince Alcayde" -> firstName="Justin Vince", lastName="Alcayde"
+                    $lastName = array_pop($words);
+                    $firstName = implode(' ', $words);
+                    $middleName = null;
+                }
+            }
 
             $user = User::create([
                 'username'       => $this->generateUsername($googleUser->getEmail()),
@@ -70,10 +88,16 @@ class AuthService
             }
 
             // Update placeholder names if they were set as walk-in defaults
-            $nameParts = explode(' ', $googleUser->getName(), 3);
-            $firstName = $nameParts[0] ?? '';
-            $lastName  = $nameParts[1] ?? '';
-            if ($firstName && (empty($user->first_name) || strtolower($user->first_name) === 'walk-in')) {
+            if (empty($user->first_name) || strtolower($user->first_name) === 'walk-in') {
+                $raw = $googleUser->user ?? [];
+                if (!empty($raw['given_name']) && !empty($raw['family_name'])) {
+                    $firstName = trim($raw['given_name']);
+                    $lastName  = trim($raw['family_name']);
+                } else {
+                    $words = array_values(array_filter(explode(' ', trim($googleUser->getName()))));
+                    $lastName = count($words) > 1 ? array_pop($words) : '';
+                    $firstName = implode(' ', $words);
+                }
                 $user->update([
                     'first_name' => $firstName,
                     'last_name'  => $lastName ?: $user->last_name,

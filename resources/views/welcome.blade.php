@@ -112,32 +112,17 @@
                     </a>
                 </div>
 
-                <!-- Card 5: Manpower -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
+                <!-- Card 5: Janitorial & Manpower -->
+                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px] col-span-2 md:col-span-1">
                     <div>
                         <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
-                            Manpower Services
+                            Janitorial &amp; Manpower Services
                         </h3>
                         <p class="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs leading-relaxed mb-3 sm:mb-4">
-                            Assistance for events, activities, and other manpower needs.
+                            Cleaning, janitorial support, event assistance, and general manpower services.
                         </p>
                     </div>
                     <a href="{{ route('client.requests.create', ['category' => 'Manpower']) }}" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-sm transition inline-block">
-                        Request now
-                    </a>
-                </div>
-
-                <!-- Card 6: Janitorial -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
-                    <div>
-                        <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
-                            Janitorial Services
-                        </h3>
-                        <p class="text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs leading-relaxed mb-3 sm:mb-4">
-                            Cleaning and janitorial support services.
-                        </p>
-                    </div>
-                    <a href="{{ route('client.requests.create', ['category' => 'Janitorial']) }}" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-sm transition inline-block">
                         Request now
                     </a>
                 </div>
@@ -161,9 +146,9 @@
 
             <!-- Right Form Box (Dotted Border Card) -->
             <div class="border-2 border-dashed border-[#0033a0] rounded-2xl p-7 bg-white dark:bg-zinc-900 shadow-sm">
-                <form method="GET" action="{{ route('client.requests.index') }}">
+                <form method="GET" action="{{ route('client.requests.index') }}" x-data="{ tracking: false }" @submit="if ($el.checkValidity()) tracking = true">
                     <label class="block text-xs font-black text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-0.5">
-                        ENTER TRACKING NUMBER
+                        ENTER TRACKING NUMBER <span class="text-red-500">*</span>
                     </label>
                     <span class="text-[11px] text-gray-400 block mb-4">
                         Your tracking number was provided when you submitted your request.
@@ -171,11 +156,13 @@
 
                     <input type="text" 
                            name="search" 
+                           required
                            placeholder="# e.g., PS-012" 
                            class="w-full px-4 py-3 bg-[#edf4fb] dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-[#0033a0] mb-4">
 
-                    <button type="submit" class="w-full py-3 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md">
-                        Track Now
+                    <button type="submit" class="w-full py-3 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-2 cursor-pointer">
+                        <svg x-show="tracking" x-cloak class="animate-spin -ml-1 mr-1.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span x-text="tracking ? 'Tracking...' : 'Track Now'">Track Now</span>
                     </button>
 
                     <div class="text-center mt-3">

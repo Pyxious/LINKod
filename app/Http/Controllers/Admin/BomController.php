@@ -87,7 +87,10 @@ class BomController extends Controller
             'unit_cost'            => 'required|numeric|min:0',
         ]);
 
-        $project = Project::findOrFail($projectId);
+        $project = Project::with('request')->findOrFail($projectId);
+        if ($project->request && !$project->request->isScheduleApproved()) {
+            return redirect()->back()->with('error', 'Materials cannot be added until the client has approved the scheduled date.');
+        }
         if (in_array($project->current_status, ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'])) {
             return redirect()->back()->with('error', 'Bill of Materials cannot be modified once work is In Progress or closed.');
         }

@@ -22,17 +22,28 @@ class TaskProgressController extends Controller
             ]);
 
             $worker  = auth()->user()->staff?->worker;
-            $project = Project::findOrFail($projectId);
+            $project = Project::with('request')->findOrFail($projectId);
 
             abort_unless(
                 $worker && $project->workers->contains('worker_id', $worker->worker_id),
                 403
             );
 
+            if (!$project->request || !$project->request->isScheduleApproved()) {
+                return redirect()->back()->with('error', 'Task cannot be updated until the client has approved the scheduled date.');
+            }
+
             $previousStatus = $project->current_status;
 
-            // Workers can only update from: Pending, On Hold (BOM approved), or In Progress
-            $allowedPreviousStatuses = ['Pending', 'On Hold', 'In Progress'];
+            // Workers can update from: Pending, On Hold, Awaiting Materials, or BOM stages
+            $allowedPreviousStatuses = [
+                'Pending', 
+                'On Hold', 
+                'Awaiting Materials', 
+                'Awaiting Verification of Bill of Materials', 
+                'BOM Verified (Awaiting Client Approval)', 
+                'In Progress'
+            ];
             if (!in_array($previousStatus, $allowedPreviousStatuses)) {
                 return redirect()->back()->with('error', "Task cannot be updated from status: {$previousStatus}.");
             }
@@ -55,8 +66,9 @@ class TaskProgressController extends Controller
 
             $actualStatus = $validated['status'] === 'Completed' ? 'Pending Verification' : $validated['status'];
 
-            // Guard against duplicate rapid clicks
-            if ($previousStatus === $actualStatus) {
+            // Guard against duplicate rapid clicks (unless worker is uploading a missing before-work photo for an In Progress task)
+            $hasExistingBeforePhoto = $project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->isNotEmpty();
+            if ($previousStatus === $actualStatus && !($actualStatus === 'In Progress' && !$hasExistingBeforePhoto && $proofPath)) {
                 return redirect()->route('worker.job-orders.show', $projectId)
                     ->with('info', "Task status is already {$actualStatus}.");
             }
@@ -68,6 +80,8 @@ class TaskProgressController extends Controller
 
                 if ($completionType === 'Inspection Only' || $natureInput === 'Inspection & Assessment Only') {
                     $project->nature_of_work = 'Inspection & Assessment Only';
+                } elseif (!$project->nature_of_work) {
+                    $project->nature_of_work = 'Repair & Maintenance Done';
                 }
 
                 if ($request->filled('recommendation')) {
@@ -76,11 +90,19 @@ class TaskProgressController extends Controller
                 $project->save();
             }
 
+            $remarks = null;
+            if ($validated['status'] === 'Completed') {
+                $remarks = ($project->nature_of_work ?? 'Completed') . ($project->recommendation ? ' — ' . $project->recommendation : '');
+            } elseif ($validated['status'] === 'In Progress') {
+                $remarks = 'Worker commenced task with documented Before-Work photo.';
+            }
+
             ProjectHistory::create([
                 'project_id'       => $project->project_id,
                 'previous_status'  => $previousStatus,
                 'current_status'   => $actualStatus,
                 'proof_attachment' => $proofPath,
+                'remarks'          => $remarks,
                 'updated_at'       => now(),
                 'updated_by'       => auth()->id(),
             ]);
@@ -89,11 +111,6 @@ class TaskProgressController extends Controller
             if ($project->request_id) {
                 $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
                 if ($serviceRequest) {
-                    $remarks = null;
-                    if ($validated['status'] === 'Completed') {
-                        $remarks = ($project->nature_of_work ?? 'Completed') . ($project->recommendation ? ' — ' . $project->recommendation : '');
-                    }
-
                     \App\Models\RequestHistory::create([
                         'request_id'      => $serviceRequest->request_id,
                         'previous_status' => $serviceRequest->current_status,
@@ -147,17 +164,28 @@ class TaskProgressController extends Controller
             ]);
 
             $worker  = auth()->user()->staff?->worker;
-            $project = Project::findOrFail($projectId);
+            $project = Project::with('request')->findOrFail($projectId);
 
             abort_unless(
                 $worker && $project->workers->contains('worker_id', $worker->worker_id),
                 403
             );
 
+            if (!$project->request || !$project->request->isScheduleApproved()) {
+                return response()->json(['success' => false, 'message' => 'Task cannot be updated until the client has approved the scheduled date.'], 422);
+            }
+
             $previousStatus = $project->current_status;
 
-            // Workers can only update from: Pending, On Hold (BOM approved), or In Progress
-            $allowedPreviousStatuses = ['Pending', 'On Hold', 'In Progress'];
+            // Workers can update from: Pending, On Hold, Awaiting Materials, or BOM stages
+            $allowedPreviousStatuses = [
+                'Pending', 
+                'On Hold', 
+                'Awaiting Materials', 
+                'Awaiting Verification of Bill of Materials', 
+                'BOM Verified (Awaiting Client Approval)', 
+                'In Progress'
+            ];
             if (!in_array($previousStatus, $allowedPreviousStatuses)) {
                 return response()->json(['success' => false, 'message' => "Task cannot be updated from status: {$previousStatus}."], 422);
             }
@@ -200,6 +228,8 @@ class TaskProgressController extends Controller
 
                 if ($completionType === 'Inspection Only' || $natureInput === 'Inspection & Assessment Only') {
                     $project->nature_of_work = 'Inspection & Assessment Only';
+                } elseif (!$project->nature_of_work) {
+                    $project->nature_of_work = 'Repair & Maintenance Done';
                 }
 
                 if ($request->filled('recommendation')) {

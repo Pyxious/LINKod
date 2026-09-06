@@ -250,5 +250,21 @@ class NotificationService
             $actionUrl
         );
     }
+
+    /**
+     * Remind client to rate a completed service request.
+     */
+    public function ratingReminder(int $clientUserId, string $requestTitle, int $requestId): void
+    {
+        $actionUrl = route('client.requests.show', $requestId, false);
+
+        $this->send(
+            $clientUserId,
+            'rating_reminder',
+            'Service Satisfaction Rating Reminder',
+            "Your maintenance request \"{$requestTitle}\" has been completed. Please take a moment to rate the service received.",
+            $actionUrl
+        );
+    }
 }
 

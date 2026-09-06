@@ -9,7 +9,7 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     * Unified migration for all LINKod database tables, initial categories, and configuration.
+     * Unified master migration for all LINKod database tables, indexes, queues, and initial data.
      */
     public function up(): void
     {
@@ -42,6 +42,33 @@ return new class extends Migration
             });
         }
 
+        // ── jobs & failed_jobs (Queue) ───────────────────────────────────
+        if (!Schema::hasTable('jobs')) {
+            Schema::create('jobs', function (Blueprint $table) {
+                $table->bigIncrements('id');
+                $table->string('queue')->index();
+                $table->longText('payload');
+                $table->unsignedSmallInteger('attempts');
+                $table->unsignedInteger('reserved_at')->nullable();
+                $table->unsignedInteger('available_at');
+                $table->unsignedInteger('created_at');
+            });
+        }
+
+        if (!Schema::hasTable('failed_jobs')) {
+            Schema::create('failed_jobs', function (Blueprint $table) {
+                $table->id();
+                $table->string('uuid')->unique();
+                $table->string('connection');
+                $table->string('queue');
+                $table->longText('payload');
+                $table->longText('exception');
+                $table->timestamp('failed_at')->useCurrent();
+
+                $table->index(['connection', 'queue', 'failed_at']);
+            });
+        }
+
         // ── user ─────────────────────────────────────────────────────────
         if (!Schema::hasTable('user')) {
             Schema::create('user', function (Blueprint $table) {
@@ -59,6 +86,7 @@ return new class extends Migration
                 $table->string('totp_secret')->nullable();
                 $table->string('google_id', 100)->nullable()->unique();
                 $table->string('avatar_url')->nullable();
+                $table->rememberToken();
             });
         }
 
@@ -100,6 +128,7 @@ return new class extends Migration
                 $table->string('team_name', 100);
                 $table->unsignedInteger('team_leader')->nullable();
                 $table->integer('member_count')->default(0);
+                $table->softDeletes();
                 $table->foreign('team_leader')->references('leader_id')->on('team_leader')->onDelete('set null');
             });
         }
@@ -123,6 +152,7 @@ return new class extends Migration
                 $table->increments('category_id');
                 $table->string('category_name', 100);
                 $table->text('description')->nullable();
+                $table->softDeletes();
             });
         }
 
@@ -141,8 +171,21 @@ return new class extends Migration
                 $table->string('priority', 50)->nullable();
                 $table->string('attachment')->nullable();
                 $table->timestamp('submitted_at')->nullable();
+                $table->date('scheduled_date')->nullable();
+                $table->string('scheduled_time_window', 20)->nullable();
+                $table->string('schedule_status', 50)->nullable();
+                $table->text('schedule_decline_reason')->nullable();
+                $table->string('bom_status', 50)->nullable()->default('none');
+
                 $table->foreign('client_id')->references('client_id')->on('client')->onDelete('cascade');
                 $table->foreign('category_id')->references('category_id')->on('category')->onDelete('set null');
+
+                // Performance Indexes
+                $table->index('client_id', 'idx_request_client_id');
+                $table->index('campus', 'idx_request_campus');
+                $table->index('urgency', 'idx_request_urgency');
+                $table->index('submitted_at', 'idx_request_submitted_at');
+                $table->index('category_id', 'idx_request_category_id');
             });
         }
 
@@ -156,8 +199,14 @@ return new class extends Migration
                 $table->text('remarks')->nullable();
                 $table->timestamp('updated_at')->nullable();
                 $table->unsignedInteger('updated_by')->nullable();
+
                 $table->foreign('request_id')->references('request_id')->on('request')->onDelete('cascade');
                 $table->foreign('updated_by')->references('user_id')->on('user')->onDelete('set null');
+
+                // Performance Indexes
+                $table->index('current_status', 'idx_rh_current_status');
+                $table->index('request_id', 'idx_rh_request_id');
+                $table->index(['request_id', 'current_status'], 'idx_rh_request_status');
             });
         }
 
@@ -291,20 +340,24 @@ return new class extends Migration
             });
         }
 
-        // ── SEED INITIAL CATEGORIES DIRECTLY IN MIGRATION ────────────────
+        // ── SEED INITIAL CATEGORIES (UNIFIED JANITORIAL & MANPOWER) ──────
         $categories = [
-            ['category_id' => 1, 'category_name' => 'Carpentry/Masonry/Electrical', 'description' => 'Carpentry, masonry, and electrical works.'],
-            ['category_id' => 2, 'category_name' => 'Plumbing',                     'description' => 'Plumbing installation and repair services.'],
-            ['category_id' => 3, 'category_name' => 'Painting',                     'description' => 'Interior and exterior painting services.'],
-            ['category_id' => 4, 'category_name' => 'Janitorial',                   'description' => 'Cleaning, sanitation, and housekeeping services.'],
-            ['category_id' => 5, 'category_name' => 'Manpower',                     'description' => 'General manpower and labor assistance.'],
-            ['category_id' => 6, 'category_name' => 'Landscaping',                  'description' => 'Grounds maintenance, lawn care, and landscaping services.'],
+            ['category_id' => 1, 'category_name' => 'Carpentry/Masonry/Electrical', 'description' => 'Carpentry, masonry, and electrical works.', 'deleted_at' => null],
+            ['category_id' => 2, 'category_name' => 'Plumbing',                     'description' => 'Plumbing installation and repair services.', 'deleted_at' => null],
+            ['category_id' => 3, 'category_name' => 'Painting',                     'description' => 'Interior and exterior painting services.', 'deleted_at' => null],
+            ['category_id' => 4, 'category_name' => 'Janitorial and Manpower Services', 'description' => 'Cleaning, sanitation, housekeeping, venue setup, and general manpower assistance.', 'deleted_at' => null],
+            ['category_id' => 5, 'category_name' => 'Manpower',                     'description' => 'General manpower and labor assistance (merged into Category #4).', 'deleted_at' => now()],
+            ['category_id' => 6, 'category_name' => 'Landscaping',                  'description' => 'Grounds maintenance, lawn care, and landscaping services.', 'deleted_at' => null],
         ];
 
         foreach ($categories as $cat) {
             DB::table('category')->updateOrInsert(
                 ['category_id' => $cat['category_id']],
-                ['category_name' => $cat['category_name'], 'description' => $cat['description']]
+                [
+                    'category_name' => $cat['category_name'],
+                    'description'   => $cat['description'],
+                    'deleted_at'    => $cat['deleted_at'],
+                ]
             );
         }
 
@@ -326,6 +379,8 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('failed_jobs');
+        Schema::dropIfExists('jobs');
         Schema::dropIfExists('bill_of_materials');
         Schema::dropIfExists('materials');
         Schema::dropIfExists('evaluation');

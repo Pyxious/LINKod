@@ -606,6 +606,17 @@
                 <td class="lbl bl">CONTACT NO.:</td>
                 <td class="val">{{ $contactNo }}</td>
             </tr>
+            @if($serviceRequest->scheduled_date)
+            <tr>
+                <td class="lbl">SCHEDULED DATE:</td>
+                <td class="val" colspan="3">
+                    <strong>{{ $serviceRequest->scheduled_date->format('F d, Y') }}</strong>
+                    @if($serviceRequest->scheduled_time_window)
+                        <span style="color:#555; margin-left:6px;">({{ $serviceRequest->scheduled_time_window }})</span>
+                    @endif
+                </td>
+            </tr>
+            @endif
         </table>
     </div>
 
@@ -748,11 +759,13 @@
         
         <div style="display:flex; justify-content:space-around; margin:4px 0 10px; font-size:9.5px; color:#333;">
             <div style="text-align:center; width:220px;">
-                <div class="sign-line" style="margin-bottom:2px;"></div>
+                <div class="sign-line" style="margin-bottom:2px; font-weight:bold; font-size:10px; min-height:16px;">
+                    {{ $serviceRequest->scheduled_date ? $serviceRequest->scheduled_date->format('F d, Y') . ($serviceRequest->scheduled_time_window ? ' (' . $serviceRequest->scheduled_time_window . ')' : '') : '' }}
+                </div>
                 Scheduled Date
             </div>
             <div style="text-align:center; width:220px;">
-                <div class="sign-line" style="margin-bottom:2px;"></div>
+                <div class="sign-line" style="margin-bottom:2px; min-height:16px;"></div>
                 State Reasons:
             </div>
         </div>
@@ -768,8 +781,8 @@
         <div style="text-align:center; font-weight:bold; font-size:11.5px; margin:2px 0 6px;">ACCEPTANCE</div>
         
         <div style="display:flex; justify-content:space-between; padding:0 24px; margin-bottom:12px; font-size:11px;">
-            <div>Date of Completion: <span class="uline" style="min-width:160px;">{{ $dateStarted }}</span></div>
-            <div>Date of Acceptance: <span class="uline" style="min-width:160px;">{{ $targetCompletion }}</span></div>
+            <div>Date of Completion: <span class="uline" style="min-width:160px;"></span></div>
+            <div>Date of Acceptance: <span class="uline" style="min-width:160px;"></span></div>
         </div>
         
         <div style="text-align:center; margin-bottom:6px;">

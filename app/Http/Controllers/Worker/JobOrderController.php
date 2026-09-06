@@ -36,10 +36,12 @@ class JobOrderController extends Controller
             $status = $project->current_status;
             $prio   = ucfirst(strtolower($req?->priority ?? 'Low'));
 
-            // 1. Status Filtering (Default = active tasks only, excluding Completed and unconfirmed schedules)
-            if ($status === 'Pending Schedule Confirmation') {
+            // Do not display on worker's job order until client approves the scheduled date
+            if (!$req || !$req->isScheduleApproved()) {
                 return false;
             }
+
+            // 1. Status Filtering (Default = active tasks only, excluding Completed)
 
             if (empty($statusFilter) || $statusFilter === 'active') {
                 if ($status === 'Completed') {
@@ -170,6 +172,12 @@ class JobOrderController extends Controller
             $worker && $project->workers->contains('worker_id', $worker->worker_id),
             403
         );
+
+        // Do not display/allow access until client approves the scheduled date
+        if (!$project->request || !$project->request->isScheduleApproved()) {
+            return redirect()->route('worker.job-orders.index')
+                ->with('error', 'This job order is not available yet. The visit schedule must be approved by the client.');
+        }
 
         // Mark viewed conversation messages as read
         if (auth()->check() && $project->request_id) {

@@ -136,9 +136,6 @@
                                     <span class="bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-300 font-mono font-extrabold px-2.5 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 text-[11px] sm:text-xs">
                                         {{ $prefix }}-{{ str_pad($r->request_id, 3, '0', STR_PAD_LEFT) }}
                                     </span>
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border {{ $r->is_urgent ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300' : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300' }}">
-                                        {{ $r->priority_label }}
-                                    </span>
                                     @if($r->scheduled_date && $r->is_routine)
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300">
                                             <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>

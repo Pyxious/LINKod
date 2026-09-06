@@ -12,8 +12,8 @@
     <!-- Top Header Banner -->
     <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 shadow-sm space-y-4"
          x-data="{
-             dateStarted: '',
-             targetCompletion: '',
+             dateStarted: '{{ now()->toDateString() }}',
+             targetCompletion: '{{ now()->toDateString() }}',
              get printUrl() {
                  let base = '{{ route('admin.requests.export', $serviceRequest->request_id) }}';
                  let params = new URLSearchParams();
@@ -53,7 +53,8 @@
                 @endif
                 @if($serviceRequest->scheduled_date)
                     <span class="px-3 py-1 bg-blue-100 text-[#0033a0] dark:bg-blue-950/70 dark:text-blue-300 border border-blue-300 dark:border-blue-800 text-[11px] font-bold rounded-full flex items-center gap-1.5">
-                        <span>📅 {{ $serviceRequest->scheduled_date->format('M d, Y') }} ({{ $serviceRequest->scheduled_time_window }})</span>
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span>{{ $serviceRequest->scheduled_date->format('M d, Y') }} ({{ $serviceRequest->scheduled_time_window }})</span>
                     </span>
                 @endif
             </div>
@@ -89,9 +90,15 @@
             <!-- Print Requisition Action & Date Range Controls -->
             <div class="flex flex-col gap-2 shrink-0 w-full sm:w-auto {{ $isManpower ? 'min-w-[180px]' : 'min-w-[300px]' }}">
                 <!-- Print Requisition Button -->
-                <a :href="printUrl" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center justify-center w-full">
-                    Print Requisition
-                </a>
+                @if($serviceRequest->isScheduleApproved())
+                    <a :href="printUrl" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center justify-center w-full">
+                        Print Requisition
+                    </a>
+                @else
+                    <button type="button" disabled class="px-5 py-2.5 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-xl cursor-not-allowed inline-flex items-center justify-center w-full opacity-80" title="Client must approve the scheduled date before printing requisition">
+                        Print Requisition
+                    </button>
+                @endif
 
                 @if(!$isManpower)
                     <!-- 2 Boxes: Left = Date Started, Right = Target Date of Completion -->
@@ -449,14 +456,14 @@
             @if($serviceRequest->schedule_status === 'pending_client_approval')
                 <div x-show="isMinimized" x-cloak class="pt-1 text-xs text-gray-600 dark:text-gray-400 flex flex-wrap items-center gap-x-5 gap-y-1">
                     @if($serviceRequest->scheduled_date)
-                        <span class="inline-flex items-center gap-1 font-medium">
-                            <span class="text-gray-400">📅 Proposed Visit:</span>
+                        <span class="inline-flex items-center gap-1.5 font-medium">
+                            <span class="text-gray-400 font-bold uppercase text-[10px]">Proposed Visit:</span>
                             <span class="font-bold text-slate-800 dark:text-gray-200">{{ $serviceRequest->scheduled_date->format('M d, Y') }} ({{ $serviceRequest->scheduled_time_window }})</span>
                         </span>
                     @endif
                     @if($serviceRequest->project && $serviceRequest->project->workers->isNotEmpty())
-                        <span class="inline-flex items-center gap-1 font-medium">
-                            <span class="text-gray-400">👷 Assigned Personnel:</span>
+                        <span class="inline-flex items-center gap-1.5 font-medium">
+                            <span class="text-gray-400 font-bold uppercase text-[10px]">Assigned Personnel:</span>
                             <span class="font-bold text-slate-800 dark:text-gray-200">{{ $serviceRequest->project->workers->map(fn($w) => $w->user->first_name . ' ' . $w->user->last_name)->join(', ') }}</span>
                         </span>
                     @endif
@@ -488,7 +495,7 @@
                                 Agreed Visit Schedule (Confirmed by Client)
                             </div>
                             <div class="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-                                📅 {{ $serviceRequest->scheduled_date->format('F d, Y') }} ({{ $serviceRequest->scheduled_date->format('l') }}) • {{ match($serviceRequest->scheduled_time_window) {
+                                {{ $serviceRequest->scheduled_date->format('F d, Y') }} ({{ $serviceRequest->scheduled_date->format('l') }}) • {{ match($serviceRequest->scheduled_time_window) {
                                     'AM' => 'Morning (8:00 AM - 12:00 PM)',
                                     'PM' => 'Afternoon (1:00 PM - 5:00 PM)',
                                     'AM-PM' => 'Whole Day (8:00 AM - 5:00 PM)',
@@ -703,26 +710,30 @@
     @if($serviceRequest->evaluation)
         <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 border-[#0033a0] dark:border-blue-700 p-7 shadow-sm">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-4">
-                <div>
-                    <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">
-                        Clientele Satisfaction Measurement Rating
-                    </h2>
-                    <p class="text-xs text-gray-500 mt-0.5 font-medium">
-                        Submitted {{ ($serviceRequest->evaluation->show_name ?? true) ? 'by ' . ($serviceRequest->client->user->first_name . ' ' . $serviceRequest->client->user->last_name) : 'anonymously' }} on {{ $serviceRequest->evaluation->rated_at ? $serviceRequest->evaluation->rated_at->format('M d, Y h:i A') : 'N/A' }}
-                    </p>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400 border border-blue-200 dark:border-blue-800/80 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">
+                            Clientele Satisfaction Measurement Rating
+                        </h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
+                            Submitted {{ ($serviceRequest->evaluation->show_name ?? true) ? 'by ' . ($serviceRequest->client->user->first_name . ' ' . $serviceRequest->client->user->last_name) : 'anonymously' }} on {{ $serviceRequest->evaluation->rated_at ? $serviceRequest->evaluation->rated_at->format('M d, Y h:i A') : 'N/A' }}
+                        </p>
+                    </div>
                 </div>
-                <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center shrink-0">
-                    Print Satisfaction Form
+                <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center gap-2 shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    <span>Print Satisfaction Form</span>
                 </a>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-blue-50/70 dark:bg-zinc-800 p-4 rounded-xl border border-blue-200 dark:border-zinc-700 flex items-center gap-3">
-                    <div class="w-12 h-12 rounded-xl bg-[#0033a0] text-white font-black text-xl flex items-center justify-center shrink-0 shadow-sm">
-                        {{ $serviceRequest->evaluation->rating }}★
-                    </div>
+                <div class="bg-slate-50 dark:bg-zinc-800/70 p-4 rounded-xl border border-gray-200 dark:border-zinc-700/80 flex items-center gap-3.5">
+                    <x-survey-mood-icon :score="$serviceRequest->evaluation->rating" class="w-12 h-12 shrink-0" />
                     <div>
-                        <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Overall Rating</div>
+                        <div class="text-[11px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-wider">Overall Rating</div>
                         <div class="text-sm font-black text-slate-900 dark:text-white">
                             {{ match((int)$serviceRequest->evaluation->rating) {
                                 5 => '5 / 5 — Very Satisfied',
@@ -735,8 +746,11 @@
                     </div>
                 </div>
 
-                <div class="md:col-span-2 bg-slate-50 dark:bg-zinc-800 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
-                    <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Client Feedback & Comments</div>
+                <div class="md:col-span-2 bg-slate-50 dark:bg-zinc-800/70 p-4 rounded-xl border border-gray-200 dark:border-zinc-700/80">
+                    <div class="text-[11px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                        <span>Client Feedback &amp; Comments</span>
+                    </div>
                     <p class="text-xs text-slate-800 dark:text-gray-200 font-medium italic">
                         "{{ $serviceRequest->evaluation->feedback_text ?: 'No additional written feedback provided.' }}"
                     </p>
@@ -756,8 +770,11 @@
             <div class="mt-4 pt-3 border-t border-gray-100 dark:border-zinc-800 flex flex-wrap items-center gap-2">
                 <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mr-1">Rating Breakdown:</span>
                 @foreach($funcLabels as $k => $lbl)
-                    <span class="px-2.5 py-1 bg-slate-50 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-lg text-xs font-bold text-slate-800 dark:text-gray-200">
-                        {{ $lbl }}: <span class="text-[#0033a0] dark:text-blue-400 font-extrabold">{{ $funcRatings[$k] ?? $serviceRequest->evaluation->rating }}★</span>
+                    @php $scoreVal = (int)($funcRatings[$k] ?? $serviceRequest->evaluation->rating); @endphp
+                    <span class="px-2.5 py-1 bg-slate-50 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-lg text-xs font-bold text-slate-800 dark:text-gray-200 inline-flex items-center gap-1.5">
+                        <x-survey-mood-icon :score="$scoreVal" class="w-4 h-4" />
+                        <span>{{ $lbl }}:</span>
+                        <span class="text-[#0033a0] dark:text-blue-400 font-extrabold">{{ $scoreVal }}★</span>
                     </span>
                 @endforeach
             </div>
@@ -825,15 +842,22 @@
                 </div>
 
                 <div class="flex items-center gap-2 flex-wrap">
-                    @if(in_array($serviceRequest->current_status, ['Approved', 'Pending', 'On Hold', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)']))
-                        <button type="button" @click="showStartModal = true" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            Start Task (Before Photo)
-                        </button>
+                    @if(in_array($serviceRequest->current_status, ['Approved', 'Pending', 'On Hold', 'Awaiting Materials', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)', 'Schedule Set', 'Schedule Confirmed']))
+                        @if($serviceRequest->isScheduleApproved())
+                            <button type="button" @click="showStartModal = true" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Start Task (Before Photo)
+                            </button>
+                        @else
+                            <button type="button" disabled class="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-xl cursor-not-allowed inline-flex items-center gap-1.5 opacity-80" title="Client must approve the scheduled date before starting task">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Start Task (Before Photo)
+                            </button>
+                        @endif
                     @endif
 
                     @if(in_array($serviceRequest->current_status, ['In Progress', 'Pending Verification']))
-                        <button type="button" @click="showCompleteModal = true" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                        <button type="button" @click="showCompleteModal = true" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             Complete Task (After Photo &amp; Close)
                         </button>
@@ -1057,16 +1081,15 @@
                                        class="w-full px-3.5 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
                             </div>
 
-                            <!-- Recommendations / Notes -->
-                            <div>
+                            <!-- Recommendations / Notes (Only for Inspection Only) -->
+                            <div x-show="completionType === 'Inspection Only'">
                                 <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                    <span x-show="completionType === 'Inspection Only'">Inspection Findings &amp; Recommendation (Optional):</span>
-                                    <span x-show="completionType === 'Full Repair'">Work Notes / Summary (Optional):</span>
+                                    Inspection Findings &amp; Recommendation (Optional):
                                 </label>
                                 <textarea name="recommendation" 
                                           rows="2" 
                                           x-model="recommendation"
-                                          :placeholder="completionType === 'Inspection Only' ? 'e.g. Inspected circuit breaker; no major wiring damage found.' : 'e.g. Completed plumbing line restoration; pressure tested ok.'" 
+                                          placeholder="e.g. Inspected circuit breaker; no major wiring damage found." 
                                           class="w-full px-3 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"></textarea>
                             </div>
                         </div>
@@ -1074,7 +1097,7 @@
                         <!-- Proof Photo Upload & Camera Trigger -->
                         <div class="pt-3 border-t border-gray-100 dark:border-zinc-800">
                             <div class="flex items-center justify-between mb-2">
-                                <label class="block text-xs font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-300">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-blue-900 dark:text-blue-300">
                                     Proof of Completion Photo Evidence <span class="text-red-500 font-black">*</span>
                                 </label>
                                 <span class="text-[11px] text-gray-400">JPG, PNG, WEBP</span>
@@ -1085,12 +1108,12 @@
                             <input type="file" x-ref="mobileCameraInput" accept="image/*" capture="environment" @change="handleFile($event.target.files[0])" class="hidden">
 
                             <!-- Buttons when no file selected -->
-                            <div x-show="!proofFile" class="border-2 border-dashed border-emerald-300 dark:border-emerald-900/60 rounded-2xl p-5 bg-emerald-50/30 dark:bg-emerald-950/20 text-center">
+                            <div x-show="!proofFile" class="border-2 border-dashed border-blue-300 dark:border-blue-900/60 rounded-2xl p-5 bg-blue-50/30 dark:bg-blue-950/20 text-center">
                                 <div class="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-sm mx-auto">
                                     <button type="button" 
                                             @click="$refs.fileInput.click()" 
-                                            class="w-full sm:flex-1 px-4 py-2.5 bg-white dark:bg-zinc-800 border-2 border-gray-200 dark:border-zinc-700 hover:border-emerald-600 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-100 transition shadow-xs flex items-center justify-center gap-2 cursor-pointer">
-                                        <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                            class="w-full sm:flex-1 px-4 py-2.5 bg-white dark:bg-zinc-800 border-2 border-gray-200 dark:border-zinc-700 hover:border-[#0033a0] rounded-xl text-xs font-bold text-gray-800 dark:text-gray-100 transition shadow-xs flex items-center justify-center gap-2 cursor-pointer">
+                                        <svg class="w-4 h-4 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                                         <span>Choose File</span>
                                     </button>
 
@@ -1098,7 +1121,7 @@
 
                                     <button type="button" 
                                             @click="openCamera()" 
-                                            class="w-full sm:flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-2 cursor-pointer">
+                                            class="w-full sm:flex-1 px-4 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-2 cursor-pointer">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                                         <span>Snap Photo (Camera)</span>
                                     </button>
@@ -1107,22 +1130,22 @@
                             </div>
 
                             <!-- Preview Card when file selected -->
-                            <div x-show="proofFile" x-cloak class="border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-2xl p-3.5 flex items-center justify-between gap-4 shadow-xs">
+                            <div x-show="proofFile" x-cloak class="border-2 border-blue-300 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-950/20 rounded-2xl p-3.5 flex items-center justify-between gap-4 shadow-xs">
                                 <div class="flex items-center gap-3 min-w-0">
-                                    <div class="w-14 h-16 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0 overflow-hidden bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
+                                    <div class="w-14 h-16 rounded-xl border border-blue-200 dark:border-blue-800 shrink-0 overflow-hidden bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center">
                                         <template x-if="proofPreviewUrl">
                                             <img :src="proofPreviewUrl" alt="" class="w-full h-full object-cover">
                                         </template>
                                         <template x-if="!proofPreviewUrl">
-                                            <span class="font-bold text-xs text-emerald-800 dark:text-emerald-300">DOC</span>
+                                            <span class="font-bold text-xs text-blue-800 dark:text-blue-300">DOC</span>
                                         </template>
                                     </div>
                                     <div class="min-w-0">
                                         <div class="flex items-center gap-1.5">
-                                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            <span class="inline-block w-2 h-2 rounded-full bg-blue-600"></span>
                                             <span class="text-xs font-bold text-gray-900 dark:text-white truncate" x-text="proofFile"></span>
                                         </div>
-                                        <p class="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold mt-0.5">Photo attached &amp; ready</p>
+                                        <p class="text-[11px] text-blue-700 dark:text-blue-300 font-semibold mt-0.5">Photo attached &amp; ready</p>
                                         <p class="text-[10px] text-gray-400 font-mono" x-text="proofSize"></p>
                                     </div>
                                 </div>
@@ -1134,7 +1157,7 @@
 
                         <div class="flex justify-end gap-2 pt-2">
                             <button type="button" @click="closeModal()" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl cursor-pointer">Cancel</button>
-                            <button type="submit" :disabled="saving" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                            <button type="submit" :disabled="saving" class="px-5 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
                                 <svg x-show="saving" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                 <span x-text="saving ? 'Completing...' : 'Complete & Close Requisition'">Complete &amp; Close Requisition</span>
                             </button>
@@ -1306,12 +1329,22 @@
 
                 @if($isBomEditable)
                     <div class="flex items-center gap-2 shrink-0">
-                        <button type="button" 
-                                @click="showAddMaterial = !showAddMaterial" 
-                                class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                            <span x-text="showAddMaterial ? 'Close Form' : 'Add Material'">Add Material</span>
-                        </button>
+                        @if($serviceRequest->isScheduleApproved())
+                            <button type="button" 
+                                    @click="showAddMaterial = !showAddMaterial" 
+                                    class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                <span x-text="showAddMaterial ? 'Close Form' : 'Add Material'">Add Material</span>
+                            </button>
+                        @else
+                            <button type="button" 
+                                    disabled
+                                    class="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-xl cursor-not-allowed inline-flex items-center gap-1.5 opacity-80"
+                                    title="Client must approve the scheduled date before adding materials">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                <span>Add Material</span>
+                            </button>
+                        @endif
                     </div>
                 @endif
             </div>
@@ -1323,11 +1356,19 @@
                 </div>
                 <h4 class="text-sm font-bold text-slate-800 dark:text-gray-200 mb-1">No Materials Listed in BOM</h4>
                 @if($isBomEditable)
-                    <p class="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-4">You can create a Bill of Materials for this requisition by adding catalog or custom materials below.</p>
-                    <button type="button" @click="showAddMaterial = true" x-show="!showAddMaterial" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                        <span>Add First Material Item</span>
-                    </button>
+                    @if($serviceRequest->isScheduleApproved())
+                        <p class="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-4">You can create a Bill of Materials for this requisition by adding catalog or custom materials below.</p>
+                        <button type="button" @click="showAddMaterial = true" x-show="!showAddMaterial" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            <span>Add First Material Item</span>
+                        </button>
+                    @else
+                        <p class="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-4">Client must approve the scheduled date before materials can be added to the Bill of Materials.</p>
+                        <button type="button" disabled class="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-xl cursor-not-allowed inline-flex items-center gap-1.5 opacity-80" title="Client must approve the scheduled date before adding materials">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            <span>Add First Material Item</span>
+                        </button>
+                    @endif
                 @else
                     <p class="text-xs text-gray-400 max-w-md mx-auto">No materials were requested or allocated for this requisition.</p>
                 @endif
@@ -1464,7 +1505,7 @@
                 </div>
             </form>
 
-            @if($isBomEditable)
+            @if($isBomEditable && $serviceRequest->isScheduleApproved())
                 <!-- Inline Form: Add Additional Material (Toggled) -->
                 <div x-show="showAddMaterial" 
                      x-cloak 
@@ -1701,14 +1742,14 @@
                     @csrf
                     
                     @if($isManpower)
-                        <!-- Work Details / Nature of Work written on paper (MANDATORY FOR MANPOWER) -->
+                        <!-- Task Details written on paper (MANDATORY FOR MANPOWER) -->
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider">
-                                    Accomplished Manpower Work Details (Written on Paper):
+                                    Task Details (This information will be reflected on Accomplishment Report) <span class="text-red-500 font-bold">*</span>:
                                 </label>
-                                <span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-amber-300 dark:border-amber-800">
-                                    Required for Manpower
+                                <span class="px-2 py-0.5 bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-rose-300 dark:border-rose-800">
+                                    Required
                                 </span>
                             </div>
                             <textarea name="work_details" 
@@ -1722,26 +1763,44 @@
                         </div>
                     @elseif($isWorkerInspectionOnly)
                         <input type="hidden" name="nature_of_work" value="Inspection & Assessment Only">
-                        <!-- Inspection Findings from Paper -->
+                        <!-- Task Details (Inspection Only) from Paper -->
                         <div>
-                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-1.5">
-                                Inspection Findings &amp; Recommendations Written on Paper (Optional):
-                            </label>
-                            <textarea name="work_details" 
-                                      rows="2" 
-                                      placeholder="e.g. Conducted on-site inspection; circuit breaker reset and functioning properly / referred to external contractor."
-                                      class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0]">{{ $serviceRequest->project?->recommendation ?? '' }}</textarea>
-                        </div>
-                    @else
-                        <!-- Work Details / Nature of Work written on paper -->
-                        <div>
-                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-1.5">
-                                Work Details / Findings Written on Paper (Nature of Work Done):
-                            </label>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider">
+                                    Task Details (This information will be reflected on Accomplishment Report) <span class="text-red-500 font-bold">*</span>:
+                                </label>
+                                <span class="px-2 py-0.5 bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-rose-300 dark:border-rose-800">
+                                    Required
+                                </span>
+                            </div>
                             <textarea name="work_details" 
                                       rows="2.5" 
+                                      required
+                                      placeholder="e.g. Conducted on-site inspection; circuit breaker reset and functioning properly / referred to external contractor."
+                                      class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border-2 border-blue-400 dark:border-blue-600 rounded-xl text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0] shadow-2xs font-medium">{{ $serviceRequest->project?->recommendation ?? '' }}</textarea>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                This input will be recorded as the official <strong>Task Details</strong> for this inspection on the Accomplishment Report.
+                            </p>
+                        </div>
+                    @else
+                        <!-- Task Details written on paper -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider">
+                                    Task Details (This information will be reflected on Accomplishment Report) <span class="text-red-500 font-bold">*</span>:
+                                </label>
+                                <span class="px-2 py-0.5 bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-rose-300 dark:border-rose-800">
+                                    Required
+                                </span>
+                            </div>
+                            <textarea name="work_details" 
+                                      rows="2.5" 
+                                      required
                                       placeholder="Type what the worker wrote on the physical paper (e.g. Replaced 4 fluorescent light bulbs and checked electrical lines)..."
-                                      class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0]">{{ $serviceRequest->project?->nature_of_work && $serviceRequest->project->nature_of_work !== 'Repair & Maintenance Done' ? $serviceRequest->project->nature_of_work : ($serviceRequest->project?->recommendation ?? '') }}</textarea>
+                                      class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border-2 border-blue-400 dark:border-blue-600 rounded-xl text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0] shadow-2xs font-medium">{{ $serviceRequest->project?->nature_of_work && $serviceRequest->project->nature_of_work !== 'Repair & Maintenance Done' ? $serviceRequest->project->nature_of_work : ($serviceRequest->project?->recommendation ?? '') }}</textarea>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                This input will be recorded as the official <strong>Task Details</strong> for this job on the Accomplishment Report.
+                            </p>
                         </div>
                     @endif
 
@@ -1817,13 +1876,14 @@
     @endif
 
     <!-- Status Timeline & History Card -->
-    <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 shadow-sm space-y-4">
-        <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800">
-            <div class="flex items-center gap-2.5">
-                <span class="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400">
+    <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 shadow-sm space-y-4"
+         x-data="{ editTimeline: false }">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800 gap-3 flex-wrap">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <span class="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400 shrink-0">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </span>
-                <div>
+                <div class="min-w-0">
                     <h3 class="text-sm font-bold text-slate-900 dark:text-white">
                         Status Timeline &amp; History Audit Log
                     </h3>
@@ -1832,25 +1892,54 @@
                     </p>
                 </div>
             </div>
-            <span class="text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
-                {{ $serviceRequest->histories->count() }} Updates
-            </span>
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
+                    {{ $serviceRequest->histories->count() }} Updates
+                </span>
+                <button type="button" 
+                        @click="editTimeline = !editTimeline" 
+                        class="px-2.5 py-1 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                        :class="editTimeline ? 'bg-[#0033a0] text-white border-[#0033a0]' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700'">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    <span x-text="editTimeline ? 'Done' : 'Edit Date/Time'"></span>
+                </button>
+            </div>
         </div>
 
         <div class="relative pl-5 space-y-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-px before:bg-gray-200 dark:before:bg-zinc-700/80">
             @forelse($serviceRequest->histories as $history)
-                <div class="relative group">
+                <div class="relative group" x-data="{ newDate: '{{ $history->updated_at ? \Carbon\Carbon::parse($history->updated_at)->format('Y-m-d\TH:i') : now()->format('Y-m-d\TH:i') }}', saving: false }">
                     <!-- Bullet Indicator: sleek dot -->
                     <div class="absolute -left-[19px] top-1.5 w-2.5 h-2.5 rounded-full {{ $history->bullet_color_class }} ring-4 ring-white dark:ring-[#1c1c1e] shadow-2xs"></div>
 
                     <div class="space-y-1">
-                        <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border {{ $history->badge_color_class }}">
                                 {{ $history->action_title }}
                             </span>
-                            <span class="text-[10.5px] text-gray-400 dark:text-gray-500 font-medium tabular-nums">
-                                {{ \Carbon\Carbon::parse($history->updated_at)->format('M d, g:i A') }}
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <span x-show="!editTimeline" class="text-[10.5px] text-gray-400 dark:text-gray-500 font-medium tabular-nums">
+                                    {{ $history->updated_at ? \Carbon\Carbon::parse($history->updated_at)->format('M d, g:i A') : 'N/A' }}
+                                </span>
+                                <form x-show="editTimeline" 
+                                      x-cloak
+                                      method="POST" 
+                                      action="{{ route('admin.requests.history.update-time', [$serviceRequest->request_id, $history->history_id]) }}" 
+                                      class="inline-flex items-center gap-1.5"
+                                      @submit="saving = true">
+                                    @csrf
+                                    <input type="datetime-local" 
+                                           name="updated_at" 
+                                           x-model="newDate" 
+                                           required
+                                           class="text-[11px] px-2 py-0.5 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]">
+                                    <button type="submit" 
+                                            :disabled="saving"
+                                            class="px-2 py-0.5 bg-[#0033a0] hover:bg-[#002480] text-white text-[11px] font-bold rounded-lg transition shadow-2xs cursor-pointer disabled:opacity-60">
+                                        <span x-text="saving ? '...' : 'Save'">Save</span>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
 
                         @if($history->remarks)

@@ -61,6 +61,16 @@ class EvaluationController extends Controller
             'rated_at'          => now(),
         ]);
 
+        // Add "Client rated the service" to the request timeline
+        \App\Models\RequestHistory::create([
+            'request_id'      => $serviceRequest->request_id,
+            'previous_status' => 'Completed',
+            'current_status'  => 'Completed',
+            'updated_by'      => auth()->id(),
+            'updated_at'      => now(),
+            'remarks'         => "Client rated the service ({$overallRating}/5★)." . (!empty($validated['feedback_text']) ? " Feedback: \"{$validated['feedback_text']}\"" : ''),
+        ]);
+
         \App\Models\UserLog::create([
             'user_id'    => auth()->id(),
             'action'     => "Client submitted evaluation for request #{$serviceRequest->request_id} (Average Rating: {$overallRating}/5)",

@@ -570,14 +570,15 @@ class RequestController extends Controller
     public function verifyCompletion(Request $request, int $id)
     {
         try {
+            $validated = $request->validate([
+                'work_details' => 'required|string|min:3',
+            ], [
+                'work_details.required' => 'Task details are required before verifying and completing this request.',
+                'work_details.min'      => 'Task details must be at least 3 characters long.',
+            ]);
+
             $serviceRequest = ServiceRequest::with(['project', 'category'])->findOrFail($id);
 
-            $catName = strtolower($serviceRequest->category->category_name ?? '');
-            $isManpower = str_contains($catName, 'manpower') || str_contains($catName, 'event');
-
-            if ($isManpower && empty(trim((string)$request->input('work_details')))) {
-                return redirect()->back()->with('error', 'Accomplished manpower work details are required before verifying and completing this request.');
-            }
 
             // Update Project Details
             if ($serviceRequest->project) {
@@ -668,6 +669,11 @@ class RequestController extends Controller
         try {
             $serviceRequest = ServiceRequest::with('client.user', 'category', 'project.workers.user')->findOrFail($id);
             
+            if (!$serviceRequest->isScheduleApproved()) {
+                return redirect()->back()
+                    ->with('error', 'Cannot print requisition until the client has approved the scheduled date.');
+            }
+
             return view('admin.requests.print', compact('serviceRequest'));
 
         } catch (\Exception $e) {
@@ -769,9 +775,9 @@ class RequestController extends Controller
 
             $dateFormatted = \Carbon\Carbon::parse($validated['scheduled_date'])->format('F d, Y');
             $windowText = match($validated['scheduled_time_window']) {
-                'AM' => 'Morning (AM)',
-                'PM' => 'Afternoon (PM)',
-                'AM-PM' => 'Whole Day (AM - PM)',
+                'AM' => 'AM',
+                'PM' => 'PM',
+                'AM-PM' => 'AM-PM',
                 default => $validated['scheduled_time_window']
             };
 
@@ -779,7 +785,7 @@ class RequestController extends Controller
                 'request_id'      => $serviceRequest->request_id,
                 'previous_status' => $serviceRequest->current_status,
                 'current_status'  => 'Schedule Set',
-                'remarks'         => "Admin proposed visit schedule for {$dateFormatted} ({$windowText}). Maintenance personnel selected. Awaiting client confirmation.",
+                'remarks'         => "Admin proposed visit schedule for {$dateFormatted} ({$windowText}). Awaiting client confirmation.",
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
@@ -821,6 +827,10 @@ class RequestController extends Controller
 
             $serviceRequest = ServiceRequest::with('project.workers', 'client.user')->findOrFail($id);
 
+            if (!$serviceRequest->isScheduleApproved()) {
+                return redirect()->back()->with('error', 'Cannot start task until the client has approved the scheduled date.');
+            }
+
             if (!$serviceRequest->project) {
                 return redirect()->back()->with('error', 'No active project found for this request. Please approve the request first.');
             }
@@ -831,7 +841,7 @@ class RequestController extends Controller
 
             $previousStatus = $project->current_status;
             $newStatus = 'In Progress';
-            $remarks = 'Admin Operational Override: Work commenced with documented Before-Work photo.' . ($request->filled('remarks') ? ' Note: ' . $request->input('remarks') : '');
+            $remarks = 'Admin implemented the project.';
 
             ProjectHistory::create([
                 'project_id'       => $project->project_id,
@@ -973,6 +983,11 @@ class RequestController extends Controller
     {
         try {
             $serviceRequest = ServiceRequest::findOrFail($id);
+
+            if (!$serviceRequest->isScheduleApproved()) {
+                return redirect()->back()->with('error', 'Materials cannot be added until the client has approved the scheduled date.');
+            }
+
             if (in_array($serviceRequest->current_status, ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'])) {
                 return redirect()->back()->with('error', 'Bill of Materials cannot be modified once work is In Progress or closed.');
             }
@@ -999,4 +1014,32 @@ class RequestController extends Controller
             return redirect()->back()->with('error', 'Error adding material to BOM: ' . $e->getMessage());
         }
     }
+
+    public function updateHistoryTime(Request $request, int $id, int $historyId)
+    {
+        try {
+            $validated = $request->validate([
+                'updated_at' => 'required|date',
+            ]);
+
+            $history = RequestHistory::where('request_id', $id)
+                ->where('history_id', $historyId)
+                ->firstOrFail();
+
+            $history->updated_at = \Carbon\Carbon::parse($validated['updated_at']);
+            $history->save();
+
+            \App\Models\UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Admin updated timeline timestamp for request #{$id}, history #{$historyId}",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            return redirect()->back()->with('success', 'Timeline date & time updated successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error updating timeline date/time: ' . $e->getMessage());
+        }
+    }
 }
+

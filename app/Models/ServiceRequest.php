@@ -50,6 +50,11 @@ class ServiceRequest extends Model
         return $this->scheduled_date->format('M j, Y') . ' • ' . $windowText;
     }
 
+    public function isScheduleApproved(): bool
+    {
+        return !empty($this->scheduled_date) && $this->schedule_status === 'approved';
+    }
+
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id', 'client_id');
@@ -65,7 +70,7 @@ class ServiceRequest extends Model
         return $this->hasMany(RequestHistory::class, 'request_id', 'request_id');
     }
 
-    public function evaluation()
+    public function evaluation(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(Evaluation::class, 'request_id', 'request_id');
     }
@@ -106,14 +111,38 @@ class ServiceRequest extends Model
         return $this->recurring_count >= 4;
     }
 
+    public static array $recurringCountsCache = [];
+    public ?int $cachedRecurringCount = null;
+
+    /**
+     * Warm recurring counts for a collection of requests to avoid N+1 queries.
+     */
+    public static function warmRecurringCounts($requests): void
+    {
+        if (empty($requests)) {
+            return;
+        }
+
+        foreach ($requests as $req) {
+            if ($req instanceof self) {
+                $count = $req->recurring_count;
+                $req->cachedRecurringCount = $count;
+            }
+        }
+    }
+
     /**
      * Get total count of requests with the same or similar description in the same calendar month
      */
     public function getRecurringCountAttribute(): int
     {
+        if ($this->cachedRecurringCount !== null) {
+            return $this->cachedRecurringCount;
+        }
+
         $rawDesc = trim($this->description ?? $this->title ?? '');
         if (!$this->submitted_at || empty($rawDesc)) {
-            return 1;
+            return $this->cachedRecurringCount = 1;
         }
 
         // If JSON manpower details, get core text
@@ -125,8 +154,13 @@ class ServiceRequest extends Model
         $date = $this->submitted_at;
         $cleanDesc = trim(strtolower($rawDesc));
         $prefix = substr($cleanDesc, 0, min(30, strlen($cleanDesc)));
+        $cacheKey = $date->format('Y-m') . ':' . md5($prefix);
 
-        return static::whereMonth('submitted_at', $date->month)
+        if (isset(static::$recurringCountsCache[$cacheKey])) {
+            return $this->cachedRecurringCount = static::$recurringCountsCache[$cacheKey];
+        }
+
+        $count = static::whereMonth('submitted_at', $date->month)
             ->whereYear('submitted_at', $date->year)
             ->where(function($q) use ($cleanDesc, $prefix) {
                 $q->whereRaw('LOWER(TRIM(description)) = ?', [$cleanDesc])
@@ -137,6 +171,9 @@ class ServiceRequest extends Model
                 }
             })
             ->count();
+
+        static::$recurringCountsCache[$cacheKey] = $count;
+        return $this->cachedRecurringCount = $count;
     }
 
     /**

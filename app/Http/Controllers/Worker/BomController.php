@@ -33,6 +33,10 @@ class BomController extends Controller
             'Only Team Leaders are authorized to prepare and submit a Bill of Materials.'
         );
 
+        if ($project->request && !$project->request->isScheduleApproved()) {
+            return redirect()->back()->with('error', 'Materials cannot be requested until the client has approved the scheduled date.');
+        }
+
         $staff = auth()->user()->staff;
         $addedItems = 0;
 
@@ -141,6 +145,10 @@ class BomController extends Controller
                 403,
                 'Only the assigned Team Leader is authorized to confirm direct on-site client materials.'
             );
+
+            if ($project->request && !$project->request->isScheduleApproved()) {
+                return redirect()->back()->with('error', 'Action cannot be performed until the client has approved the scheduled date.');
+            }
 
             // Mark all project BOM items as approved
             $project->billOfMaterials()->whereNull('date_approved')->update([
