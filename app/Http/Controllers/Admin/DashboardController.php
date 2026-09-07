@@ -58,50 +58,48 @@ class DashboardController extends Controller
             );
         });
 
-        // ── Cached activity feed (60s TTL) ──
-        $realTimeMonitoring = Cache::remember('admin_activity_feed', 120, function () {
-            $activities = collect();
-            $reqHistories = \App\Models\RequestHistory::with(['request.category', 'request.project.workers.staff.user'])
-                ->latest('updated_at')
-                ->take(15)
-                ->get();
+        // ── Real-Time activity feed (live, not cached to ensure immediate updates and avoid serialization issues) ──
+        $activities = collect();
+        $reqHistories = \App\Models\RequestHistory::with(['request.category', 'request.project.workers.staff.user'])
+            ->latest('updated_at')
+            ->take(15)
+            ->get();
 
-            foreach ($reqHistories as $rh) {
-                if (!$rh->request) continue;
-                $r = $rh->request;
-                $catName = strtolower($r->category->category_name ?? '');
-                $prefix = match(true) {
-                    str_contains($catName, 'landscaping') => 'LS',
-                    str_contains($catName, 'janitorial') => 'JS',
-                    str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
-                    str_contains($catName, 'plumbing') => 'PLS',
-                    str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
-                    str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
-                    str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
-                    default => 'REQ'
-                };
-                $code = $prefix . '-' . str_pad($r->request_id, 3, '0', STR_PAD_LEFT);
-                $workerName = $r->project?->workers?->first()?->staff?->user?->first_name;
+        foreach ($reqHistories as $rh) {
+            if (!$rh->request) continue;
+            $r = $rh->request;
+            $catName = strtolower($r->category->category_name ?? '');
+            $prefix = match(true) {
+                str_contains($catName, 'landscaping') => 'LS',
+                str_contains($catName, 'janitorial') => 'JS',
+                str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+                str_contains($catName, 'plumbing') => 'PLS',
+                str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
+                str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
+                default => 'REQ'
+            };
+            $code = $prefix . '-' . str_pad($r->request_id, 3, '0', STR_PAD_LEFT);
+            $workerName = $r->project?->workers?->first()?->staff?->user?->first_name;
 
-                if ($rh->current_status === 'Completed') {
-                    $actor = $workerName ? "Worker {$workerName}" : "Worker";
-                    $activities->push(['text' => "{$actor} completed task {$code}", 'color' => 'emerald', 'time' => \Carbon\Carbon::parse($rh->updated_at)]);
-                } elseif ($rh->current_status === 'Submitted') {
-                    $activities->push(['text' => "New request submitted {$code}", 'color' => 'orange', 'time' => \Carbon\Carbon::parse($rh->updated_at ?? $r->submitted_at)]);
-                } elseif ($rh->current_status === 'In Progress') {
-                    $actor = $workerName ? "Worker {$workerName}" : "Worker";
-                    $activities->push(['text' => "{$actor} started task {$code}", 'color' => 'yellow', 'time' => \Carbon\Carbon::parse($rh->updated_at)]);
-                } elseif ($rh->current_status === 'Pending Verification') {
-                    $actor = $workerName ? "Worker {$workerName}" : "Worker";
-                    $activities->push(['text' => "{$actor} submitted task proof for {$code}", 'color' => 'blue', 'time' => \Carbon\Carbon::parse($rh->updated_at)]);
-                }
+            if ($rh->current_status === 'Completed') {
+                $actor = $workerName ? "Worker {$workerName}" : "Worker";
+                $activities->push(['text' => "{$actor} completed task {$code}", 'color' => 'emerald', 'time' => \Carbon\Carbon::parse($rh->updated_at)]);
+            } elseif ($rh->current_status === 'Submitted') {
+                $activities->push(['text' => "New request submitted {$code}", 'color' => 'orange', 'time' => \Carbon\Carbon::parse($rh->updated_at ?? $r->submitted_at)]);
+            } elseif ($rh->current_status === 'In Progress') {
+                $actor = $workerName ? "Worker {$workerName}" : "Worker";
+                $activities->push(['text' => "{$actor} started task {$code}", 'color' => 'yellow', 'time' => \Carbon\Carbon::parse($rh->updated_at)]);
+            } elseif ($rh->current_status === 'Pending Verification') {
+                $actor = $workerName ? "Worker {$workerName}" : "Worker";
+                $activities->push(['text' => "{$actor} submitted task proof for {$code}", 'color' => 'blue', 'time' => \Carbon\Carbon::parse($rh->updated_at)]);
             }
+        }
 
-            return $activities->unique(fn($a) => $a['text'] . $a['time']->format('Y-m-d H:i'))
-                ->sortByDesc('time')
-                ->take(6)
-                ->values();
-        });
+        $realTimeMonitoring = $activities->unique(fn($a) => $a['text'] . $a['time']->format('Y-m-d H:i'))
+            ->sortByDesc('time')
+            ->take(6)
+            ->values();
 
         // ── Recent requests (5 items) ──
         $recentRequests = ServiceRequest::with(['category', 'client.user', 'latestHistory'])
