@@ -140,7 +140,16 @@
             <div class="space-y-3.5 mb-6">
                 @forelse($realTimeMonitoring as $act)
                     @php
-                        $circleColor = match($act['color'] ?? 'emerald') {
+                        if (is_string($act)) {
+                            $decoded = json_decode($act, true);
+                            $act = is_array($decoded) ? $decoded : ['text' => $act, 'color' => 'blue', 'time' => now()];
+                        }
+                        $text = is_array($act) ? ($act['text'] ?? '') : (is_object($act) ? ($act->text ?? '') : (string)$act);
+                        $color = is_array($act) ? ($act['color'] ?? 'emerald') : (is_object($act) ? ($act->color ?? 'emerald') : 'emerald');
+                        $rawTime = is_array($act) ? ($act['time'] ?? now()) : (is_object($act) ? ($act->time ?? now()) : now());
+                        $time = $rawTime instanceof \Carbon\Carbon ? $rawTime : \Carbon\Carbon::parse($rawTime);
+
+                        $circleColor = match($color) {
                             'emerald' => 'border-emerald-500 text-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20',
                             'yellow'  => 'border-amber-400 text-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
                             'orange'  => 'border-orange-400 text-orange-400 bg-orange-50/50 dark:bg-orange-950/20',
@@ -151,10 +160,10 @@
                     <div class="flex items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-zinc-800/80 last:border-0 last:pb-0">
                         <div class="flex items-center gap-3 min-w-0">
                             <div class="w-3.5 h-3.5 rounded-full border-2 {{ $circleColor }} shrink-0"></div>
-                            <span class="text-xs font-semibold text-slate-800 dark:text-gray-200 truncate">{{ $act['text'] }}</span>
+                            <span class="text-xs font-semibold text-slate-800 dark:text-gray-200 truncate">{{ $text }}</span>
                         </div>
                         <span class="text-[11px] font-medium text-gray-400 dark:text-gray-500 shrink-0 whitespace-nowrap">
-                            {{ $act['time']->format('M j, Y - h:i A') }}
+                            {{ $time->format('M j, Y - h:i A') }}
                         </span>
                     </div>
                 @empty
