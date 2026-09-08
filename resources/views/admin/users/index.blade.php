@@ -142,9 +142,6 @@
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="border-b border-gray-200 dark:border-zinc-800 text-xs font-bold text-[#042B74] dark:text-blue-400 uppercase tracking-wider">
-                        <th class="py-3 px-3 w-10">
-                            <input type="checkbox" class="rounded border-gray-300 text-[#0038A8] focus:ring-[#0038A8]">
-                        </th>
                         <th class="py-3 px-4">NAME</th>
                         <th class="py-3 px-4">EMAIL / CONTACT</th>
                         <th class="py-3 px-4">ROLE</th>
@@ -156,11 +153,6 @@
                 <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
                     @forelse($users as $user)
                         <tr class="hover:bg-gray-50/70 dark:hover:bg-zinc-800/50 transition">
-                            <!-- Checkbox Column -->
-                            <td class="py-3.5 px-3">
-                                <input type="checkbox" class="rounded border-gray-300 text-[#0038A8] focus:ring-[#0038A8]">
-                            </td>
-
                             <!-- Name Column (Avatar + Full Name + ID) -->
                             <td class="py-3.5 px-4">
                                 <div class="flex items-center gap-3">
@@ -237,7 +229,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="py-8 text-center text-gray-400 italic">
+                            <td colspan="6" class="py-8 text-center text-gray-400 italic">
                                 No users found matching your directory filter.
                             </td>
                         </tr>

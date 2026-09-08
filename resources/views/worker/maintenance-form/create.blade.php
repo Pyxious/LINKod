@@ -27,13 +27,6 @@
         </div>
     </div>
 
-    @if(session('error'))
-        <div class="p-4 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-xl text-xs font-bold text-red-800 dark:text-red-300 flex items-center gap-2 shadow-xs">
-            <svg class="w-5 h-5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
     <!-- Form Card -->
     <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm p-6 sm:p-8" x-data="{ submitting: false }">
         <form action="{{ route('worker.maintenance.store', $project->project_id) }}" method="POST" class="space-y-6" @submit="submitting = true">

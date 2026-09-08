@@ -484,23 +484,49 @@
 
     <!-- Main Content Container -->
     <div class="md:ml-56 flex-1 flex flex-col min-h-screen w-full">
-        <main class="p-4 sm:p-7 flex-1">
-            @unless(View::hasSection('hide_alerts'))
+        <!-- Floating Hover Notifications (Does not affect or push page layout) -->
+        @unless(View::hasSection('hide_alerts'))
+            <div class="fixed top-6 right-4 sm:right-6 z-50 pointer-events-none w-full max-w-sm sm:max-w-md space-y-3">
                 @if(session('success'))
-                    <div id="global-flash-success" class="mb-6 flex items-center gap-3 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-300 px-5 py-3.5 rounded-xl shadow-2xs">
+                    <div x-data="{ show: true }" 
+                         x-show="show" 
+                         x-init="setTimeout(() => show = false, 4500)"
+                         x-transition:enter="transition ease-out duration-300"
+                         x-transition:enter-start="opacity-0 translate-y-2 sm:translate-y-0 sm:translate-x-4 scale-95"
+                         x-transition:enter-end="opacity-100 translate-y-0 sm:translate-x-0 scale-100"
+                         x-transition:leave="transition ease-in duration-200"
+                         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                         x-transition:leave-end="opacity-0 translate-y-2 sm:translate-y-0 sm:translate-x-4 scale-95"
+                         x-cloak
+                         id="global-flash-success" 
+                         class="pointer-events-auto bg-green-50/95 dark:bg-green-950/90 backdrop-blur-xs border border-green-200 dark:border-green-800 text-green-800 dark:text-green-300 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
                         <svg class="w-5 h-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                        <span class="text-sm font-medium flex-1">{{ session('success') }}</span>
-                        <button type="button" onclick="document.getElementById('global-flash-success')?.remove()" class="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-200 cursor-pointer">✕</button>
+                        <span class="text-xs sm:text-sm font-semibold flex-1 leading-snug">{{ session('success') }}</span>
+                        <button type="button" @click="show = false" class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200 p-1 rounded-md transition cursor-pointer text-xs font-bold leading-none shrink-0" title="Dismiss">✕</button>
                     </div>
                 @endif
                 @if(session('error'))
-                    <div id="global-flash-error" class="mb-6 flex items-center gap-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 px-5 py-3.5 rounded-xl shadow-2xs">
+                    <div x-data="{ show: true }" 
+                         x-show="show" 
+                         x-init="setTimeout(() => show = false, 5500)"
+                         x-transition:enter="transition ease-out duration-300"
+                         x-transition:enter-start="opacity-0 translate-y-2 sm:translate-y-0 sm:translate-x-4 scale-95"
+                         x-transition:enter-end="opacity-100 translate-y-0 sm:translate-x-0 scale-100"
+                         x-transition:leave="transition ease-in duration-200"
+                         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                         x-transition:leave-end="opacity-0 translate-y-2 sm:translate-y-0 sm:translate-x-4 scale-95"
+                         x-cloak
+                         id="global-flash-error" 
+                         class="pointer-events-auto bg-red-50/95 dark:bg-red-950/90 backdrop-blur-xs border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
                         <svg class="w-5 h-5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                        <span class="text-sm font-medium flex-1">{{ session('error') }}</span>
-                        <button type="button" onclick="document.getElementById('global-flash-error')?.remove()" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 cursor-pointer">✕</button>
+                        <span class="text-xs sm:text-sm font-semibold flex-1 leading-snug">{{ session('error') }}</span>
+                        <button type="button" @click="show = false" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-md transition cursor-pointer text-xs font-bold leading-none shrink-0" title="Dismiss">✕</button>
                     </div>
                 @endif
-            @endunless
+            </div>
+        @endunless
+
+        <main class="p-4 sm:p-7 flex-1">
 
             @yield('content')
         </main>

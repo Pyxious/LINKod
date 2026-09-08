@@ -534,6 +534,38 @@ class RequestController extends Controller
             $previous = $serviceRequest->current_status;
             $remarks = $request->input('feedback') ?: $request->input('remarks');
 
+            // 1. Release assigned workers and cancel associated project if any
+            if ($serviceRequest->project) {
+                foreach ($serviceRequest->project->workers as $worker) {
+                    $hasOtherActive = $worker->projects()
+                        ->where('project.project_id', '!=', $serviceRequest->project->project_id)
+                        ->whereHas('latestHistory', fn($lh) => $lh->whereNotIn('current_status', ['Completed', 'Cancelled']))
+                        ->exists();
+                    if (!$hasOtherActive) {
+                        $worker->update(['is_available' => true]);
+                    }
+                }
+                $serviceRequest->project->workers()->detach();
+                $serviceRequest->project->update(['current_status' => 'Cancelled']);
+
+                ProjectHistory::create([
+                    'project_id'      => $serviceRequest->project->project_id,
+                    'previous_status' => $serviceRequest->project->current_status,
+                    'current_status'  => 'Cancelled',
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
+            }
+
+            // 2. Remove proposed visit schedule
+            $serviceRequest->update([
+                'scheduled_date'          => null,
+                'scheduled_time_window'   => null,
+                'schedule_status'         => null,
+                'schedule_decline_reason' => null,
+            ]);
+
+            // 3. Log Rejected history (preserves all prior history steps!)
             RequestHistory::create([
                 'request_id'      => $serviceRequest->request_id,
                 'previous_status' => $previous,
@@ -559,7 +591,7 @@ class RequestController extends Controller
             );
 
             return redirect()->route('admin.requests.show', $id)
-                ->with('success', 'Request has been rejected.');
+                ->with('success', 'Request has been rejected and any proposed schedules or worker assignments have been cleared.');
 
         } catch (\Exception $e) {
             return redirect()->back()

@@ -12,8 +12,8 @@
         </div>
 
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm">
-            <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">On Hold</div>
-            <div class="text-[#1a3c8f] dark:text-white text-2xl sm:text-3xl font-extrabold leading-none">{{ $onHold }}</div>
+            <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Awaiting Materials</div>
+            <div class="text-[#1a3c8f] dark:text-white text-2xl sm:text-3xl font-extrabold leading-none">{{ $awaitingMaterials }}</div>
         </div>
 
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm">
@@ -31,21 +31,55 @@
         <!-- Priority & Rating Status Toggles -->
         <div class="flex items-center gap-2 flex-wrap">
             <div class="flex bg-gray-100 dark:bg-zinc-800/80 p-1 rounded-lg gap-1 overflow-x-auto">
-                <button wire:click="setPriority('Urgent')" class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap {{ in_array(strtolower($priority), ['urgent', 'high']) ? 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/40 dark:text-red-300 shadow-xs font-semibold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400' }}">Urgent</button>
-                <button wire:click="setPriority('Routine')" class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap {{ in_array(strtolower($priority), ['routine', 'medium', 'low']) ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 shadow-xs font-semibold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400' }}">Routine</button>
+                <button wire:click="setPriority('Urgent')" 
+                        wire:loading.attr="disabled"
+                        class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap inline-flex items-center justify-center gap-1.5 {{ in_array(strtolower($priority), ['urgent', 'high']) ? 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/40 dark:text-red-300 shadow-xs font-semibold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400' }}">
+                    <svg wire:loading wire:target="setPriority('Urgent')" class="animate-spin h-3 w-3 text-red-600 dark:text-red-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Urgent</span>
+                </button>
+                <button wire:click="setPriority('Routine')" 
+                        wire:loading.attr="disabled"
+                        class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap inline-flex items-center justify-center gap-1.5 {{ in_array(strtolower($priority), ['routine', 'medium', 'low']) ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 shadow-xs font-semibold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400' }}">
+                    <svg wire:loading wire:target="setPriority('Routine')" class="animate-spin h-3 w-3 text-emerald-600 dark:text-emerald-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Routine</span>
+                </button>
             </div>
 
             @if($status === 'Completed')
                 <!-- Rating Status Sub-filters (Visible only when Completed is selected) -->
                 <div class="flex items-center bg-blue-50/70 dark:bg-zinc-800/80 p-1 rounded-lg gap-1 border border-blue-100 dark:border-zinc-700">
-                    <button wire:click="setRatingFilter('')" class="px-2.5 py-1 text-xs rounded-md font-bold transition-all whitespace-nowrap {{ $ratingFilter === '' ? 'bg-[#0033a0] text-white shadow-xs' : 'text-slate-600 hover:text-[#0033a0] dark:text-gray-300' }}">
-                        All Completed ({{ $completed }})
+                    <button wire:click="setRatingFilter('')" 
+                            wire:loading.attr="disabled"
+                            class="px-2.5 py-1 text-xs rounded-md font-bold transition-all whitespace-nowrap inline-flex items-center gap-1.5 {{ $ratingFilter === '' ? 'bg-[#0033a0] text-white shadow-xs' : 'text-slate-600 hover:text-[#0033a0] dark:text-gray-300' }}">
+                        <svg wire:loading wire:target="setRatingFilter('')" class="animate-spin h-3 w-3 {{ $ratingFilter === '' ? 'text-white' : 'text-[#0033a0] dark:text-blue-400' }}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>All Completed ({{ $completed }})</span>
                     </button>
-                    <button wire:click="setRatingFilter('not_rated')" class="px-2.5 py-1 text-xs rounded-md font-bold transition-all whitespace-nowrap {{ $ratingFilter === 'not_rated' ? 'bg-amber-500 text-white shadow-xs' : 'text-amber-700 hover:bg-amber-100/60 dark:text-amber-400' }}">
-                        Not Rated ({{ $completedNotRated }})
+                    <button wire:click="setRatingFilter('not_rated')" 
+                            wire:loading.attr="disabled"
+                            class="px-2.5 py-1 text-xs rounded-md font-bold transition-all whitespace-nowrap inline-flex items-center gap-1.5 {{ $ratingFilter === 'not_rated' ? 'bg-amber-500 text-white shadow-xs' : 'text-amber-700 hover:bg-amber-100/60 dark:text-amber-400' }}">
+                        <svg wire:loading wire:target="setRatingFilter('not_rated')" class="animate-spin h-3 w-3 {{ $ratingFilter === 'not_rated' ? 'text-white' : 'text-amber-600 dark:text-amber-400' }}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Not Rated ({{ $completedNotRated }})</span>
                     </button>
-                    <button wire:click="setRatingFilter('rated')" class="px-2.5 py-1 text-xs rounded-md font-bold transition-all whitespace-nowrap {{ $ratingFilter === 'rated' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-700 hover:bg-emerald-100/60 dark:text-emerald-400' }}">
-                        Rated ({{ $completedRated }})
+                    <button wire:click="setRatingFilter('rated')" 
+                            wire:loading.attr="disabled"
+                            class="px-2.5 py-1 text-xs rounded-md font-bold transition-all whitespace-nowrap inline-flex items-center gap-1.5 {{ $ratingFilter === 'rated' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-700 hover:bg-emerald-100/60 dark:text-emerald-400' }}">
+                        <svg wire:loading wire:target="setRatingFilter('rated')" class="animate-spin h-3 w-3 {{ $ratingFilter === 'rated' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400' }}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Rated ({{ $completedRated }})</span>
                     </button>
                 </div>
             @endif
@@ -55,9 +89,10 @@
             <select wire:model.live="status" class="px-3 py-2 rounded-xl border border-[#1a3c8f]/30 dark:border-zinc-700 text-[#1a3c8f] dark:text-blue-400 bg-white dark:bg-zinc-900 text-xs font-bold outline-none cursor-pointer shadow-2xs">
                 <option value="">Active Requests</option>
                 <option value="Pending">Pending / Approved</option>
-                <option value="On Hold">On Hold</option>
+                <option value="Awaiting Materials">Awaiting Materials</option>
                 <option value="In Progress">In Progress</option>
                 <option value="Completed">Completed</option>
+                <option value="Rejected">Rejected</option>
                 <option value="recurring">Recurring Issues</option>
                 <option value="all">All Statuses</option>
             </select>
@@ -78,8 +113,13 @@
         </div>
     </div>
 
+    <!-- Global Loading Bar for table sorting & filtering -->
+    <div wire:loading wire:target="sortBy, status, priority, ratingFilter, setPriority, setRatingFilter, search" class="w-full h-1 bg-blue-100 dark:bg-blue-950 overflow-hidden rounded-full mb-3">
+        <div class="h-full bg-[#0038A8] dark:bg-blue-400 animate-pulse w-full"></div>
+    </div>
+
     <!-- Mobile Request Cards View (visible only on < md screens) -->
-    <div class="block md:hidden space-y-3">
+    <div class="block md:hidden space-y-3" wire:loading.class="opacity-60 pointer-events-none" wire:target="sortBy, status, priority, ratingFilter, setPriority, setRatingFilter, search">
         @forelse($requests as $r)
             @php
                 $catName = strtolower($r->category->category_name ?? '');
@@ -101,10 +141,11 @@
 
                 $s = $r->current_status;
                 $sClass = match($s) {
-                    'Pending', 'Approved'=>'bg-orange-50 text-orange-600 border-orange-300',
-                    'On Hold'=>'bg-orange-50 text-orange-600 border-orange-300',
-                    'In Progress', 'Pending Verification'=>'bg-amber-50 text-amber-700 border-amber-300',
+                    'Pending', 'Approved', 'Submitted'=>'bg-orange-50 text-orange-600 border-orange-300',
+                    'On Hold', 'Awaiting Materials', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)'=>'bg-amber-50 text-amber-700 border-amber-300',
+                    'In Progress', 'Pending Verification'=>'bg-blue-50 text-blue-700 border-blue-300',
                     'Completed'=>'bg-emerald-50 text-emerald-700 border-emerald-300',
+                    'Rejected', 'Cancelled'=>'bg-red-50 text-red-600 border-red-300',
                     default=>'bg-gray-50 text-gray-600 border-gray-300'
                 };
                 $assignedWorkers = $r->project?->workers ?? collect();
@@ -202,49 +243,110 @@
     </div>
 
     <!-- Desktop Request Table View (hidden on < md screens) -->
-    <div class="hidden md:block overflow-x-auto">
+    <div class="hidden md:block overflow-x-auto" wire:loading.class="opacity-60 pointer-events-none" wire:target="sortBy, status, priority, ratingFilter, setPriority, setRatingFilter, search">
         <table class="w-full text-left border-separate" style="border-spacing: 0 6px;">
             <thead>
                 <tr>
                     <th wire:click="sortBy('request_id')" class="px-3.5 text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2.5 border-b-2 border-slate-300 dark:border-zinc-800 cursor-pointer select-none hover:text-blue-600 transition">
-                        Requisition No.
-                        @if($sortField === 'request_id')
-                            <span class="ml-0.5 text-blue-600">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                        @endif
+                        <span>Requisition No.</span>
+                        <span wire:loading.remove wire:target="sortBy('request_id')">
+                            @if($sortField === 'request_id')
+                                <span class="ml-0.5 text-blue-600 font-bold">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                            @endif
+                        </span>
+                        <span wire:loading wire:target="sortBy('request_id')" class="inline-block ml-1">
+                            <svg class="animate-spin inline w-3 h-3 text-[#0038A8] dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
                     </th>
                     <th wire:click="sortBy('title')" class="px-3 text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2.5 border-b-2 border-slate-300 dark:border-zinc-800 cursor-pointer select-none hover:text-blue-600 transition">
-                        Requestor / Title
-                        @if($sortField === 'title')
-                            <span class="ml-0.5 text-blue-600">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                        @endif
+                        <span>Requestor / Title</span>
+                        <span wire:loading.remove wire:target="sortBy('title')">
+                            @if($sortField === 'title')
+                                <span class="ml-0.5 text-blue-600 font-bold">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                            @endif
+                        </span>
+                        <span wire:loading wire:target="sortBy('title')" class="inline-block ml-1">
+                            <svg class="animate-spin inline w-3 h-3 text-[#0038A8] dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
                     </th>
                     <th wire:click="sortBy('location')" class="px-3 text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2.5 border-b-2 border-slate-300 dark:border-zinc-800 cursor-pointer select-none hover:text-blue-600 transition">
-                        Office/Unit
-                        @if($sortField === 'location')
-                            <span class="ml-0.5 text-blue-600">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                        @endif
+                        <span>Office/Unit</span>
+                        <span wire:loading.remove wire:target="sortBy('location')">
+                            @if($sortField === 'location')
+                                <span class="ml-0.5 text-blue-600 font-bold">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                            @endif
+                        </span>
+                        <span wire:loading wire:target="sortBy('location')" class="inline-block ml-1">
+                            <svg class="animate-spin inline w-3 h-3 text-[#0038A8] dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
                     </th>
                     <th class="px-3 text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2.5 border-b-2 border-slate-300 dark:border-zinc-800">Assigned Personnel</th>
                     <th wire:click="sortBy('priority')" class="px-3 text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2.5 border-b-2 border-slate-300 dark:border-zinc-800 cursor-pointer select-none hover:text-blue-600 transition">
-                        Priority
-                        @if($sortField === 'priority')
-                            <span class="ml-0.5 text-blue-600">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                        @endif
+                        <span>Priority</span>
+                        <span wire:loading.remove wire:target="sortBy('priority')">
+                            @if($sortField === 'priority')
+                                <span class="ml-0.5 text-blue-600 font-bold">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                            @endif
+                        </span>
+                        <span wire:loading wire:target="sortBy('priority')" class="inline-block ml-1">
+                            <svg class="animate-spin inline w-3 h-3 text-[#0038A8] dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
                     </th>
-                    <th class="px-3 text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2.5 border-b-2 border-slate-300 dark:border-zinc-800">Status</th>
+                    <th wire:click="sortBy('status')" class="px-3 text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2.5 border-b-2 border-slate-300 dark:border-zinc-800 cursor-pointer select-none hover:text-blue-600 transition">
+                        <span>Status</span>
+                        <span wire:loading.remove wire:target="sortBy('status')">
+                            @if($sortField === 'status')
+                                <span class="ml-0.5 text-blue-600 font-bold">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                            @endif
+                        </span>
+                        <span wire:loading wire:target="sortBy('status')" class="inline-block ml-1">
+                            <svg class="animate-spin inline w-3 h-3 text-[#0038A8] dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
+                    </th>
                     @if($status === 'Completed')
                         <th wire:click="sortBy('rating_status')" class="px-3 text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2.5 border-b-2 border-slate-300 dark:border-zinc-800 cursor-pointer select-none hover:text-blue-600 transition">
-                            Rating Status
-                            @if($sortField === 'rating_status')
-                                <span class="ml-0.5 text-blue-600">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                            @endif
+                            <span>Rating Status</span>
+                            <span wire:loading.remove wire:target="sortBy('rating_status')">
+                                @if($sortField === 'rating_status')
+                                    <span class="ml-0.5 text-blue-600 font-bold">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </span>
+                            <span wire:loading wire:target="sortBy('rating_status')" class="inline-block ml-1">
+                                <svg class="animate-spin inline w-3 h-3 text-[#0038A8] dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </span>
                         </th>
                     @endif
                     <th wire:click="sortBy('submitted_at')" class="px-3 text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2.5 border-b-2 border-slate-300 dark:border-zinc-800 cursor-pointer select-none hover:text-blue-600 transition">
-                        Date Requested
-                        @if($sortField === 'submitted_at')
-                            <span class="ml-0.5 text-blue-600">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                        @endif
+                        <span>Date Requested</span>
+                        <span wire:loading.remove wire:target="sortBy('submitted_at')">
+                            @if($sortField === 'submitted_at')
+                                <span class="ml-0.5 text-blue-600 font-bold">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                            @endif
+                        </span>
+                        <span wire:loading wire:target="sortBy('submitted_at')" class="inline-block ml-1">
+                            <svg class="animate-spin inline w-3 h-3 text-[#0038A8] dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
                     </th>
                     <th class="px-4 text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2.5 border-b-2 border-slate-300 dark:border-zinc-800">Actions</th>
                 </tr>
@@ -367,10 +469,11 @@
                         @php
                             $s = $r->current_status;
                             $sClass = match($s) {
-                                'Pending', 'Approved'=>'bg-orange-50 text-orange-600 border-orange-300',
-                                'On Hold'=>'bg-orange-50 text-orange-600 border-orange-300',
-                                'In Progress', 'Pending Verification'=>'bg-amber-50 text-amber-600 border-amber-300',
+                                'Pending', 'Approved', 'Submitted'=>'bg-orange-50 text-orange-600 border-orange-300',
+                                'On Hold', 'Awaiting Materials', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)'=>'bg-amber-50 text-amber-700 border-amber-300',
+                                'In Progress', 'Pending Verification'=>'bg-blue-50 text-blue-700 border-blue-300',
                                 'Completed'=>'bg-emerald-50 text-emerald-600 border-emerald-300',
+                                'Rejected', 'Cancelled'=>'bg-red-50 text-red-600 border-red-300',
                                 default=>'bg-gray-50 text-gray-600 border-gray-300'
                             };
                         @endphp

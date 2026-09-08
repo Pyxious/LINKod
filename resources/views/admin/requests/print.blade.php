@@ -651,13 +651,17 @@
             Date of site visit: <span class="uline" style="min-width:240px;">{{ $siteVisitDate }}</span>
         </div>
 
-        @php $priority = strtolower($serviceRequest->priority ?? ''); @endphp
+        @php
+            $priority = strtolower($serviceRequest->priority ?? '');
+            $isHigh = in_array($priority, ['high', 'urgent']) || ($serviceRequest->is_urgent && $priority !== '');
+            $isRoutine = in_array($priority, ['routine', 'medium', 'low', '']) || (!$isHigh && $serviceRequest->is_routine);
+        @endphp
         <div style="display:flex; justify-content:center; gap:100px; margin:5px 0 6px;">
             <div class="cb-inline">
-                <span class="box-sq">{{ $priority === 'high' ? 'X' : '' }}</span> High Priority
+                <span class="box-sq">{{ $isHigh ? 'X' : '' }}</span> High Priority
             </div>
             <div class="cb-inline">
-                <span class="box-sq">{{ in_array($priority, ['medium','low', '']) ? 'X' : '' }}</span> Routine
+                <span class="box-sq">{{ $isRoutine ? 'X' : '' }}</span> Routine
             </div>
         </div>
     </div>
