@@ -436,17 +436,17 @@
 
     <!-- Floating Hover Notification (Does not affect or push page layout) -->
     @unless(View::hasSection('hide_alerts'))
-        <div class="fixed top-20 right-4 sm:right-6 z-50 pointer-events-none w-full max-w-sm sm:max-w-md space-y-3">
+        <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none w-full max-w-sm sm:max-w-md px-4 space-y-3">
             @if(session('success'))
                 <div x-data="{ show: true }" 
                      x-show="show" 
                      x-init="setTimeout(() => show = false, 4500)"
                      x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="opacity-0 translate-y-2 sm:translate-y-0 sm:translate-x-4 scale-95"
-                     x-transition:enter-end="opacity-100 translate-y-0 sm:translate-x-0 scale-100"
+                     x-transition:enter-start="opacity-0 -translate-y-3 scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 scale-100"
                      x-transition:leave="transition ease-in duration-200"
                      x-transition:leave-start="opacity-100 translate-y-0 scale-100"
-                     x-transition:leave-end="opacity-0 translate-y-2 sm:translate-y-0 sm:translate-x-4 scale-95"
+                     x-transition:leave-end="opacity-0 -translate-y-3 scale-95"
                      x-cloak
                      id="client-flash-success" 
                      class="pointer-events-auto bg-[#dcfce7]/95 dark:bg-emerald-950/90 backdrop-blur-xs border border-[#86efac] dark:border-emerald-700/60 text-emerald-900 dark:text-emerald-200 px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold shadow-lg flex items-center justify-between gap-3">
@@ -464,11 +464,11 @@
                      x-show="show" 
                      x-init="setTimeout(() => show = false, 5500)"
                      x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="opacity-0 translate-y-2 sm:translate-y-0 sm:translate-x-4 scale-95"
-                     x-transition:enter-end="opacity-100 translate-y-0 sm:translate-x-0 scale-100"
+                     x-transition:enter-start="opacity-0 -translate-y-3 scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 scale-100"
                      x-transition:leave="transition ease-in duration-200"
                      x-transition:leave-start="opacity-100 translate-y-0 scale-100"
-                     x-transition:leave-end="opacity-0 translate-y-2 sm:translate-y-0 sm:translate-x-4 scale-95"
+                     x-transition:leave-end="opacity-0 -translate-y-3 scale-95"
                      x-cloak
                      id="client-flash-error" 
                      class="pointer-events-auto bg-red-100/95 dark:bg-red-950/90 backdrop-blur-xs border border-red-300 dark:border-red-700/60 text-red-900 dark:text-red-200 px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold shadow-lg flex items-center justify-between gap-3">
