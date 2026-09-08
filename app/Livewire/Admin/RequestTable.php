@@ -136,9 +136,18 @@ class RequestTable extends Component
             $query->whereHas('latestHistory', function($q) {
                 $q->whereIn('current_status', ['Pending', 'Approved', 'Submitted']);
             });
-        } elseif ($this->status === 'On Hold') {
+        } elseif (in_array($this->status, ['Awaiting Materials', 'On Hold'])) {
             $query->whereHas('latestHistory', function($q) {
-                $q->where('current_status', 'On Hold');
+                $q->whereIn('current_status', [
+                    'Awaiting Materials',
+                    'Awaiting Verification of Bill of Materials',
+                    'BOM Verified (Awaiting Client Approval)',
+                    'On Hold',
+                ]);
+            });
+        } elseif ($this->status === 'Rejected') {
+            $query->whereHas('latestHistory', function($q) {
+                $q->where('current_status', 'Rejected');
             });
         } elseif ($this->status === 'In Progress') {
             $query->whereHas('latestHistory', function($q) {
@@ -150,20 +159,28 @@ class RequestTable extends Component
         } elseif ($this->status === 'all') {
             // No status constraint - show everything
         } else {
-            // Default active requests (exclude finished/cancelled)
+            // Default active requests (exclude finished/cancelled unless searching)
             $query->whereHas('latestHistory', function($q) {
-                $q->whereNotIn('current_status', ['Completed', 'Cancelled', 'Rejected']);
+                if (empty(trim($this->search))) {
+                    $q->whereNotIn('current_status', ['Completed', 'Cancelled', 'Rejected']);
+                }
             });
         }
 
         if ($this->search) {
-            $searchTerm = strtolower(trim($this->search));
+            $rawSearch = trim($this->search);
+            $searchTerm = strtolower($rawSearch);
 
-            // Find matching client IDs by decrypting client names/emails (AES-256 encrypted columns)
-            $matchingClientUserIds = \App\Models\User::where('role', 'client')
-                ->get()
+            // Check if search query is a specific requisition code/ID (e.g. "REQ-034", "CMS-005", "#34", "034", "34")
+            $explicitId = null;
+            if (preg_match('/^(?:REQ|LS|JS|CMS|PLS|EMS|PAINT|MAN)?[-\s#]*0*([1-9]\d*)$/i', $rawSearch, $matches)) {
+                $explicitId = (int)$matches[1];
+            }
+
+            // Find matching client or worker user IDs by decrypting client names/emails (AES-256 encrypted columns)
+            $matchingUserIds = \App\Models\User::all()
                 ->filter(function ($user) use ($searchTerm) {
-                    $fullName = strtolower("{$user->first_name} {$user->last_name}");
+                    $fullName = strtolower(trim("{$user->first_name} {$user->last_name}"));
                     if (str_contains($fullName, $searchTerm)) {
                         return true;
                     }
@@ -174,28 +191,54 @@ class RequestTable extends Component
                 })
                 ->pluck('user_id');
 
-            $matchingClientIds = \App\Models\Client::whereIn('user_id', $matchingClientUserIds)->pluck('client_id');
+            $matchingClientIds = \App\Models\Client::whereIn('user_id', $matchingUserIds)->pluck('client_id');
+            $matchingStaffIds = \App\Models\Staff::whereIn('user_id', $matchingUserIds)->pluck('staff_id');
+            $matchingWorkerIds = \App\Models\Worker::whereIn('staff_id', $matchingStaffIds)->pluck('worker_id');
 
-            // Extract numeric ID if searching by code like "CMS-005" or "005"
-            $numericId = preg_replace('/\D/', '', $this->search);
+            $words = array_values(array_filter(explode(' ', $rawSearch), fn($w) => strlen(trim($w)) >= 2));
 
-            $query->where(function($q) use ($matchingClientIds, $numericId) {
-                $q->where('title', 'like', "%{$this->search}%")
-                  ->orWhere('location', 'like', "%{$this->search}%")
-                  ->orWhere('description', 'like', "%{$this->search}%")
-                  ->orWhereHas('category', function($qCat) {
-                      $qCat->where('category_name', 'like', "%{$this->search}%");
-                  });
+            $query->where(function($q) use ($rawSearch, $searchTerm, $explicitId, $matchingClientIds, $matchingWorkerIds, $words) {
+                $q->where(function($sub) use ($rawSearch, $searchTerm, $words) {
+                    $sub->where('title', 'like', "%{$rawSearch}%")
+                        ->orWhere('location', 'like', "%{$rawSearch}%")
+                        ->orWhere('campus', 'like', "%{$rawSearch}%")
+                        ->orWhere('description', 'like', "%{$rawSearch}%")
+                        ->orWhere('priority', 'like', "%{$searchTerm}%")
+                        ->orWhereHas('category', function($qCat) use ($rawSearch) {
+                            $qCat->where('category_name', 'like', "%{$rawSearch}%");
+                        })
+                        ->orWhereHas('latestHistory', function($qHist) use ($rawSearch) {
+                            $qHist->where('current_status', 'like', "%{$rawSearch}%");
+                        });
 
-                if ($numericId !== '') {
-                    $q->orWhere('request_id', (int)$numericId)
-                      ->orWhere('request_id', 'like', "%{$numericId}%");
-                } else {
-                    $q->orWhere('request_id', 'like', "%{$this->search}%");
+                    // Multi-word search matching all keywords across fields
+                    if (count($words) > 1) {
+                        $sub->orWhere(function($kwQ) use ($words) {
+                            foreach ($words as $word) {
+                                $kwQ->where(function($single) use ($word) {
+                                    $single->where('title', 'like', "%{$word}%")
+                                           ->orWhere('location', 'like', "%{$word}%")
+                                           ->orWhere('campus', 'like', "%{$word}%")
+                                           ->orWhere('description', 'like', "%{$word}%")
+                                           ->orWhereHas('category', fn($c) => $c->where('category_name', 'like', "%{$word}%"));
+                                });
+                            }
+                        });
+                    }
+                });
+
+                if ($explicitId !== null) {
+                    $q->orWhere('request_id', $explicitId);
                 }
 
                 if ($matchingClientIds->isNotEmpty()) {
                     $q->orWhereIn('client_id', $matchingClientIds);
+                }
+
+                if ($matchingWorkerIds->isNotEmpty()) {
+                    $q->orWhereHas('project.workers', function($qWorker) use ($matchingWorkerIds) {
+                        $qWorker->whereIn('worker.worker_id', $matchingWorkerIds);
+                    });
                 }
             });
         }
@@ -222,6 +265,16 @@ class RequestTable extends Component
                   ->orderByRaw("CASE WHEN evaluation.evaluation_id IS NULL THEN 0 ELSE 1 END {$dir}")
                   ->orderBy('request.submitted_at', 'desc')
                   ->orderBy('request.request_id', 'desc');
+        } elseif ($this->sortField === 'status') {
+            $dir = strtoupper($this->sortDirection) === 'DESC' ? 'DESC' : 'ASC';
+            $query->orderBy(
+                \App\Models\RequestHistory::select('current_status')
+                    ->whereColumn('request_history.request_id', 'request.request_id')
+                    ->latest('updated_at')
+                    ->latest('history_id')
+                    ->limit(1),
+                $dir
+            );
         } elseif (in_array($this->sortField, ['request_id', 'title', 'campus', 'location'])) {
             $query->orderBy($this->sortField, $this->sortDirection);
         } else {
@@ -246,7 +299,12 @@ class RequestTable extends Component
             $q->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Submitted'))
               ->orWhereDoesntHave('histories');
         })->count();
-        $onHold = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'On Hold'))->count();
+        $awaitingMaterials = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', [
+            'Awaiting Materials',
+            'Awaiting Verification of Bill of Materials',
+            'BOM Verified (Awaiting Client Approval)',
+            'On Hold',
+        ]))->count();
         $inProgress = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', ['In Progress', 'Pending Verification']))->count();
         
         $completedBase = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'));
@@ -260,7 +318,8 @@ class RequestTable extends Component
             'requests'          => $requests,
             'totalRequests'     => $totalRequests,
             'submitted'         => $submitted,
-            'onHold'            => $onHold,
+            'onHold'            => $awaitingMaterials,
+            'awaitingMaterials' => $awaitingMaterials,
             'inProgress'        => $inProgress,
             'completed'         => $completed,
             'completedRated'    => $completedRated,

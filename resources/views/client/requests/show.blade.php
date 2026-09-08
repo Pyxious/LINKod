@@ -322,7 +322,7 @@
             <!-- Left Column: Details & BOM -->
             <div class="lg:col-span-2 space-y-6">
 
-                @if($request->scheduled_date)
+                @if($request->scheduled_date && !in_array($request->current_status, ['Rejected', 'Cancelled']))
                     <!-- Scheduled Visit Card -->
                     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 {{ $request->schedule_status === 'pending_client_approval' ? 'border-amber-400 dark:border-amber-600 bg-amber-50/20' : ($request->schedule_status === 'approved' ? 'border-emerald-400 dark:border-emerald-600' : 'border-gray-200 dark:border-zinc-800') }} p-6 shadow-sm space-y-4"
                          x-data="{ rescheduleModal: false, decliningReason: '' }">

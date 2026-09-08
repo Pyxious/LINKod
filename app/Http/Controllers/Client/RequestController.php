@@ -388,6 +388,11 @@ class RequestController extends Controller
             $serviceRequest = ServiceRequest::with(['project.workers.staff.user', 'project.workers.user', 'client'])->findOrFail($id);
             $this->authorize('update', $serviceRequest);
 
+            if (in_array($serviceRequest->current_status, ['Rejected', 'Cancelled']) || !$serviceRequest->scheduled_date) {
+                return redirect()->route('client.requests.show', $id)
+                    ->with('error', 'This request is no longer active (' . $serviceRequest->current_status . ') and its visit schedule cannot be confirmed.');
+            }
+
             if ($serviceRequest->schedule_status !== 'pending_client_approval') {
                 return redirect()->back()->with('info', 'There is no pending schedule proposal awaiting your approval.');
             }
@@ -497,6 +502,11 @@ class RequestController extends Controller
 
             $serviceRequest = ServiceRequest::findOrFail($id);
             $this->authorize('update', $serviceRequest);
+
+            if (in_array($serviceRequest->current_status, ['Rejected', 'Cancelled']) || !$serviceRequest->scheduled_date) {
+                return redirect()->route('client.requests.show', $id)
+                    ->with('error', 'This request is no longer active (' . $serviceRequest->current_status . ') and its visit schedule cannot be declined.');
+            }
 
             $reason = trim($validated['decline_reason']);
 
