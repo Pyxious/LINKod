@@ -17,7 +17,7 @@
         </p>
 
         <!-- CTA Buttons -->
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6 w-full max-w-md">
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 w-full max-w-md">
             <a href="{{ route('client.requests.create') }}" class="w-full sm:w-auto px-8 py-3.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-full font-bold text-sm transition flex items-center justify-center gap-2 shadow-md shadow-blue-900/20 min-w-[200px]">
                 Submit a Request
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 17L17 7M17 7H7M17 7v10"/></svg>
@@ -26,11 +26,6 @@
                 Track a Request
             </a>
         </div>
-
-        <!-- Availability Note -->
-        <p class="text-gray-500 dark:text-gray-400 text-xs italic mb-10">
-            * Available every Monday to Friday, 8:00 AM - 5:00 PM
-        </p>
 
         <!-- Indicator Circles -->
         <div class="flex items-center justify-center gap-3">
@@ -50,10 +45,10 @@
                 </h2>
             </div>
 
-            <!-- 6 Services Grid (2 per row on mobile, 3 cols on desktop) -->
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-6">
+            <!-- 5 Services Grid (2 per row on mobile, 3 cols on desktop with 2 centered bottom cards) -->
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-3.5 sm:gap-6">
                 <!-- Card 1: Carpentry -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
+                <div class="col-span-1 md:col-span-2 bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
                     <div>
                         <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
                             Carpentry, Masonry, and Electrical Services
@@ -68,7 +63,7 @@
                 </div>
 
                 <!-- Card 2: Plumbing -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
+                <div class="col-span-1 md:col-span-2 bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
                     <div>
                         <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
                             Plumbing Services
@@ -83,7 +78,7 @@
                 </div>
 
                 <!-- Card 3: Painting -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
+                <div class="col-span-1 md:col-span-2 bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
                     <div>
                         <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
                             Painting Services
@@ -98,7 +93,7 @@
                 </div>
 
                 <!-- Card 4: Landscaping -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
+                <div class="col-span-1 md:col-span-2 md:col-start-2 bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
                     <div>
                         <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
                             Landscaping Services
@@ -113,7 +108,7 @@
                 </div>
 
                 <!-- Card 5: Janitorial & Manpower -->
-                <div class="bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px] col-span-2 md:col-span-1">
+                <div class="col-span-2 md:col-span-2 bg-white dark:bg-[#1c1c1e] p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition flex flex-col justify-between items-start min-h-[160px] sm:min-h-[170px]">
                     <div>
                         <h3 class="font-bold text-slate-900 dark:text-white text-xs sm:text-[15px] mb-1.5 sm:mb-2 leading-snug">
                             Janitorial &amp; Manpower Services
