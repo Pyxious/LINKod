@@ -33,7 +33,9 @@ class Project extends Model
 
     public function histories()
     {
-        return $this->hasMany(ProjectHistory::class, 'project_id', 'project_id');
+        return $this->hasMany(ProjectHistory::class, 'project_id', 'project_id')
+                    ->orderBy('updated_at', 'asc')
+                    ->orderBy('phistory_id', 'asc');
     }
 
     public function assignments()

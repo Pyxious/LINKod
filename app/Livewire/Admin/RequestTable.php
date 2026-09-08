@@ -245,7 +245,7 @@ class RequestTable extends Component
 
         if ($this->sortField === 'priority') {
             $dir = strtoupper($this->sortDirection) === 'DESC' ? 'DESC' : 'ASC';
-            $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END {$dir}")
+            $query->orderByRaw("CASE WHEN LOWER(priority) IN ('high', 'urgent') THEN 1 ELSE 2 END {$dir}")
                   ->orderBy('submitted_at', 'asc')
                   ->orderBy('request_id', 'asc');
         } elseif ($this->sortField === 'submitted_at') {
@@ -254,7 +254,7 @@ class RequestTable extends Component
                 $query->orderBy('submitted_at', $dateDir)
                       ->orderBy('request_id', $dateDir);
             } else {
-                $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END ASC")
+                $query->orderByRaw("CASE WHEN LOWER(priority) IN ('high', 'urgent') THEN 1 ELSE 2 END ASC")
                       ->orderBy('submitted_at', $dateDir)
                       ->orderBy('request_id', $dateDir);
             }
@@ -267,24 +267,33 @@ class RequestTable extends Component
                   ->orderBy('request.request_id', 'desc');
         } elseif ($this->sortField === 'status') {
             $dir = strtoupper($this->sortDirection) === 'DESC' ? 'DESC' : 'ASC';
-            $query->orderBy(
-                \App\Models\RequestHistory::select('current_status')
-                    ->whereColumn('request_history.request_id', 'request.request_id')
-                    ->latest('updated_at')
-                    ->latest('history_id')
-                    ->limit(1),
-                $dir
-            );
+            $statusSub = \App\Models\RequestHistory::select('current_status')
+                ->whereColumn('request_history.request_id', 'request.request_id')
+                ->latest('updated_at')
+                ->latest('history_id')
+                ->limit(1);
+
+            if ($this->status === 'Completed') {
+                $query->orderBy($statusSub, $dir);
+            } else {
+                $query->orderByRaw("CASE WHEN LOWER(priority) IN ('high', 'urgent') THEN 1 ELSE 2 END ASC")
+                      ->orderBy($statusSub, $dir);
+            }
         } elseif (in_array($this->sortField, ['request_id', 'title', 'campus', 'location'])) {
-            $query->orderBy($this->sortField, $this->sortDirection);
+            if ($this->status === 'Completed') {
+                $query->orderBy($this->sortField, $this->sortDirection);
+            } else {
+                $query->orderByRaw("CASE WHEN LOWER(priority) IN ('high', 'urgent') THEN 1 ELSE 2 END ASC")
+                      ->orderBy($this->sortField, $this->sortDirection);
+            }
         } else {
             if ($this->status === 'Completed') {
                 // Completed sorting: No need to follow urgent on top!
                 $query->orderBy('submitted_at', 'desc')
                       ->orderBy('request_id', 'desc');
             } else {
-                // Default queue: High Priority at top (FCFS), Medium & Low below (FCFS regardless of med/low)
-                $query->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END ASC")
+                // Active requests: High priorities ALWAYS at the top of the list (FCFS: submitted_at asc)
+                $query->orderByRaw("CASE WHEN LOWER(priority) IN ('high', 'urgent') THEN 1 ELSE 2 END ASC")
                       ->orderBy('submitted_at', 'asc')
                       ->orderBy('request_id', 'asc');
             }

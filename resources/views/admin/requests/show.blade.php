@@ -590,7 +590,7 @@
                             <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">Project Priority <span class="text-red-500">*</span></label>
                             <select name="priority" x-model="priority" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]" required>
                                 <option value="routine">Routine Maintenance (Requires Client Schedule Confirmation)</option>
-                                <option value="urgent">Urgent / Emergency (Bypasses Client Confirmation)</option>
+                                <option value="urgent">High Priority (Bypasses Client Confirmation)</option>
                             </select>
                         </div>
                     </div>
@@ -1907,7 +1907,7 @@
         </div>
 
         <div class="relative pl-5 space-y-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-px before:bg-gray-200 dark:before:bg-zinc-700/80">
-            @forelse($serviceRequest->histories as $history)
+            @forelse($serviceRequest->histories->sortBy([['updated_at', 'asc'], ['history_id', 'asc']]) as $history)
                 <div class="relative group" x-data="{ newDate: '{{ $history->updated_at ? \Carbon\Carbon::parse($history->updated_at)->format('Y-m-d\TH:i') : now()->format('Y-m-d\TH:i') }}', saving: false }">
                     <!-- Bullet Indicator: sleek dot -->
                     <div class="absolute -left-[19px] top-1.5 w-2.5 h-2.5 rounded-full {{ $history->bullet_color_class }} ring-4 ring-white dark:ring-[#1c1c1e] shadow-2xs"></div>
