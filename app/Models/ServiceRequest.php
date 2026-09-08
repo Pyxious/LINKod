@@ -35,7 +35,7 @@ class ServiceRequest extends Model
 
     public function getPriorityLabelAttribute(): string
     {
-        return $this->is_urgent ? 'Urgent' : 'Routine';
+        return $this->is_urgent ? 'High' : 'Routine';
     }
 
     public function getFormattedScheduleAttribute(): string
@@ -67,7 +67,9 @@ class ServiceRequest extends Model
 
     public function histories()
     {
-        return $this->hasMany(RequestHistory::class, 'request_id', 'request_id');
+        return $this->hasMany(RequestHistory::class, 'request_id', 'request_id')
+                    ->orderBy('updated_at', 'asc')
+                    ->orderBy('history_id', 'asc');
     }
 
     public function evaluation(): \Illuminate\Database\Eloquent\Relations\HasOne

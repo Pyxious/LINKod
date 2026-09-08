@@ -843,7 +843,7 @@
                 </div>
 
                 <div id="requestTimelineFeed" class="relative pl-5 space-y-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-px before:bg-gray-200 dark:before:bg-zinc-700/80">
-                    @forelse($request->histories as $history)
+                    @forelse($request->histories->sortBy([['updated_at', 'asc'], ['history_id', 'asc']]) as $history)
                         <div class="relative group">
                             <!-- Bullet Indicator: sleek dot -->
                             <div class="absolute -left-[19px] top-1.5 w-2.5 h-2.5 rounded-full {{ $history->bullet_color_class }} ring-4 ring-white dark:ring-[#1c1c1e] shadow-2xs"></div>
