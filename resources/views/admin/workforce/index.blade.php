@@ -113,7 +113,7 @@
                         $mPrefix = match(true) {
                             str_contains($mCatName, 'carpentry') || str_contains($mCatName, 'masonry') => 'CMS',
                             str_contains($mCatName, 'plumbing') => 'PLS',
-                            str_contains($mCatName, 'paint') => 'PTS',
+                            str_contains($mCatName, 'paint') => 'PAS',
                             str_contains($mCatName, 'electric') => 'EES',
                             default => 'REQ'
                         };
@@ -259,7 +259,7 @@
                                     str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
                                     str_contains($catName, 'plumbing') => 'PLS',
                                     str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
-                                    str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                                    str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAS',
                                     str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                                     default => 'REQ'
                                 };

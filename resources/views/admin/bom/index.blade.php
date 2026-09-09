@@ -101,7 +101,7 @@
                     str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
                     str_contains($catName, 'plumbing') => 'PLS',
                     str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
-                    str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                    str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAS',
                     str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                     default => 'REQ'
                 };
@@ -200,7 +200,7 @@
                             str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
                             str_contains($catName, 'plumbing') => 'PLS',
                             str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
-                            str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                            str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAS',
                             str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                             default => 'REQ'
                         };

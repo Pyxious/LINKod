@@ -99,6 +99,7 @@
                     str_contains($ipCatName, 'electrical') || str_contains($ipCatName, 'mechanical') => 'EMS',
                     str_contains($ipCatName, 'carpentry') || str_contains($ipCatName, 'masonry') => 'CMS',
                     str_contains($ipCatName, 'plumbing') => 'PLS',
+                    str_contains($ipCatName, 'painting') || str_contains($ipCatName, 'paint') => 'PAS',
                     default => 'REQ'
                 };
                 $ipReqCode = $ipReqId ? ($ipPrefix . '-' . str_pad($ipReqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($inProg->project_id, 3, '0', STR_PAD_LEFT));
@@ -187,7 +188,7 @@
                     str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
                     str_contains($catName, 'plumbing') => 'PLS',
                     str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
-                    str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                    str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAS',
                     str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                     default => 'REQ'
                 };
@@ -343,7 +344,7 @@
                             str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
                             str_contains($catName, 'plumbing') => 'PLS',
                             str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
-                            str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                            str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAS',
                             str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                             default => 'REQ'
                         };
