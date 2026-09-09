@@ -434,7 +434,7 @@
 
         // If Accomplishment Report:
         if (reportType === 'Accomplishment Report') {
-            const categoryOrderMap = { 'CMS': 1, 'PLS': 2, 'PAINT': 3, 'PAINTING': 3, 'JS': 4, 'LS': 5, 'MAN': 6 };
+            const categoryOrderMap = { 'CMS': 1, 'PLS': 2, 'PAS': 3, 'PAINT': 3, 'PAINTING': 3, 'JS': 4, 'LS': 5, 'MAN': 6 };
             filteredRequests.sort((a, b) => {
                 const orderA = a.category_order || categoryOrderMap[a.prefix] || 7;
                 const orderB = b.category_order || categoryOrderMap[b.prefix] || 7;

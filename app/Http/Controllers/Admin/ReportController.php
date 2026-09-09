@@ -86,13 +86,13 @@ class ReportController extends Controller
                     $prefix = match(true) {
                         str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') || str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'CMS',
                         str_contains($catName, 'plumbing') => 'PLS',
-                        str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                        str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAS',
                         str_contains($catName, 'janitorial') => 'JS',
                         str_contains($catName, 'landscaping') => 'LS',
                         str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                         default => 'REQ'
                     };
-                    $categoryOrder = match($prefix) { 'CMS' => 1, 'PLS' => 2, 'PAINT' => 3, 'JS' => 4, 'LS' => 5, 'MAN' => 6, default => 7 };
+                    $categoryOrder = match($prefix) { 'CMS' => 1, 'PLS' => 2, 'PAS', 'PAINT' => 3, 'JS' => 4, 'LS' => 5, 'MAN' => 6, default => 7 };
                     $isManpower = $prefix === 'MAN' || str_contains($catName, 'manpower') || str_contains($catName, 'event');
                     $verifiedWork = $req->project?->nature_of_work;
                     $hasVerifiedWork = $verifiedWork && !in_array(trim($verifiedWork), ['Completed', 'Repair & Maintenance Done', 'Direct Repair', '']);
@@ -321,7 +321,7 @@ class ReportController extends Controller
             $prefix = match(true) {
                 str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') || str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'CMS',
                 str_contains($catName, 'plumbing') => 'PLS',
-                str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAS',
                 str_contains($catName, 'janitorial') => 'JS',
                 str_contains($catName, 'landscaping') => 'LS',
                 str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',

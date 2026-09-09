@@ -43,7 +43,7 @@
                 </form>
 
                 <!-- Status Tabs (All, Active, Resolved, Cancelled) -->
-                <div class="flex items-center gap-1.5 border-b border-gray-100 dark:border-zinc-800 pb-2 overflow-x-auto">
+                <div class="flex items-center gap-1.5 border-b border-gray-100 dark:border-zinc-800 pb-2 overflow-x-auto no-scrollbar" style="scrollbar-width: none; -ms-overflow-style: none;">
                     @php
                         $baseUrl = route(auth()->user()->role . '.messages.index');
                         $searchParam = request('search') ? '&search=' . urlencode(request('search')) : '';
@@ -65,7 +65,7 @@
 
 
             <!-- Conversation List Items -->
-            <div class="flex-1 min-h-0 space-y-2 overflow-y-auto pr-1">
+            <div class="flex-1 min-h-0 space-y-2 overflow-y-auto p-1">
                 @forelse($requests as $req)
                     @php
                         $isSelected = $selectedRequest && $selectedRequest->request_id === $req->request_id;
@@ -81,7 +81,7 @@
                             str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
                             str_contains($catName, 'plumbing') => 'PLS',
                             str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
-                            str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAINT',
+                            str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAS',
                             str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                             default => 'REQ'
                         };
@@ -89,7 +89,7 @@
                         $unreadThisReq = (!$isSelected && isset($unreadCounts[$req->request_id])) ? $unreadCounts[$req->request_id] : 0;
                     @endphp
                     <a href="{{ route($currentRole . '.messages.index', ['requestId' => $req->request_id, 'status' => $statusFilter]) }}{{ request('search') ? '&search=' . urlencode(request('search')) : '' }}" 
-                       class="block p-3 rounded-xl border transition flex items-center gap-3 {{ $isSelected ? 'border-[#0033a0] bg-blue-50/50 dark:bg-blue-950/20 ring-1 ring-[#0033a0]' : ($unreadThisReq > 0 ? 'border-red-300 bg-red-50/30 dark:bg-red-950/20 hover:bg-red-50/60 dark:hover:bg-red-950/40' : 'border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50') }}">
+                       class="rounded-xl transition flex items-center gap-3 {{ $isSelected ? 'border-2 border-[#0033a0] dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 p-[11px]' : ($unreadThisReq > 0 ? 'border border-red-300 bg-red-50/30 dark:bg-red-950/20 hover:bg-red-50/60 dark:hover:bg-red-950/40 p-3' : 'border border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 p-3') }}">
                         @if($isClientPortal)
                             <!-- Client Portal: Requisition Document Icon Badge -->
                             <div class="w-10 h-10 rounded-xl {{ $isSelected ? 'bg-[#0033a0] text-white shadow-xs' : 'bg-blue-50 text-[#0033a0] dark:bg-blue-950/60 dark:text-blue-400' }} flex items-center justify-center font-extrabold text-xs shrink-0 relative">
@@ -187,7 +187,7 @@
                         str_contains($catNameSelected, 'carpentry') || str_contains($catNameSelected, 'masonry') => 'CMS',
                         str_contains($catNameSelected, 'plumbing') => 'PLS',
                         str_contains($catNameSelected, 'electrical') || str_contains($catNameSelected, 'mechanical') => 'EMS',
-                        str_contains($catNameSelected, 'painting') || str_contains($catNameSelected, 'paint') => 'PAINT',
+                        str_contains($catNameSelected, 'painting') || str_contains($catNameSelected, 'paint') => 'PAS',
                         str_contains($catNameSelected, 'manpower') || str_contains($catNameSelected, 'event') => 'MAN',
                         default => 'REQ'
                     };

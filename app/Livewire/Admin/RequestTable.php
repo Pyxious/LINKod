@@ -173,7 +173,7 @@ class RequestTable extends Component
 
             // Check if search query is a specific requisition code/ID (e.g. "REQ-034", "CMS-005", "#34", "034", "34")
             $explicitId = null;
-            if (preg_match('/^(?:REQ|LS|JS|CMS|PLS|EMS|PAINT|MAN)?[-\s#]*0*([1-9]\d*)$/i', $rawSearch, $matches)) {
+            if (preg_match('/^(?:REQ|LS|JS|CMS|PLS|EMS|PAS|PAINT|MAN)?[-\s#]*0*([1-9]\d*)$/i', $rawSearch, $matches)) {
                 $explicitId = (int)$matches[1];
             }
 
