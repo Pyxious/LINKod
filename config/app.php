@@ -49,4 +49,12 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Pilot Testing Access Gate
+    |--------------------------------------------------------------------------
+    */
+    'site_lock_enabled' => (bool) env('SITE_LOCK_ENABLED', false),
+    'site_access_code'  => env('SITE_ACCESS_CODE', 'LINKodTEAM2026'),
+
 ];

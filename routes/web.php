@@ -22,6 +22,10 @@ Route::get('/faq', function () {
     return view('faq');
 })->name('faq');
 
+// ── Pilot Testing Access Gate ───────────────────────────────────────────
+Route::get('/pilot-access', [\App\Http\Controllers\Auth\PilotAccessController::class, 'show'])->name('pilot.access');
+Route::post('/pilot-access', [\App\Http\Controllers\Auth\PilotAccessController::class, 'verify'])->name('pilot.access.verify');
+
 // ── Auth ─────────────────────────────────────────────────────────────
 Route::get('/login', function () {
     if (auth()->check()) {
