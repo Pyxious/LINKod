@@ -84,15 +84,12 @@ class BomController extends Controller
             'custom_material_name' => 'nullable|string|max:200',
             'unit_of_measurement'  => 'nullable|string|max:50',
             'qty'                  => 'required|numeric|min:0.01',
-            'unit_cost'            => 'required|numeric|min:0',
+            'unit_cost'            => 'nullable|numeric|min:0',
         ]);
 
         $project = Project::with('request')->findOrFail($projectId);
-        if ($project->request && !$project->request->isScheduleApproved()) {
-            return redirect()->back()->with('error', 'Materials cannot be added until the client has approved the scheduled date.');
-        }
-        if (in_array($project->current_status, ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'])) {
-            return redirect()->back()->with('error', 'Bill of Materials cannot be modified once work is In Progress or closed.');
+        if (in_array($project->current_status, ['Cancelled', 'Rejected'])) {
+            return redirect()->back()->with('error', 'Materials cannot be modified for cancelled or disapproved requests.');
         }
         $staff   = auth()->user()->staff;
 
@@ -100,12 +97,12 @@ class BomController extends Controller
         $customName = trim($validated['custom_material_name'] ?? '');
         $unit = trim($validated['unit_of_measurement'] ?? '') ?: 'pcs';
         $qty = (float)$validated['qty'];
-        $unitCost = (float)$validated['unit_cost'];
+        $unitCost = (float)($validated['unit_cost'] ?? 0);
 
         $material = null;
         if ($materialId && $materialId !== 'custom' && is_numeric($materialId)) {
             $material = Materials::find($materialId);
-            if ($material) {
+            if ($material && $unitCost > 0) {
                 $material->update([
                     'unit_cost' => $unitCost,
                     'unit_of_measurement' => $unit ?: $material->unit_of_measurement
@@ -119,7 +116,9 @@ class BomController extends Controller
                     'unit_cost' => $unitCost,
                 ]
             );
-            $material->update(['unit_cost' => $unitCost, 'unit_of_measurement' => $unit]);
+            if ($unitCost > 0) {
+                $material->update(['unit_cost' => $unitCost, 'unit_of_measurement' => $unit]);
+            }
         }
 
         if (!$material) {
@@ -138,16 +137,16 @@ class BomController extends Controller
 
         UserLog::create([
             'user_id'    => auth()->id(),
-            'action'     => "Admin added material ({$material->material_name}) to BOM for project #{$project->project_id}",
+            'action'     => "Admin added material ({$material->material_name}) to List of Materials for project #{$project->project_id}",
             'ip_address' => request()->ip(),
             'created_at' => now(),
         ]);
 
         if ($request->filled('redirect_to')) {
-            return redirect($request->input('redirect_to'))->with('success', 'Material added to Bill of Materials.');
+            return redirect($request->input('redirect_to'))->with('success', 'Material added to List of Materials.');
         }
 
-        return redirect()->back()->with('success', 'Material added to Bill of Materials.');
+        return redirect()->back()->with('success', 'Material added to List of Materials.');
     }
 
     public function approve(Request $request, int $projectId)
@@ -209,63 +208,63 @@ class BomController extends Controller
             if ($serviceRequest) {
                 $serviceRequest->update(['bom_status' => 'awaiting_client']);
 
-                RequestHistory::create([
-                    'request_id'      => $serviceRequest->request_id,
-                    'previous_status' => $serviceRequest->current_status,
-                    'current_status'  => $newStatus,
-                    'remarks'         => 'GSO Admin verified and priced the Bill of Materials. Awaiting final approval and funding confirmation from client.',
-                    'updated_at'      => now(),
-                    'updated_by'      => auth()->id(),
-                ]);
-            }
-        }
-
-        UserLog::create([
-            'user_id'    => auth()->id(),
-            'action'     => "Admin priced and verified BOM for project #{$project->project_id}",
-            'ip_address' => request()->ip(),
-            'created_at' => now(),
-        ]);
-
-        $projectTitle = $project->request?->title ?? "Project #{$project->project_id}";
-
-        // Notify client that BOM is verified with cost and awaits client confirmation
-        if ($project->client?->user_id) {
-            $this->notifications->bomVerifiedAwaitingClient(
-                $project->client->user_id,
-                $projectTitle,
-                $project->request_id ?? $project->project_id
-            );
-        }
-
-        // Notify assigned workers that BOM has been verified by admin
-        if ($project->workers) {
-            foreach ($project->workers as $pw) {
-                $workerUserId = $pw->staff?->user_id ?? $pw->user?->user_id;
-                if ($workerUserId) {
-                    $this->notifications->send(
-                        $workerUserId,
-                        'bom_verified',
-                        'BOM Verified by Admin',
-                        "The requested materials for \"{$projectTitle}\" have been verified & priced. Awaiting client approval.",
-                        route('worker.job-orders.show', $project->project_id, false)
-                    );
+                    RequestHistory::create([
+                        'request_id'      => $serviceRequest->request_id,
+                        'previous_status' => $serviceRequest->current_status,
+                        'current_status'  => $newStatus,
+                        'remarks'         => 'GSO Admin verified the List of Materials. Awaiting final approval from client.',
+                        'updated_at'      => now(),
+                        'updated_by'      => auth()->id(),
+                    ]);
                 }
             }
-        }
 
-        if ($request->filled('redirect_to')) {
-            return redirect($request->input('redirect_to'))->with('success', 'BOM verified and priced successfully. Forwarded to client for approval.');
-        }
+            UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Admin verified List of Materials for project #{$project->project_id}",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
 
-        return redirect()->back()->with('success', 'BOM verified and priced successfully. Forwarded to client for approval.');
+            $projectTitle = $project->request?->title ?? "Project #{$project->project_id}";
+
+            // Notify client that List of Materials is verified and awaits client confirmation
+            if ($project->client?->user_id) {
+                $this->notifications->bomVerifiedAwaitingClient(
+                    $project->client->user_id,
+                    $projectTitle,
+                    $project->request_id ?? $project->project_id
+                );
+            }
+
+            // Notify assigned workers that List of Materials has been verified by admin
+            if ($project->workers) {
+                foreach ($project->workers as $pw) {
+                    $workerUserId = $pw->staff?->user_id ?? $pw->user?->user_id;
+                    if ($workerUserId) {
+                        $this->notifications->send(
+                            $workerUserId,
+                            'bom_verified',
+                            'List of Materials Verified by Admin',
+                            "The requested materials for \"{$projectTitle}\" have been verified. Awaiting client approval.",
+                            route('worker.job-orders.show', $project->project_id, false)
+                        );
+                    }
+                }
+            }
+
+            if ($request->filled('redirect_to')) {
+                return redirect($request->input('redirect_to'))->with('success', 'List of Materials updated successfully. Forwarded to client for approval.');
+            }
+
+            return redirect()->back()->with('success', 'List of Materials updated successfully. Forwarded to client for approval.');
     }
 
     public function destroyItem(int $projectId, int $bomId)
     {
         $project = Project::findOrFail($projectId);
-        if (in_array($project->current_status, ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'])) {
-            return redirect()->back()->with('error', 'Bill of Materials cannot be modified once work is In Progress or closed.');
+        if (in_array($project->current_status, ['Cancelled', 'Rejected'])) {
+            return redirect()->back()->with('error', 'Materials cannot be modified for cancelled or disapproved requests.');
         }
 
         $bom = BillOfMaterials::where('project_id', $projectId)->where('bom_id', $bomId)->firstOrFail();
@@ -274,13 +273,13 @@ class BomController extends Controller
 
         UserLog::create([
             'user_id'    => auth()->id(),
-            'action'     => "Admin removed BOM item #{$bomId} ({$materialName}) from project #{$projectId}",
+            'action'     => "Admin removed material item #{$bomId} ({$materialName}) from project #{$projectId}",
             'ip_address' => request()->ip(),
             'created_at' => now(),
         ]);
 
         return redirect()->back()
-            ->with('success', "Removed {$materialName} from Bill of Materials.");
+            ->with('success', "Removed {$materialName} from List of Materials.");
     }
 }
 

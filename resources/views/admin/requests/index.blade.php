@@ -15,7 +15,7 @@
         @endphp
         <a href="{{ route('admin.bom.index') }}" class="w-full sm:w-auto text-center bg-white dark:bg-zinc-800 hover:bg-blue-50 dark:hover:bg-zinc-700 text-[#0033a0] dark:text-blue-400 border-2 border-[#0033a0]/30 dark:border-blue-600/50 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition shadow-xs inline-flex items-center justify-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            <span>Bill of Materials (BOM)</span>
+            <span>List of Materials</span>
             @if($pendingBomCount > 0)
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white animate-pulse">
                     {{ $pendingBomCount }}

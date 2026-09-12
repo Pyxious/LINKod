@@ -513,7 +513,7 @@
                             </div>
                         </div>
                         <input type="hidden" name="prep_date" :value="prepDate">
-                        <textarea x-model="prepDetails" name="prep_details" rows="2" placeholder="Describe preparation tasks..." class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
+                        <textarea x-model="prepDetails" name="prep_details" rows="2" placeholder="Describe preparation tasks and venue requirements" class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
                         <div class="flex flex-wrap items-center gap-3 text-xs">
                             <label class="inline-flex items-center gap-1.5 cursor-pointer">
                                 <input type="checkbox" x-model="prepRegular" name="prep_regular" value="1" class="rounded text-[#1a3c8f]">
@@ -527,14 +527,14 @@
                                     </template>
                                 </select>
                                 <input type="text" x-model="prepRegularTime" x-show="prepTimePreset === 'custom'" name="prep_regular_time"
-                                       placeholder="Custom time" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white">
+                                       placeholder="e.g. 10:00 AM - 3:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white">
                                 <span x-show="prepTimePreset !== 'custom'" class="font-medium text-gray-700 dark:text-gray-300 text-xs" x-text="prepRegularTime"></span>
                                 <input type="hidden" name="prep_regular_time" :value="prepRegularTime">
                             </div>
                             <label class="inline-flex items-center gap-1.5 cursor-pointer">
                                 <input type="checkbox" x-model="prepOvertime" name="prep_overtime" value="1" class="rounded text-[#1a3c8f]">
                                 <span class="font-semibold text-gray-700 dark:text-gray-300">Overtime:</span>
-                                <input type="text" x-model="prepOvertimeTime" name="prep_overtime_time" placeholder="e.g. 5:00 - 8:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white" :disabled="!prepOvertime">
+                                <input type="text" x-model="prepOvertimeTime" name="prep_overtime_time" placeholder="e.g. 5:00 PM - 8:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white" :disabled="!prepOvertime">
                             </label>
                         </div>
                     </div>
@@ -555,7 +555,7 @@
                             </div>
                         </div>
                         <input type="hidden" name="assistance_date" :value="assistanceDate">
-                        <textarea x-model="assistanceDetails" name="assistance_details" rows="2" placeholder="Describe assistance tasks..." class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
+                        <textarea x-model="assistanceDetails" name="assistance_details" rows="2" placeholder="Describe event assistance tasks" class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
                         <div class="flex flex-wrap items-center gap-3 text-xs">
                             <label class="inline-flex items-center gap-1.5 cursor-pointer">
                                 <input type="checkbox" x-model="assistanceRegular" name="assistance_regular" value="1" class="rounded text-[#1a3c8f]">
@@ -569,14 +569,14 @@
                                     </template>
                                 </select>
                                 <input type="text" x-model="assistanceRegularTime" x-show="assistanceTimePreset === 'custom'" name="assistance_regular_time"
-                                       placeholder="Custom time" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white">
+                                       placeholder="e.g. 10:00 AM - 3:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white">
                                 <span x-show="assistanceTimePreset !== 'custom'" class="font-medium text-gray-700 dark:text-gray-300 text-xs" x-text="assistanceRegularTime"></span>
                                 <input type="hidden" name="assistance_regular_time" :value="assistanceRegularTime">
                             </div>
                             <label class="inline-flex items-center gap-1.5 cursor-pointer">
                                 <input type="checkbox" x-model="assistanceOvertime" name="assistance_overtime" value="1" class="rounded text-[#1a3c8f]">
                                 <span class="font-semibold text-gray-700 dark:text-gray-300">Overtime:</span>
-                                <input type="text" x-model="assistanceOvertimeTime" name="assistance_overtime_time" placeholder="e.g. 5:00 - 10:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white" :disabled="!assistanceOvertime">
+                                <input type="text" x-model="assistanceOvertimeTime" name="assistance_overtime_time" placeholder="e.g. 5:00 PM - 10:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white" :disabled="!assistanceOvertime">
                             </label>
                         </div>
                     </div>
@@ -597,7 +597,7 @@
                             </div>
                         </div>
                         <input type="hidden" name="clearing_date" :value="clearingDate">
-                        <textarea x-model="clearingDetails" name="clearing_details" rows="2" placeholder="Describe clearing tasks..." class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
+                        <textarea x-model="clearingDetails" name="clearing_details" rows="2" placeholder="Describe clearing and post-event tasks" class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
                         <div class="flex flex-wrap items-center gap-3 text-xs">
                             <label class="inline-flex items-center gap-1.5 cursor-pointer">
                                 <input type="checkbox" x-model="clearingRegular" name="clearing_regular" value="1" class="rounded text-[#1a3c8f]">
@@ -611,14 +611,14 @@
                                     </template>
                                 </select>
                                 <input type="text" x-model="clearingRegularTime" x-show="clearingTimePreset === 'custom'" name="clearing_regular_time"
-                                       placeholder="Custom time" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white">
+                                       placeholder="e.g. 10:00 AM - 3:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white">
                                 <span x-show="clearingTimePreset !== 'custom'" class="font-medium text-gray-700 dark:text-gray-300 text-xs" x-text="clearingRegularTime"></span>
                                 <input type="hidden" name="clearing_regular_time" :value="clearingRegularTime">
                             </div>
                             <label class="inline-flex items-center gap-1.5 cursor-pointer">
                                 <input type="checkbox" x-model="clearingOvertime" name="clearing_overtime" value="1" class="rounded text-[#1a3c8f]">
                                 <span class="font-semibold text-gray-700 dark:text-gray-300">Overtime:</span>
-                                <input type="text" x-model="clearingOvertimeTime" name="clearing_overtime_time" placeholder="e.g. 5:00 - 8:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white" :disabled="!clearingOvertime">
+                                <input type="text" x-model="clearingOvertimeTime" name="clearing_overtime_time" placeholder="e.g. 5:00 PM - 8:00 PM" class="px-2 py-0.5 border border-gray-300 dark:border-zinc-700 rounded text-xs w-32 bg-white dark:bg-zinc-800 dark:text-white" :disabled="!clearingOvertime">
                             </label>
                         </div>
                     </div>
@@ -626,14 +626,14 @@
                     <!-- 4. Additional Note -->
                     <div class="p-3.5 bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 rounded-lg space-y-2">
                         <label class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase">4. Additional Note (Supplies / Tools)</label>
-                        <textarea x-model="additionalNotes" name="additional_notes" rows="2" placeholder="e.g. Supplies, materials, tools, equipment to be used..." class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
+                        <textarea x-model="additionalNotes" name="additional_notes" rows="2" placeholder="Specify required materials, equipment, or special instructions" class="w-full p-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs dark:text-white"></textarea>
                     </div>
                 </div>
 
                 <!-- Standard Description (Non-Manpower) -->
                 <div x-show="!isManpowerCategory" x-cloak>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">Detailed Description</label>
-                    <textarea name="description" rows="4" placeholder="Provide additional details regarding the issue (e.g. room number, exact problem symptoms)..."
+                    <textarea name="description" rows="4" placeholder="Provide details regarding the maintenance work required"
                         class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm focus:ring-2 focus:ring-[#1a3c8f] focus:border-transparent dark:text-white">{{ old('description') }}</textarea>
                     @error('description') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
                 </div>

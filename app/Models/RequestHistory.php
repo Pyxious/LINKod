@@ -45,21 +45,21 @@ class RequestHistory extends Model
             return 'Schedule Confirmed';
         }
 
-        // BOM actions
+        // List of Materials (BOM) actions
         if (str_contains($remarks, 'on-site direct') || $status === 'BOM Approved (On-Site Direct)') {
-            return 'BOM Approved (On-Site)';
+            return 'Materials Approved (On-Site)';
         }
-        if (str_contains($remarks, 'client approved bill of materials') || str_contains($remarks, 'approved bom') || $status === 'BOM Approved by Client') {
-            return 'BOM Approved';
+        if (str_contains($remarks, 'on behalf of the client') || str_contains($remarks, 'client approved bill of materials') || str_contains($remarks, 'approved the list of materials') || str_contains($remarks, 'approved bom') || $status === 'BOM Approved by Client') {
+            return 'List of Materials Approved';
         }
-        if (str_contains($remarks, 'client declined bill of materials') || str_contains($remarks, 'declined bom') || $status === 'BOM Declined by Client') {
-            return 'BOM Declined';
+        if (str_contains($remarks, 'client declined bill of materials') || str_contains($remarks, 'declined bom') || str_contains($remarks, 'declined the list of materials') || $status === 'BOM Declined by Client') {
+            return 'List of Materials Declined';
         }
-        if (str_contains($remarks, 'admin verified bill of materials') || str_contains($remarks, 'bom verified') || $status === 'BOM Verified (Awaiting Client Approval)') {
-            return 'BOM Verified';
+        if (str_contains($remarks, 'admin verified bill of materials') || str_contains($remarks, 'verified the list of materials') || str_contains($remarks, 'bom verified') || $status === 'BOM Verified (Awaiting Client Approval)') {
+            return 'List of Materials Verified';
         }
-        if (str_contains($remarks, 'submitted bill of materials') || str_contains($remarks, 'awaiting verification of bill of materials') || $status === 'Awaiting Verification of Bill of Materials') {
-            return 'BOM Submitted';
+        if (str_contains($remarks, 'submitted bill of materials') || str_contains($remarks, 'awaiting verification of bill of materials') || str_contains($remarks, 'submitted list of materials') || $status === 'Awaiting Verification of Bill of Materials') {
+            return 'List of Materials Submitted';
         }
 
         // Client evaluation / rating actions
@@ -71,7 +71,8 @@ class RequestHistory extends Model
         return match($status) {
             'Submitted'            => 'Submitted',
             'Approved'             => 'Approved',
-            'Rejected'             => 'Rejected',
+            'Rejected'             => 'Disapproved',
+            'Disapproved'          => 'Disapproved',
             'In Progress'          => 'In Progress',
             'Pending Verification' => 'Acceptance',
             'Completed'            => 'Completed',
@@ -82,6 +83,25 @@ class RequestHistory extends Model
     }
 
     /**
+     * Get user-facing display remarks with terminology normalized.
+     */
+    public function getDisplayRemarksAttribute(): ?string
+    {
+        if ($this->remarks === null) {
+            return null;
+        }
+
+        $remarks = $this->remarks;
+        $remarks = str_ireplace('rejected', 'disapproved', $remarks);
+        $remarks = str_ireplace('rejecting', 'disapproving', $remarks);
+        $remarks = str_ireplace('reject', 'disapprove', $remarks);
+        $remarks = str_ireplace('bill of materials', 'List of Materials', $remarks);
+        $remarks = (string) preg_replace('/\bBOM\b/i', 'List of Materials', $remarks);
+
+        return $remarks;
+    }
+
+    /**
      * Get badge color styling based on action type.
      */
     public function getBadgeColorClassAttribute(): string
@@ -89,7 +109,7 @@ class RequestHistory extends Model
         $title = $this->action_title;
 
         return match(true) {
-            str_contains($title, 'Rejected') || str_contains($title, 'Cancelled') || str_contains($title, 'Declined')
+            str_contains($title, 'Rejected') || str_contains($title, 'Disapproved') || str_contains($title, 'Cancelled') || str_contains($title, 'Declined')
                 => 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900',
 
             str_contains($title, 'Confirmed') || str_contains($title, 'Approved') || str_contains($title, 'Completed') || str_contains($title, 'Acceptance') || str_contains($title, 'Client Rated') || str_contains($title, 'Evaluated')
@@ -111,7 +131,7 @@ class RequestHistory extends Model
         $title = $this->action_title;
 
         return match(true) {
-            str_contains($title, 'Rejected') || str_contains($title, 'Cancelled') || str_contains($title, 'Declined')
+            str_contains($title, 'Rejected') || str_contains($title, 'Disapproved') || str_contains($title, 'Cancelled') || str_contains($title, 'Declined')
                 => 'bg-rose-500 ring-rose-100 dark:ring-rose-950',
 
             str_contains($title, 'Confirmed') || str_contains($title, 'Approved') || str_contains($title, 'Completed') || str_contains($title, 'Acceptance') || str_contains($title, 'Client Rated') || str_contains($title, 'Evaluated')

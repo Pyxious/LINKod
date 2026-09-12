@@ -397,10 +397,7 @@
                  priority: '{{ strtolower($serviceRequest->priority ?? 'routine') }}',
                  scheduleStatus: '{{ $serviceRequest->schedule_status ?? 'none' }}',
                  showRejectPanel: false,
-                 isMinimized: {{ $serviceRequest->schedule_status === 'pending_client_approval' ? 'true' : 'false' }},
-                 get isDirectApprove() {
-                     return this.scheduleStatus === 'approved' || this.priority === 'urgent';
-                 }
+                 isMinimized: false
              }">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
                  :class="{'pb-3 border-b border-gray-100 dark:border-zinc-800': !isMinimized}">
@@ -510,8 +507,8 @@
                 </div>
             @endif
 
-            <!-- Unified Form -->
-            <form :action="isDirectApprove ? '{{ route('admin.requests.approve', $serviceRequest->request_id) }}' : '{{ route('admin.requests.schedule', $serviceRequest->request_id) }}'" 
+            <!-- Unified Form: Confirm Schedule, Approve & Assign in One Step -->
+            <form action="{{ route('admin.requests.approve', $serviceRequest->request_id) }}" 
                   method="POST" 
                   class="space-y-5">
                 @csrf
@@ -657,27 +654,26 @@
                     </div>
                 </div>
 
-                <!-- 4. Submit Action & Reject Option -->
+                <!-- 4. Submit Action & Disapprove Option -->
                 <div class="pt-3 border-t border-gray-100 dark:border-zinc-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                     <button type="button" 
                             @click="showRejectPanel = !showRejectPanel" 
                             class="px-4 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition border border-rose-200 dark:border-rose-900/50 inline-flex items-center justify-center gap-1.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        <span x-text="showRejectPanel ? 'Hide Rejection Form' : 'Decline / Reject Request'"></span>
+                        <span x-text="showRejectPanel ? 'Hide Disapproval Form' : 'Decline / Disapprove Request'"></span>
                     </button>
 
                     <div class="flex items-center gap-3">
                         <button type="submit" 
-                                class="w-full sm:w-auto px-6 py-3 bg-[#0033a0] hover:bg-[#002480] text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-md inline-flex items-center justify-center gap-2">
+                                class="w-full sm:w-auto px-7 py-3 bg-[#0033a0] hover:bg-[#002480] text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-md inline-flex items-center justify-center gap-2 cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                            <span x-show="isDirectApprove">Approve Request &amp; Assign Workers to Project</span>
-                            <span x-show="!isDirectApprove">Send Schedule Proposal &amp; Assign Workers</span>
+                            <span>Confirm Schedule, Approve &amp; Assign Workers</span>
                         </button>
                     </div>
                 </div>
             </form>
 
-            <!-- Collapsible Rejection Panel -->
+            <!-- Collapsible Disapproval Panel -->
             <div x-show="showRejectPanel" 
                  x-cloak 
                  class="pt-4 border-t border-rose-200 dark:border-rose-900/50">
@@ -685,18 +681,18 @@
                     @csrf
                     <div class="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-bold text-xs uppercase tracking-wider">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                        Confirm Request Rejection
+                        Confirm Request Disapproval
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1">Reason for Rejection <span class="text-red-500">*</span></label>
-                        <textarea name="feedback" rows="3" placeholder="State why this service request cannot be fulfilled..." class="w-full p-3 bg-white dark:bg-zinc-900 border border-rose-200 dark:border-zinc-700 rounded-xl text-xs text-slate-800 dark:text-gray-200 focus:outline-none focus:border-rose-500" required></textarea>
+                        <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1">Reason for Disapproval <span class="text-red-500">*</span></label>
+                        <textarea name="feedback" rows="3" placeholder="State why this service request cannot be fulfilled" class="w-full p-3 bg-white dark:bg-zinc-900 border border-rose-200 dark:border-zinc-700 rounded-xl text-xs text-slate-800 dark:text-gray-200 focus:outline-none focus:border-rose-500" required></textarea>
                     </div>
                     <div class="flex justify-end gap-2">
                         <button type="button" @click="showRejectPanel = false" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition">
                             Cancel
                         </button>
                         <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition shadow-sm">
-                            Confirm Reject Request
+                            Confirm Disapprove Request
                         </button>
                     </div>
                 </form>
@@ -707,26 +703,43 @@
 
 
     <!-- Clientele Satisfaction Rating Section Card (Displayed when client has rated the request) -->
+    <!-- Clientele Satisfaction Rating Section Card (Displayed when client has rated the request) -->
     @if($serviceRequest->evaluation)
-        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 border-[#0033a0] dark:border-blue-700 p-7 shadow-sm">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 border-[#0033a0] dark:border-blue-700 p-7 shadow-sm"
+             x-data="{ evalProofOpen: false }">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-4">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400 border border-blue-200 dark:border-blue-800/80 flex items-center justify-center shrink-0">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
                     <div>
-                        <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">
-                            Clientele Satisfaction Measurement Rating
-                        </h2>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">
+                                Clientele Satisfaction Measurement Rating
+                            </h2>
+                            @if($serviceRequest->evaluation->rated_by_admin)
+                                <span class="px-2.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-extrabold rounded-full uppercase tracking-wider">
+                                    Recorded by Admin (Physical Paper at GSO)
+                                </span>
+                            @endif
+                        </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
                             Submitted {{ ($serviceRequest->evaluation->show_name ?? true) ? 'by ' . ($serviceRequest->client->user->first_name . ' ' . $serviceRequest->client->user->last_name) : 'anonymously' }} on {{ $serviceRequest->evaluation->rated_at ? $serviceRequest->evaluation->rated_at->format('M d, Y h:i A') : 'N/A' }}
                         </p>
                     </div>
                 </div>
-                <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center gap-2 shrink-0">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                    <span>Print Satisfaction Form</span>
-                </a>
+                <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                    @if($serviceRequest->evaluation->proof_image_path)
+                        <button type="button" @click="evalProofOpen = true" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            <span>View Signed Paper Proof</span>
+                        </button>
+                    @endif
+                    <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        <span>Print Form</span>
+                    </a>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -777,6 +790,179 @@
                         <span class="text-[#0033a0] dark:text-blue-400 font-extrabold">{{ $scoreVal }}★</span>
                     </span>
                 @endforeach
+            </div>
+
+            <!-- Lightbox for Signed Physical Evaluation Photo Proof -->
+            @if($serviceRequest->evaluation->proof_image_path)
+                <div x-show="evalProofOpen" 
+                     x-cloak 
+                     class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs"
+                     @keydown.escape.window="evalProofOpen = false"
+                     x-transition:enter="ease-out duration-200"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="ease-in duration-150"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0">
+                    <div class="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700" 
+                         @click.outside="evalProofOpen = false">
+                        <div class="w-full flex items-center justify-between py-3 px-5 bg-zinc-800 text-white border-b border-zinc-700">
+                            <span class="text-xs font-bold uppercase tracking-wider text-gray-200">Signed Physical Satisfaction Evaluation Proof</span>
+                            <button type="button" @click="evalProofOpen = false" class="p-1.5 text-gray-400 hover:text-white hover:bg-zinc-700 rounded-lg transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                        <div class="w-full p-4 flex items-center justify-center overflow-auto max-h-[80vh] bg-black/50">
+                            <img src="{{ Storage::url($serviceRequest->evaluation->proof_image_path) }}" alt="Signed Evaluation Proof" class="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-lg">
+                        </div>
+                    </div>
+                </div>
+            @endif
+        </div>
+    @elseif($serviceRequest->current_status === 'Completed')
+        <!-- Option for Admin to Record Physical Rating Submitted at GSO -->
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-7 shadow-sm space-y-4"
+             x-data="{ 
+                 openForm: false,
+                 rating: 5,
+                 quality: 5,
+                 attitude: 5,
+                 safety: 5,
+                 time: 5,
+                 housekeeping: 5,
+                 calcAvg() {
+                     const avg = (Number(this.quality) + Number(this.attitude) + Number(this.safety) + Number(this.time) + Number(this.housekeeping)) / 5;
+                     this.rating = Math.round(avg);
+                 }
+             }">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <span class="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </span>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                            Physical Paper Satisfaction Rating (Submitted at GSO)
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            Did the client submit a physical paper evaluation form at the GSO office? Record it here with signed photo proof.
+                        </p>
+                    </div>
+                </div>
+                <button type="button" 
+                        @click="openForm = !openForm" 
+                        class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-sm inline-flex items-center gap-1.5 shrink-0 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    <span x-text="openForm ? 'Cancel / Close Form' : 'Record Physical Client Evaluation'">Record Physical Client Evaluation</span>
+                </button>
+            </div>
+
+            <!-- Collapsible Form -->
+            <div x-show="openForm" x-cloak x-transition class="pt-4 border-t border-gray-100 dark:border-zinc-800">
+                <form action="{{ route('admin.requests.physical-evaluation', $serviceRequest->request_id) }}" method="POST" enctype="multipart/form-data" class="bg-blue-50/40 dark:bg-zinc-800/40 p-5 sm:p-6 rounded-2xl border border-blue-200 dark:border-zinc-700 space-y-4">
+                    @csrf
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                        <!-- Quality -->
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 dark:text-gray-300 uppercase mb-1">Quality of Service</label>
+                            <select name="quality" x-model.number="quality" @change="calcAvg()" class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white">
+                                <option value="5">5 - Very Satisfied</option>
+                                <option value="4">4 - Satisfied</option>
+                                <option value="3">3 - Neutral</option>
+                                <option value="2">2 - Dissatisfied</option>
+                                <option value="1">1 - Very Dissatisfied</option>
+                            </select>
+                        </div>
+
+                        <!-- Attitude -->
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 dark:text-gray-300 uppercase mb-1">Attitude</label>
+                            <select name="attitude" x-model.number="attitude" @change="calcAvg()" class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white">
+                                <option value="5">5 - Very Satisfied</option>
+                                <option value="4">4 - Satisfied</option>
+                                <option value="3">3 - Neutral</option>
+                                <option value="2">2 - Dissatisfied</option>
+                                <option value="1">1 - Very Dissatisfied</option>
+                            </select>
+                        </div>
+
+                        <!-- Safety -->
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 dark:text-gray-300 uppercase mb-1">Safety Precautions</label>
+                            <select name="safety" x-model.number="safety" @change="calcAvg()" class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white">
+                                <option value="5">5 - Very Satisfied</option>
+                                <option value="4">4 - Satisfied</option>
+                                <option value="3">3 - Neutral</option>
+                                <option value="2">2 - Dissatisfied</option>
+                                <option value="1">1 - Very Dissatisfied</option>
+                            </select>
+                        </div>
+
+                        <!-- Time -->
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 dark:text-gray-300 uppercase mb-1">Time Bound</label>
+                            <select name="time" x-model.number="time" @change="calcAvg()" class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white">
+                                <option value="5">5 - Very Satisfied</option>
+                                <option value="4">4 - Satisfied</option>
+                                <option value="3">3 - Neutral</option>
+                                <option value="2">2 - Dissatisfied</option>
+                                <option value="1">1 - Very Dissatisfied</option>
+                            </select>
+                        </div>
+
+                        <!-- Housekeeping -->
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 dark:text-gray-300 uppercase mb-1">Housekeeping</label>
+                            <select name="housekeeping" x-model.number="housekeeping" @change="calcAvg()" class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white">
+                                <option value="5">5 - Very Satisfied</option>
+                                <option value="4">4 - Satisfied</option>
+                                <option value="3">3 - Neutral</option>
+                                <option value="2">2 - Dissatisfied</option>
+                                <option value="1">1 - Very Dissatisfied</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Overall Rating & Feedback -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 dark:text-gray-300 uppercase mb-1">Overall Rating (1 - 5)</label>
+                            <select name="rating" x-model.number="rating" class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border-2 border-[#0033a0] rounded-lg text-xs font-black text-[#0033a0] dark:text-blue-400">
+                                <option value="5">5 - Very Satisfied</option>
+                                <option value="4">4 - Satisfied</option>
+                                <option value="3">3 - Neutral</option>
+                                <option value="2">2 - Dissatisfied</option>
+                                <option value="1">1 - Very Dissatisfied</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-[11px] font-bold text-slate-700 dark:text-gray-300 uppercase mb-1">Client Feedback / Comments (Optional)</label>
+                            <input type="text" name="feedback_text" placeholder="e.g. Excellent service, responsive workers" class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-slate-900 dark:text-white">
+                        </div>
+                    </div>
+
+                    <!-- Required Photo Proof of Physical Signed Form -->
+                    <div class="pt-2">
+                        <label class="block text-xs font-bold text-slate-900 dark:text-white mb-1">
+                            Photo Proof of Signed Physical Form <span class="text-red-500 font-bold">* (Required)</span>
+                        </label>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                            Upload a clear photo or scan of the physical evaluation sheet with client's signature.
+                        </p>
+                        <input type="file" name="proof_photo" accept="image/jpeg,image/png,image/webp" required class="block w-full text-xs text-gray-500 dark:text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#0033a0] file:text-white hover:file:bg-[#002480] file:cursor-pointer cursor-pointer border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 p-2">
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2 border-t border-gray-200 dark:border-zinc-700">
+                        <button type="button" @click="openForm = false" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span>Save &amp; Record Physical Evaluation</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     @endif
@@ -1235,25 +1421,22 @@
         </div>
     @endif
 
-    <!-- Bill of Materials (BOM) Section Card (Direct Pricing & Approval in Request Page - Placed under Admin Operational Override) -->
+    <!-- List of Materials Section Card -->
     @if($serviceRequest->project || !in_array($serviceRequest->current_status, ['Cancelled', 'Rejected']))
         @php
             $boms = $serviceRequest->project?->billOfMaterials ?? collect();
             $pendingBomCount = $boms->whereNull('date_approved')->count();
             $hasBomItems = $boms->count() > 0;
-            $nonEditableStatuses = ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'];
-            $isBomEditable = !in_array($serviceRequest->current_status, $nonEditableStatuses) 
-                          && !in_array($serviceRequest->project?->current_status, $nonEditableStatuses);
+            $isBomEditable = !in_array($serviceRequest->current_status, ['Cancelled', 'Rejected']);
         @endphp
         <div id="bom-section" 
-             class="bg-white dark:bg-[#1c1c1e] rounded-2xl border {{ $pendingBomCount > 0 && $isBomEditable ? 'border-amber-400 dark:border-amber-600' : 'border-gray-200 dark:border-zinc-800' }} p-6 sm:p-7 shadow-sm"
+             class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-7 shadow-sm"
              x-data="{
                  items: {{ Js::from($boms->map(fn($b) => [
                      'bom_id' => $b->bom_id,
                      'material_name' => $b->material->material_name ?? 'Material Item',
                      'unit' => $b->material->unit_of_measurement ?? 'pcs',
                      'qty' => (float)$b->qty,
-                     'unit_cost' => (float)($b->material->unit_cost ?? 0),
                      'is_approved' => !is_null($b->date_approved),
                  ])) }},
                  showAddMaterial: false,
@@ -1262,89 +1445,64 @@
                  customName: '',
                  addUnit: 'pcs',
                  addQty: 1,
-                 addUnitCost: 0,
-                 catalog: {{ Js::from(($allMaterials ?? collect())->map(fn($m) => ['id' => $m->material_id, 'name' => $m->material_name, 'unit' => $m->unit_of_measurement ?? 'pcs', 'cost' => (float)$m->unit_cost])) }},
+                 catalog: {{ Js::from(($allMaterials ?? collect())->map(fn($m) => ['id' => $m->material_id, 'name' => $m->material_name, 'unit' => $m->unit_of_measurement ?? 'pcs'])) }},
                  isDiscrete(unit) {
                      if (!unit) return true;
                      const u = unit.toString().trim().toLowerCase();
                      const continuousUnits = ['meter', 'meters', 'm', 'length', 'lengths', 'ft', 'feet', 'foot', 'liter', 'liters', 'l', 'kg', 'kilo', 'kilos', 'kilogram', 'kilograms', 'gallon', 'gallons', 'gal', 'yard', 'yards', 'yd', 'inch', 'inches', 'cm', 'mm'];
                      return !continuousUnits.includes(u);
                  },
-                 get grandTotal() {
-                     return this.items.reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.unit_cost) || 0)), 0);
-                 },
                  onSelectAddChange() {
                      if (this.selectedMaterialId && this.selectedMaterialId !== 'custom') {
                          const found = this.catalog.find(m => m.id == this.selectedMaterialId);
                          if (found) {
                              this.addUnit = found.unit || 'pcs';
-                             this.addUnitCost = found.cost || 0;
                          }
                      } else if (this.selectedMaterialId === 'custom') {
-                         this.addUnitCost = 0;
                          if (!this.addUnit) this.addUnit = 'pcs';
                      }
                  }
              }">
             
-            <!-- BOM Header -->
+            <!-- List of Materials Header -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-5">
                 <div>
                     <div class="flex items-center gap-2.5 mb-1 flex-wrap">
                         <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">
-                            Bill of Materials (BOM) — Pricing &amp; Approval
+                            List of Materials
                         </h2>
-                        @if(!$isBomEditable)
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-gray-300 uppercase border border-slate-300 dark:border-zinc-700">
-                                <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                                Locked ({{ $serviceRequest->current_status }})
+                        @if($serviceRequest->bom_status === 'approved')
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
+                                <svg class="w-3 h-3 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                Approved
                             </span>
                         @else
                             <template x-if="items.length === 0">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 uppercase">
-                                    Draft / Ready to Add
+                                    Ready to Add
                                 </span>
                             </template>
-                            <template x-if="items.length > 0 && {{ $pendingBomCount > 0 ? 'true' : 'false' }}">
+                            <template x-if="items.length > 0">
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">
                                     <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                    {{ $pendingBomCount }} Pending Pricing / Approval
-                                </span>
-                            </template>
-                            <template x-if="items.length > 0 && {{ $pendingBomCount === 0 ? 'true' : 'false' }}">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
-                                    Approved
+                                    Pending Approval
                                 </span>
                             </template>
                         @endif
                     </div>
                     <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                        @if($isBomEditable)
-                            Specify required materials, quantities, and pricing directly on this requisition.
-                        @else
-                            Bill of Materials is locked and read-only while this requisition is in progress or completed.
-                        @endif
+                        Specify required materials and quantities for this requisition.
                     </p>
                 </div>
 
                 @if($isBomEditable)
                     <div class="flex items-center gap-2 shrink-0">
-                        @if($serviceRequest->isScheduleApproved())
-                            <button type="button" 
-                                    @click="showAddMaterial = !showAddMaterial" 
-                                    class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 cursor-pointer">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                <span x-text="showAddMaterial ? 'Close Form' : 'Add Material'">Add Material</span>
-                            </button>
-                        @else
-                            <button type="button" 
-                                    disabled
-                                    class="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-xl cursor-not-allowed inline-flex items-center gap-1.5 opacity-80"
-                                    title="Client must approve the scheduled date before adding materials">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                <span>Add Material</span>
-                            </button>
-                        @endif
+                        <button type="button" 
+                                @click="showAddMaterial = !showAddMaterial" 
+                                class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            <span x-text="showAddMaterial ? 'Close Form' : 'Add Material'">Add Material</span>
+                        </button>
                     </div>
                 @endif
             </div>
@@ -1354,27 +1512,19 @@
                 <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400 flex items-center justify-center">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
                 </div>
-                <h4 class="text-sm font-bold text-slate-800 dark:text-gray-200 mb-1">No Materials Listed in BOM</h4>
+                <h4 class="text-sm font-bold text-slate-800 dark:text-gray-200 mb-1">No Materials Listed</h4>
                 @if($isBomEditable)
-                    @if($serviceRequest->isScheduleApproved())
-                        <p class="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-4">You can create a Bill of Materials for this requisition by adding catalog or custom materials below.</p>
-                        <button type="button" @click="showAddMaterial = true" x-show="!showAddMaterial" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                            <span>Add First Material Item</span>
-                        </button>
-                    @else
-                        <p class="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-4">Client must approve the scheduled date before materials can be added to the Bill of Materials.</p>
-                        <button type="button" disabled class="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-xl cursor-not-allowed inline-flex items-center gap-1.5 opacity-80" title="Client must approve the scheduled date before adding materials">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                            <span>Add First Material Item</span>
-                        </button>
-                    @endif
+                    <p class="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-4">You can add required catalog or custom materials to this requisition below.</p>
+                    <button type="button" @click="showAddMaterial = true" x-show="!showAddMaterial" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <span>Add First Material Item</span>
+                    </button>
                 @else
-                    <p class="text-xs text-gray-400 max-w-md mx-auto">No materials were requested or allocated for this requisition.</p>
+                    <p class="text-xs text-gray-400 max-w-md mx-auto">No materials were requested for this requisition.</p>
                 @endif
             </div>
 
-            <!-- In-Place Pricing & Approval Form (when items exist) -->
+            <!-- List of Materials Table Form -->
             <form x-show="items.length > 0" action="{{ $serviceRequest->project ? route('admin.bom.approve', $serviceRequest->project->project_id) : '#' }}" method="POST" @submit="submittingBOM = true">
                 @csrf
                 <input type="hidden" name="redirect_to" value="{{ route('admin.requests.show', $serviceRequest->request_id) }}#bom-section">
@@ -1384,27 +1534,26 @@
                         <thead>
                             <tr class="border-b border-gray-200 dark:border-zinc-800 text-[11px] font-extrabold text-gray-400 uppercase tracking-wider">
                                 <th class="py-2.5 px-3">Material Item</th>
-                                <th class="py-2.5 px-3 text-center w-28">Qty</th>
-                                <th class="py-2.5 px-3 text-center w-24">Unit</th>
-                                <th class="py-2.5 px-3 text-right w-36">Unit Price (₱)</th>
-                                <th class="py-2.5 px-3 text-right w-36">Total (₱)</th>
-                                <th class="py-2.5 px-3 text-center w-24">Status</th>
-                                <th class="py-2.5 px-3 text-center w-14">Action</th>
+                                <th class="py-2.5 px-3 text-center w-32">Qty</th>
+                                <th class="py-2.5 px-3 text-center w-28">Unit</th>
+                                <th class="py-2.5 px-3 text-center w-28">Status</th>
+                                <th class="py-2.5 px-3 text-center w-16">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
                             <template x-for="(item, idx) in items" :key="item.bom_id">
                                 <tr class="hover:bg-blue-50/40 dark:hover:bg-zinc-800/40 transition">
                                     
-                                    <!-- Hidden BOM ID -->
+                                    <!-- Hidden BOM ID & Unit Cost -->
                                     <input type="hidden" :name="'items[' + idx + '][bom_id]'" :value="item.bom_id">
+                                    <input type="hidden" :name="'items[' + idx + '][unit_cost]'" value="0">
 
                                     <!-- Material Name -->
                                     <td class="py-3 px-3">
                                         <div class="font-bold text-slate-900 dark:text-white" x-text="item.material_name"></div>
                                     </td>
 
-                                    <!-- Quantity Input / Badge -->
+                                    <!-- Quantity Input -->
                                     <td class="py-3 px-3 text-center">
                                         @if($isBomEditable)
                                             <input type="number" 
@@ -1412,60 +1561,34 @@
                                                    x-model.number="item.qty" 
                                                    :step="isDiscrete(item.unit) ? '1' : '0.01'" 
                                                    :min="isDiscrete(item.unit) ? '1' : '0.01'" 
-                                                   class="w-20 px-2 py-1.5 text-center font-bold border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#0033a0]" 
+                                                   class="w-24 px-2 py-1.5 text-center font-bold border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#0033a0]" 
                                                    required>
                                         @else
                                             <span class="font-bold text-slate-800 dark:text-gray-200 text-xs px-2.5 py-1 bg-gray-100 dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700" x-text="item.qty"></span>
                                         @endif
                                     </td>
 
-                                    <!-- Unit of Measurement (Non-editable badge) -->
+                                    <!-- Unit of Measurement -->
                                     <td class="py-3 px-3 text-center">
-                                        <div class="px-2 py-1 text-center font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-zinc-800/80 rounded-lg text-xs border border-gray-200 dark:border-zinc-700 select-none" x-text="item.unit || 'pcs'"></div>
+                                        <div class="px-2.5 py-1 text-center font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-zinc-800/80 rounded-lg text-xs border border-gray-200 dark:border-zinc-700 select-none" x-text="item.unit || 'pcs'"></div>
                                         <input type="hidden" :name="'items[' + idx + '][unit_of_measurement]'" :value="item.unit">
-                                    </td>
-
-                                    <!-- Unit Price Input / Badge -->
-                                    <td class="py-3 px-3 text-right">
-                                        @if($isBomEditable)
-                                            <div class="relative inline-block w-32">
-                                                <span class="absolute left-2.5 top-1.5 text-xs font-bold text-gray-400">₱</span>
-                                                <input type="number" 
-                                                       :name="'items[' + idx + '][unit_cost]'" 
-                                                       x-model.number="item.unit_cost" 
-                                                       step="0.01" 
-                                                       min="0" 
-                                                       placeholder="0.00" 
-                                                       class="w-full pl-6 pr-2.5 py-1.5 text-right font-black border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-[#0033a0] dark:text-blue-400 focus:ring-2 focus:ring-[#0033a0]" 
-                                                       required>
-                                            </div>
-                                        @else
-                                            <span class="font-black text-[#0033a0] dark:text-blue-400 text-xs">
-                                                ₱<span x-text="(parseFloat(item.unit_cost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
-                                            </span>
-                                        @endif
-                                    </td>
-
-                                    <!-- Row Total -->
-                                    <td class="py-3 px-3 text-right font-black text-slate-900 dark:text-white">
-                                        ₱<span x-text="((parseFloat(item.qty) || 0) * (parseFloat(item.unit_cost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
                                     </td>
 
                                     <!-- Status -->
                                     <td class="py-3 px-3 text-center">
-                                        <span x-show="item.is_approved" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                        <span x-show="item.is_approved" class="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                                             Approved
                                         </span>
-                                        <span x-show="!item.is_approved" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                        <span x-show="!item.is_approved" class="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
                                             Pending
                                         </span>
                                     </td>
 
-                                    <!-- Delete Item Button / Locked Indicator -->
+                                    <!-- Delete Item Button -->
                                     <td class="py-3 px-3 text-center">
                                         @if($isBomEditable)
                                             <button type="button" 
-                                                    @click="if(confirm('Remove this material from the BOM?')) { document.getElementById('delete-bom-item-' + item.bom_id).submit(); }" 
+                                                    @click="if(confirm('Remove this material from the list?')) { document.getElementById('delete-bom-item-' + item.bom_id).submit(); }" 
                                                     class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition cursor-pointer" 
                                                     title="Delete material">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -1480,32 +1603,45 @@
                     </table>
                 </div>
 
-                <!-- Grand Total & Action Bar -->
+                <!-- Action Bar -->
                 <div class="mt-5 pt-4 border-t border-gray-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50 dark:bg-zinc-800/50 p-4 rounded-xl">
-                    <div class="flex items-center gap-2.5">
-                        <span class="text-xs font-bold text-slate-700 dark:text-gray-300">Total Materials Budget:</span>
-                        <span class="text-lg sm:text-xl font-black text-[#0033a0] dark:text-blue-400">
-                            ₱<span x-text="grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
-                        </span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-700 dark:text-gray-300">Total Materials Listed:</span>
+                        <span class="text-sm font-black text-[#0033a0] dark:text-blue-400" x-text="items.length + ' item' + (items.length === 1 ? '' : 's')"></span>
                     </div>
 
-                    @if($isBomEditable)
-                        <button type="submit" 
-                                :disabled="submittingBOM" 
-                                class="w-full sm:w-auto px-7 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer">
-                            <svg x-show="submittingBOM" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            <span x-text="submittingBOM ? 'Saving & Approving...' : 'Save Prices & Approve BOM'">Save Prices & Approve BOM</span>
-                        </button>
-                    @else
-                        <div class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 select-none">
-                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                            <span>BOM Form Locked ({{ $serviceRequest->current_status }})</span>
-                        </div>
-                    @endif
+                    <div class="flex items-center gap-2.5 flex-wrap">
+                        @if($isBomEditable)
+                            <button type="submit" 
+                                    :disabled="submittingBOM" 
+                                    class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-2 cursor-pointer">
+                                <span x-text="submittingBOM ? 'Updating...' : 'Update Quantities'">Update Quantities</span>
+                            </button>
+
+                            @if($serviceRequest->bom_status !== 'approved')
+                                <button type="button" 
+                                        onclick="document.getElementById('admin-approve-bom-form').submit()" 
+                                        class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center gap-1.5 cursor-pointer">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    <span>Approve List of Materials (on Client's Behalf)</span>
+                                </button>
+                            @else
+                                <span class="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold inline-flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    <span>List of Materials Approved</span>
+                                </span>
+                            @endif
+                        @endif
+                    </div>
                 </div>
             </form>
 
-            @if($isBomEditable && $serviceRequest->isScheduleApproved())
+            <!-- Hidden Admin Approve on Client's Behalf Form -->
+            <form id="admin-approve-bom-form" action="{{ route('admin.requests.bom.approve-for-client', $serviceRequest->request_id) }}" method="POST" class="hidden">
+                @csrf
+            </form>
+
+            @if($isBomEditable)
                 <!-- Inline Form: Add Additional Material (Toggled) -->
                 <div x-show="showAddMaterial" 
                      x-cloak 
@@ -1513,16 +1649,17 @@
                      class="mt-5 pt-5 border-t border-gray-200 dark:border-zinc-800 bg-blue-50/40 dark:bg-zinc-800/30 p-4 rounded-xl">
                     <h3 class="text-xs font-black uppercase tracking-wider text-[#0033a0] dark:text-blue-400 mb-3 flex items-center gap-1.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                        <span>Add Item to this Request's BOM</span>
+                        <span>Add Item to List of Materials</span>
                     </h3>
 
                     <form action="{{ $serviceRequest->project ? route('admin.bom.store', $serviceRequest->project->project_id) : route('admin.requests.bom.store', $serviceRequest->request_id) }}" method="POST">
                         @csrf
                         <input type="hidden" name="redirect_to" value="{{ route('admin.requests.show', $serviceRequest->request_id) }}#bom-section">
+                        <input type="hidden" name="unit_cost" value="0">
                         
                         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
                             <!-- Catalog Select -->
-                            <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-4' : 'sm:col-span-5'">
+                            <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-5' : 'sm:col-span-7'">
                                 <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Select Catalog Material</label>
                                 <select name="material_id" 
                                         x-model="selectedMaterialId" 
@@ -1531,14 +1668,14 @@
                                         required>
                                     <option value="">Select a material...</option>
                                     @foreach($allMaterials ?? [] as $m)
-                                        <option value="{{ $m->material_id }}">{{ $m->material_name }} ({{ $m->unit_of_measurement ?? 'pcs' }} - ₱{{ number_format($m->unit_cost, 2) }})</option>
+                                        <option value="{{ $m->material_id }}">{{ $m->material_name }} ({{ $m->unit_of_measurement ?? 'pcs' }})</option>
                                     @endforeach
                                     <option value="custom" class="font-bold text-[#0033a0]">+ Add New Custom Material...</option>
                                 </select>
                             </div>
 
                             <!-- Custom Material Name if 'custom' -->
-                            <div class="sm:col-span-3" x-show="selectedMaterialId === 'custom'">
+                            <div class="sm:col-span-4" x-show="selectedMaterialId === 'custom'">
                                 <label class="block text-[11px] font-bold text-[#0033a0] uppercase tracking-wider mb-1">Custom Material Name</label>
                                 <input type="text" 
                                        name="custom_material_name" 
@@ -1562,7 +1699,7 @@
                             </div>
 
                             <!-- Unit of Measurement -->
-                            <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-1' : 'sm:col-span-2'">
+                            <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-1' : 'sm:col-span-3'">
                                 <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Unit</label>
                                 
                                 <div x-show="selectedMaterialId !== 'custom'" class="w-full px-3 py-2 border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/80 rounded-lg text-xs font-bold text-slate-700 dark:text-gray-300 text-center flex items-center justify-center min-h-[38px] select-none">
@@ -1594,34 +1731,18 @@
                                 </select>
                             </div>
 
-                            <!-- Unit Cost -->
-                            <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-2' : 'sm:col-span-3'">
-                                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Unit Price (₱)</label>
-                                <div class="relative">
-                                    <span class="absolute left-2.5 top-2 text-xs font-bold text-gray-400">₱</span>
-                                    <input type="number" 
-                                           name="unit_cost" 
-                                           x-model.number="addUnitCost" 
-                                           step="0.01" 
-                                           min="0" 
-                                           placeholder="0.00" 
-                                           class="w-full pl-6 pr-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs font-bold bg-white dark:bg-zinc-800 text-slate-900 dark:text-white" 
-                                           required>
-                                </div>
-                            </div>
-
                             <!-- Submit Button -->
                             <div class="sm:col-span-12 flex justify-end pt-1">
                                 <button type="submit" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                    <span>Add Item to BOM</span>
+                                    <span>Add Material to List</span>
                                 </button>
                             </div>
                         </div>
                     </form>
                 </div>
 
-                <!-- Hidden delete forms for each BOM item -->
+                <!-- Hidden delete forms for each material item -->
                 @if($serviceRequest->project)
                     @foreach($serviceRequest->project->billOfMaterials as $bItem)
                         <form id="delete-bom-item-{{ $bItem->bom_id }}" action="{{ route('admin.bom.destroy-item', ['projectId' => $serviceRequest->project->project_id, 'bomId' => $bItem->bom_id]) }}" method="POST" class="hidden">
@@ -1721,9 +1842,9 @@
                         </h3>
                         <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                             @if($isWorkerInspectionOnly)
-                                Worker completed this job as <strong>Inspection &amp; Assessment Only</strong>. Review the returned form and findings before closing.
+                                Worker completed this job as <strong>Inspection &amp; Assessment Only</strong>. Review findings before closing.
                             @else
-                                Inspect the returned physical paper form. Type the nature of work and findings written by the team before closing the request.
+                                Review and confirm the nature of work done before closing the request.
                             @endif
                         </p>
                     </div>
@@ -1742,11 +1863,11 @@
                     @csrf
                     
                     @if($isManpower)
-                        <!-- Task Details written on paper (MANDATORY FOR MANPOWER) -->
+                        <!-- Nature of Work Done (MANDATORY FOR MANPOWER) -->
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider">
-                                    Task Details (This information will be reflected on Accomplishment Report) <span class="text-red-500 font-bold">*</span>:
+                                    Nature of work done (reflected on Accomplishment Report) <span class="text-red-500 font-bold">*</span>:
                                 </label>
                                 <span class="px-2 py-0.5 bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-rose-300 dark:border-rose-800">
                                     Required
@@ -1755,19 +1876,19 @@
                             <textarea name="work_details" 
                                       rows="3" 
                                       required
-                                      placeholder="Type what was accomplished as written on the returned paper (e.g. Grass cutting, ground preparation, and event assistance completed)..."
+                                      placeholder="e.g. Grass cutting, ground preparation, and event assistance completed"
                                       class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border-2 border-blue-400 dark:border-blue-600 rounded-xl text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0] shadow-2xs font-medium">{{ $serviceRequest->project?->nature_of_work && $serviceRequest->project->nature_of_work !== 'Repair & Maintenance Done' ? $serviceRequest->project->nature_of_work : ($serviceRequest->project?->recommendation ?? '') }}</textarea>
                             <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                This input will be recorded as the official <strong>Task Details</strong> for this job on the Accomplishment Report.
+                                Recorded as the official <strong>Nature of work done</strong> on the Accomplishment Report.
                             </p>
                         </div>
                     @elseif($isWorkerInspectionOnly)
                         <input type="hidden" name="nature_of_work" value="Inspection & Assessment Only">
-                        <!-- Task Details (Inspection Only) from Paper -->
+                        <!-- Nature of Work Done (Inspection Only) -->
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider">
-                                    Task Details (This information will be reflected on Accomplishment Report) <span class="text-red-500 font-bold">*</span>:
+                                    Nature of work done (reflected on Accomplishment Report) <span class="text-red-500 font-bold">*</span>:
                                 </label>
                                 <span class="px-2 py-0.5 bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-rose-300 dark:border-rose-800">
                                     Required
@@ -1776,18 +1897,18 @@
                             <textarea name="work_details" 
                                       rows="2.5" 
                                       required
-                                      placeholder="e.g. Conducted on-site inspection; circuit breaker reset and functioning properly / referred to external contractor."
+                                      placeholder="e.g. Conducted on-site inspection; circuit breaker reset and functioning properly"
                                       class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border-2 border-blue-400 dark:border-blue-600 rounded-xl text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0] shadow-2xs font-medium">{{ $serviceRequest->project?->recommendation ?? '' }}</textarea>
                             <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                This input will be recorded as the official <strong>Task Details</strong> for this inspection on the Accomplishment Report.
+                                Recorded as the official <strong>Nature of work done</strong> on the Accomplishment Report.
                             </p>
                         </div>
                     @else
-                        <!-- Task Details written on paper -->
+                        <!-- Nature of Work Done -->
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider">
-                                    Task Details (This information will be reflected on Accomplishment Report) <span class="text-red-500 font-bold">*</span>:
+                                    Nature of work done (reflected on Accomplishment Report) <span class="text-red-500 font-bold">*</span>:
                                 </label>
                                 <span class="px-2 py-0.5 bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-rose-300 dark:border-rose-800">
                                     Required
@@ -1796,10 +1917,10 @@
                             <textarea name="work_details" 
                                       rows="2.5" 
                                       required
-                                      placeholder="Type what the worker wrote on the physical paper (e.g. Replaced 4 fluorescent light bulbs and checked electrical lines)..."
+                                      placeholder="e.g. Replaced fluorescent lamps and repaired electrical wiring"
                                       class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border-2 border-blue-400 dark:border-blue-600 rounded-xl text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#0033a0] shadow-2xs font-medium">{{ $serviceRequest->project?->nature_of_work && $serviceRequest->project->nature_of_work !== 'Repair & Maintenance Done' ? $serviceRequest->project->nature_of_work : ($serviceRequest->project?->recommendation ?? '') }}</textarea>
                             <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                This input will be recorded as the official <strong>Task Details</strong> for this job on the Accomplishment Report.
+                                Recorded as the official <strong>Nature of work done</strong> on the Accomplishment Report.
                             </p>
                         </div>
                     @endif
@@ -1944,7 +2065,7 @@
 
                         @if($history->remarks)
                             <p class="text-xs text-slate-700 dark:text-gray-300 bg-slate-50 dark:bg-zinc-800/60 rounded-lg px-3 py-1.5 border-l-2 border-slate-300 dark:border-zinc-600 leading-relaxed font-normal">
-                                {{ $history->remarks }}
+                                {{ $history->display_remarks ?? $history->remarks }}
                             </p>
                         @endif
 

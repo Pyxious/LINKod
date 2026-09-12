@@ -111,11 +111,11 @@
 
             </div>
 
-            <!-- Row 2: Service Unit/Section & Buttons -->
+            <!-- Row 2: Service Unit/Section, Worker Filter, and Include Worker Column -->
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-4 items-end pt-1">
                 
-                <!-- Service Unit / Section (5 cols) -->
-                <div class="md:col-span-5">
+                <!-- Service Unit / Section (4 cols) -->
+                <div class="md:col-span-4">
                     <label class="block text-[11px] font-bold text-slate-700 dark:text-gray-300 mb-1.5">Maintenance Section / Unit</label>
                     <select name="category_id" id="categoryId" onchange="updateLivePreview()" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]">
                         <option value="">ALL SERVICE UNITS (Combined)</option>
@@ -125,22 +125,43 @@
                     </select>
                 </div>
 
-                <div class="md:col-span-7 flex flex-wrap items-center justify-end gap-2.5">
-                    <button type="button" onclick="resetReportForm()" class="px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl border border-gray-200 dark:border-zinc-700 transition">
-                        Reset Defaults
-                    </button>
-
-                    <button type="button" id="printReportBtn" onclick="printOfficialReport()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-1.5">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                        <span>Print Official Report (A4)</span>
-                    </button>
-
-                    <button type="submit" id="exportBtn" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-1.5">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        <span id="exportBtnText">Export Excel Sheet (.xlsx)</span>
-                    </button>
+                <!-- Filter by Worker / Service (4 cols) -->
+                <div class="md:col-span-4">
+                    <label class="block text-[11px] font-bold text-slate-700 dark:text-gray-300 mb-1.5">Filter by Worker / Service</label>
+                    <select name="worker_id" id="workerId" onchange="updateLivePreview()" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]">
+                        <option value="">ALL WORKERS</option>
+                        @foreach($workers as $w)
+                            <option value="{{ $w['worker_id'] }}">{{ $w['name'] }} ({{ $w['service'] }})</option>
+                        @endforeach
+                    </select>
                 </div>
 
+                <!-- Include Assigned Worker (Column H) Toggle (4 cols) -->
+                <div class="md:col-span-4 flex items-center h-[42px]">
+                    <label class="relative inline-flex items-center gap-2.5 cursor-pointer select-none">
+                        <input type="checkbox" name="include_worker" id="includeWorker" value="1" onchange="updateLivePreview()" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 dark:bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0033a0]"></div>
+                        <span class="text-xs font-bold text-slate-800 dark:text-gray-200">Include Assigned Worker (Col H)</span>
+                    </label>
+                </div>
+
+            </div>
+
+            <!-- Row 3: Action Buttons -->
+            <div class="flex flex-wrap items-center justify-end gap-2.5 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                <button type="button" onclick="resetReportForm()" class="px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl border border-gray-200 dark:border-zinc-700 transition">
+                    Reset Defaults
+                </button>
+
+                <button type="button" id="printReportBtn" onclick="printOfficialReport()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    <span>Print Official Report (A4)</span>
+                </button>
+
+                <button type="submit" id="exportBtn" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span id="exportBtnText">Export Excel Sheet (.xlsx)</span>
+                </button>
             </div>
         </form>
 
@@ -166,7 +187,6 @@
                     0 Completed Jobs
                 </span>
             </div>
-            </div>
 
             <!-- Live Document Interactive Preview Container (Matches Mockup) -->
             <div id="previewFrame" class="max-w-4xl mx-auto bg-slate-50 dark:bg-zinc-950 border-2 border-gray-300 dark:border-zinc-800 rounded-2xl p-6 shadow-inner min-h-[380px] flex flex-col justify-between">
@@ -179,6 +199,54 @@
                 <!-- Page Footer -->
                 <div class="text-[11px] font-bold text-gray-400 text-center border-t border-gray-200 dark:border-zinc-800 pt-3 mt-4">
                     Official Document Format &bull; Bicol University General Services Office
+                </div>
+            </div>
+
+            <!-- Worker Accomplishment Summary Card (On-Page Only) -->
+            <div id="workerAccomplishmentCard" class="max-w-4xl mx-auto mt-6 bg-slate-50/70 dark:bg-zinc-800/40 rounded-2xl border border-gray-200 dark:border-zinc-700/80 p-5 sm:p-6 shadow-2xs space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200 dark:border-zinc-700">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-[#0033a0] dark:text-blue-300 flex items-center justify-center flex-shrink-0 font-bold shadow-2xs">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-tight">
+                                Worker Accomplishment Summary
+                            </h3>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                Completed jobs accomplished by each maintenance worker for the selected period
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white dark:bg-zinc-800 text-[#0033a0] dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 shadow-2xs">
+                            <span id="summaryTotalWorkers" class="font-black">0</span> Personnel
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 shadow-2xs">
+                            <span id="summaryTotalJobs" class="font-black">0</span> Total Jobs Done
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Search / Filter for Worker Summary -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                    <div class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                        Ranked by total finished tasks completed
+                    </div>
+                    <div class="relative w-full sm:w-64">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-gray-400">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </span>
+                        <input type="text" id="workerSummarySearchInput" oninput="filterWorkerSummary(this.value)" placeholder="Search worker or team..." class="w-full text-xs pl-8 pr-3 py-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-[#0033a0] text-slate-800 dark:text-gray-200 placeholder-gray-400 shadow-2xs">
+                    </div>
+                </div>
+
+                <!-- Table Content -->
+                <div id="workerAccomplishmentContent" class="pt-1">
+                    <!-- Injected dynamically via JS -->
                 </div>
             </div>
         </div>
@@ -277,6 +345,149 @@
         'MANPOWER SERVICES FOR SPECIAL EVENTS'
     ];
 
+    let currentWorkerSummaryList = [];
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function getTeamBadgeHTML(service) {
+        const s = (service || '').toLowerCase();
+        let colorClass = 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700';
+        if (s.includes('carpentry') || s.includes('electrical') || s.includes('masonry') || s.includes('mechanical')) {
+            colorClass = 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800/50';
+        } else if (s.includes('plumbing')) {
+            colorClass = 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800/50';
+        } else if (s.includes('painting') || s.includes('paint')) {
+            colorClass = 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800/50';
+        } else if (s.includes('landscaping')) {
+            colorClass = 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800/50';
+        } else if (s.includes('janitorial')) {
+            colorClass = 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800/50';
+        } else if (s.includes('manpower') || s.includes('event')) {
+            colorClass = 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800/50';
+        }
+        return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold border ${colorClass}">${escapeHtml(service || 'General Maintenance')}</span>`;
+    }
+
+    function getWorkerInitials(name) {
+        if (!name) return 'W';
+        const parts = name.trim().split(/\s+/);
+        if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+
+    function renderWorkerAccomplishmentSummary(workerSummaryList) {
+        currentWorkerSummaryList = workerSummaryList || [];
+        const searchInput = document.getElementById('workerSummarySearchInput');
+        if (searchInput) searchInput.value = '';
+
+        const totalWorkersEl = document.getElementById('summaryTotalWorkers');
+        const totalJobsEl = document.getElementById('summaryTotalJobs');
+        if (totalWorkersEl) totalWorkersEl.textContent = currentWorkerSummaryList.length;
+        if (totalJobsEl) totalJobsEl.textContent = currentWorkerSummaryList.reduce((sum, w) => sum + (w.count || 0), 0);
+
+        renderWorkerAccomplishmentRows(currentWorkerSummaryList);
+    }
+
+    function filterWorkerSummary(searchTerm) {
+        const term = (searchTerm || '').trim().toLowerCase();
+        if (!term) {
+            renderWorkerAccomplishmentRows(currentWorkerSummaryList);
+            return;
+        }
+        const filtered = currentWorkerSummaryList.filter(w => 
+            (w.name || '').toLowerCase().includes(term) || 
+            (w.service || '').toLowerCase().includes(term)
+        );
+        renderWorkerAccomplishmentRows(filtered);
+    }
+
+    function renderWorkerAccomplishmentRows(workers) {
+        const contentEl = document.getElementById('workerAccomplishmentContent');
+        if (!contentEl) return;
+
+        if (!workers || workers.length === 0) {
+            contentEl.innerHTML = `
+                <div class="py-8 text-center text-xs text-gray-400 dark:text-gray-500 italic bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800">
+                    No worker accomplishments found matching criteria.
+                </div>
+            `;
+            return;
+        }
+
+        const maxCount = currentWorkerSummaryList[0]?.count || 1;
+
+        let rowsHTML = workers.map((w, idx) => {
+            const initials = getWorkerInitials(w.name);
+            const pct = Math.min(100, Math.round((w.count / maxCount) * 100));
+
+            let rankBadge = `<span class="text-gray-400 dark:text-gray-500 font-bold text-xs inline-block w-6 text-center">${idx + 1}</span>`;
+            if (idx === 0) {
+                rankBadge = `<span class="w-6 h-6 rounded-full bg-amber-400 text-slate-900 font-black inline-flex items-center justify-center text-[11px] shadow-2xs">1</span>`;
+            } else if (idx === 1) {
+                rankBadge = `<span class="w-6 h-6 rounded-full bg-slate-300 text-slate-800 dark:bg-zinc-600 dark:text-zinc-100 font-bold inline-flex items-center justify-center text-[11px]">2</span>`;
+            } else if (idx === 2) {
+                rankBadge = `<span class="w-6 h-6 rounded-full bg-amber-700 text-amber-100 font-bold inline-flex items-center justify-center text-[11px]">3</span>`;
+            }
+
+            return `
+                <tr class="hover:bg-blue-50/40 dark:hover:bg-zinc-800/50 transition">
+                    <td class="py-3 px-3.5 text-center">
+                        ${rankBadge}
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/50 text-[#0033a0] dark:text-blue-300 text-[10px] font-black flex items-center justify-center flex-shrink-0">
+                                ${initials}
+                            </div>
+                            <span class="font-bold text-slate-900 dark:text-white text-xs tracking-tight">
+                                ${escapeHtml(w.name)}
+                            </span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        ${getTeamBadgeHTML(w.service)}
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <div class="flex items-center justify-end gap-3">
+                            <div class="hidden sm:block w-20 bg-gray-100 dark:bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-[#0033a0] dark:bg-blue-500 h-1.5 rounded-full" style="width: ${pct}%"></div>
+                            </div>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-50 dark:bg-blue-900/40 text-[#0033a0] dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 shadow-2xs">
+                                ${w.count} <span class="font-semibold text-[10px] ml-1 text-slate-600 dark:text-gray-300">${w.count === 1 ? 'job' : 'jobs'}</span>
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        contentEl.innerHTML = `
+            <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-zinc-800">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-gray-50/80 dark:bg-zinc-800/80 text-[10.5px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-zinc-800">
+                            <th class="py-2.5 px-3.5 w-12 text-center">Rank</th>
+                            <th class="py-2.5 px-4">Maintenance Personnel</th>
+                            <th class="py-2.5 px-4">Service Team / Unit</th>
+                            <th class="py-2.5 px-4 text-right">Accomplishment</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                        ${rowsHTML}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
     function setSummaryTab(tab) {
         activeSummaryTab = tab;
         const btn1 = document.getElementById('tabBtnPhoto1');
@@ -373,6 +584,8 @@
         document.getElementById('reportForm').reset();
         document.getElementById('reportYear').value = new Date().getFullYear();
         document.getElementById('reportPeriod').value = (new Date().getMonth() + 1 <= 6) ? 'sem1' : 'sem2';
+        if (document.getElementById('workerId')) document.getElementById('workerId').value = '';
+        if (document.getElementById('includeWorker')) document.getElementById('includeWorker').checked = false;
         setReportType('Accomplishment Report');
         handlePeriodChange();
     }
@@ -404,8 +617,11 @@
         }
 
         const categoryOpt = document.getElementById('categoryId');
-        const categoryId  = categoryOpt.value;
+        const categoryId  = categoryOpt?.value || '';
         const categoryName = categoryId ? (categoryOpt.options[categoryOpt.selectedIndex]?.text || 'MAINTENANCE SECTION') : 'ALL SERVICE UNITS';
+
+        const workerId = document.getElementById('workerId')?.value || '';
+        const includeWorker = document.getElementById('includeWorker')?.checked || false;
 
         let leaderName = 'GSO MAINTENANCE TEAM LEADERS';
         let sectionName = 'General Services Office';
@@ -421,6 +637,9 @@
         // Filter finished requests from database based on inputs
         let filteredRequests = completedDbRequests.filter(req => {
             if (categoryId && String(req.category_id) !== String(categoryId)) {
+                return false;
+            }
+            if (workerId && (!req.worker_ids || !req.worker_ids.includes(parseInt(workerId)))) {
                 return false;
             }
             if (startDateVal && req.submitted_at && req.submitted_at < startDateVal) {
@@ -471,17 +690,47 @@
                             <td class="border border-black px-2 py-2 text-center font-medium text-slate-700 dark:text-gray-300">${startedDate}</td>
                             <td class="border border-black px-2 py-2 text-center font-bold text-emerald-700 dark:text-emerald-400">${completionDate}</td>
                             <td class="border border-black px-2 py-2 text-center font-black text-slate-900 dark:text-white">${ratingVal}</td>
+                            ${includeWorker ? `<td class="border border-black px-2 py-2 text-center text-[10px] font-medium text-slate-800 dark:text-gray-200">${req.assigned_workers || 'Unassigned'}</td>` : ''}
                         </tr>
                     `;
                 });
             } else {
                 tableRowsHTML = `
                     <tr>
-                        <td colspan="7" class="border border-black py-8 text-center text-xs text-gray-400 italic">
+                        <td colspan="${includeWorker ? 8 : 7}" class="border border-black py-8 text-center text-xs text-gray-400 italic">
                             No finished service requests found for ${categoryName.toUpperCase()} in ${monthRangeHeader} ${year}.
                         </td>
                     </tr>
                 `;
+            }
+
+            // Automated Worker Accomplishment Counter Summary (service)(worker name)(number of jobs done)
+            const workerStatsMap = {};
+            filteredRequests.forEach(req => {
+                if (req.worker_details && req.worker_details.length > 0) {
+                    req.worker_details.forEach(w => {
+                        if (!workerStatsMap[w.worker_id]) {
+                            workerStatsMap[w.worker_id] = {
+                                worker_id: w.worker_id,
+                                name: w.name,
+                                service: w.service,
+                                count: 0
+                            };
+                        }
+                        workerStatsMap[w.worker_id].count++;
+                    });
+                }
+            });
+            const workerSummaryList = Object.values(workerStatsMap).sort((a, b) => {
+                if (b.count !== a.count) return b.count - a.count;
+                return a.name.localeCompare(b.name);
+            });
+
+            // Update dedicated on-page Worker Accomplishment Summary Card
+            const workerCard = document.getElementById('workerAccomplishmentCard');
+            if (workerCard) {
+                workerCard.classList.remove('hidden');
+                renderWorkerAccomplishmentSummary(workerSummaryList);
             }
 
             previewContainer.innerHTML = `
@@ -502,11 +751,12 @@
                         <table class="w-full border-collapse border-2 border-black text-xs">
                             <thead>
                                 <tr class="bg-gray-100 dark:bg-zinc-800 text-black dark:text-white text-[10px] font-bold uppercase">
-                                    <th rowspan="2" class="border border-black px-2 py-1.5 text-center w-[15%]">REQUISITION<br>NUMBER</th>
-                                    <th rowspan="2" class="border border-black px-2 py-1.5 text-center w-[16%]">OFFICE/<br>UNIT</th>
-                                    <th rowspan="2" class="border border-black px-2 py-1.5 text-center w-[29%]">TASK DETAILS</th>
-                                    <th colspan="3" class="border border-black px-2 py-1 text-center w-[25%]">DATES</th>
-                                    <th rowspan="2" class="border border-black px-2 py-1.5 text-center w-[15%]">CLIENTELE<br>SATISFACTION<br>RATING</th>
+                                    <th rowspan="2" class="border border-black px-2 py-1.5 text-center ${includeWorker ? 'w-[12%]' : 'w-[15%]'}">REQUISITION<br>NUMBER</th>
+                                    <th rowspan="2" class="border border-black px-2 py-1.5 text-center ${includeWorker ? 'w-[14%]' : 'w-[16%]'}">OFFICE/<br>UNIT</th>
+                                    <th rowspan="2" class="border border-black px-2 py-1.5 text-center ${includeWorker ? 'w-[25%]' : 'w-[29%]'}">TASK DETAILS</th>
+                                    <th colspan="3" class="border border-black px-2 py-1 text-center ${includeWorker ? 'w-[21%]' : 'w-[25%]'}">DATES</th>
+                                    <th rowspan="2" class="border border-black px-2 py-1.5 text-center ${includeWorker ? 'w-[13%]' : 'w-[15%]'}">CLIENTELE<br>SATISFACTION<br>RATING</th>
+                                    ${includeWorker ? '<th rowspan="2" class="border border-black px-2 py-1.5 text-center w-[15%]">WORKER<br>ASSIGNED</th>' : ''}
                                 </tr>
                                 <tr class="bg-gray-100 dark:bg-zinc-800 text-black dark:text-white text-[10px] font-bold uppercase">
                                     <th class="border border-black px-2 py-1 text-center">REQUEST</th>
@@ -543,6 +793,12 @@
                 </div>
             `;
             return;
+        }
+
+        // Hide worker accomplishment summary for Summary of Accomplishment & Clientele Satisfaction Survey
+        const workerCard = document.getElementById('workerAccomplishmentCard');
+        if (workerCard) {
+            workerCard.classList.add('hidden');
         }
 
         // Otherwise: Summary of Accomplishment & Clientele Satisfaction Survey

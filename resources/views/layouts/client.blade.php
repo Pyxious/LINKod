@@ -484,6 +484,62 @@
         </div>
     @endunless
 
+    @auth
+        @php
+            $clientUser = auth()->user();
+            $isClient = $clientUser && $clientUser->role === 'client' && $clientUser->client;
+            $unratedCompletedRequest = null;
+            if ($isClient && !request()->routeIs('client.evaluations.create', 'client.evaluations.store', 'logout')) {
+                $unratedCompletedRequest = \App\Models\ServiceRequest::where('client_id', $clientUser->client->client_id)
+                    ->whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))
+                    ->whereDoesntHave('evaluation')
+                    ->first();
+            }
+        @endphp
+
+        @if($unratedCompletedRequest)
+            <!-- Mandatory Rating Lockout Modal -->
+            <div class="fixed inset-0 z-[9999] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 select-none"
+                 id="mandatory-rating-modal"
+                 style="pointer-events: auto;">
+                <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl border-2 border-emerald-500 shadow-2xl max-w-lg w-full p-6 sm:p-8 text-center space-y-6">
+                    
+                    <!-- Icon -->
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 rounded-3xl mx-auto flex items-center justify-center border-2 border-emerald-200 dark:border-emerald-800 shadow-inner">
+                        <svg class="w-8 h-8 sm:w-10 sm:h-10 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                        </svg>
+                    </div>
+
+                    <!-- Text Info -->
+                    <div class="space-y-2">
+                        <span class="px-3 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-full text-[11px] font-black uppercase tracking-wider">
+                            Action Required: Rate Completed Service
+                        </span>
+                        <h2 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                            Your Feedback is Required!
+                        </h2>
+                        <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed max-w-md mx-auto">
+                            Your service request <span class="font-bold text-[#0033a0] dark:text-blue-400">#{{ str_pad($unratedCompletedRequest->request_id, 4, '0', STR_PAD_LEFT) }} — {{ $unratedCompletedRequest->title }}</span> has been completed by the GSO team.
+                        </p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            Please take a moment to evaluate the service. You must submit your evaluation before accessing other pages on the portal.
+                        </p>
+                    </div>
+
+                    <!-- Action Button -->
+                    <div class="pt-2">
+                        <a href="{{ route('client.evaluations.create', $unratedCompletedRequest->request_id) }}" 
+                           class="w-full py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm uppercase tracking-wider rounded-2xl transition shadow-lg inline-flex items-center justify-center gap-2 cursor-pointer">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                            <span>Rate Completed Service Now</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endauth
+
     <!-- Main Content -->
     <main class="flex-1 @hasSection('fullwidth') @else flex flex-col items-center justify-center @endif min-h-[calc(100vh-56px)]">
         @yield('content')

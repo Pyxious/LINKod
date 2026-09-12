@@ -10,12 +10,16 @@ class Evaluation extends Model
     protected $primaryKey = 'evaluation_id';
     public $timestamps = false;
 
-    protected $fillable = ['client_id', 'request_id', 'rating', 'ratings_breakdown', 'show_name', 'feedback_text', 'rated_at'];
+    protected $fillable = [
+        'client_id', 'request_id', 'rating', 'ratings_breakdown', 
+        'show_name', 'feedback_text', 'proof_image_path', 'rated_by_admin', 'admin_id', 'rated_at'
+    ];
 
     protected $casts = [
         'rated_at'          => 'datetime',
         'ratings_breakdown' => 'array',
         'show_name'         => 'boolean',
+        'rated_by_admin'    => 'boolean',
     ];
 
     public function client()
@@ -26,6 +30,11 @@ class Evaluation extends Model
     public function request()
     {
         return $this->belongsTo(ServiceRequest::class, 'request_id', 'request_id');
+    }
+
+    public function admin()
+    {
+        return $this->belongsTo(User::class, 'admin_id', 'user_id');
     }
 
     /**

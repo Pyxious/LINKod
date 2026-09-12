@@ -92,7 +92,7 @@
 
                     <a href="{{ route('client.requests.index', array_filter(['status' => 'rejected', 'search' => request('search')])) }}" 
                        class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'rejected' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
-                        Rejected
+                        Disapproved
                     </a>
                 </div>
 
@@ -108,28 +108,33 @@
                                placeholder="Search requests..." 
                                class="w-full px-4 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs sm:text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:border-[#0038A8] shadow-2xs">
                         @if(request('search'))
-                            <a href="{{ route('client.requests.index', array_filter(['status' => request('status')])) }}" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold">✕</a>
+                            <a href="{{ route('client.requests.index', array_filter(['status' => request('status')])) }}" 
+                               class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs">
+                               ✕
+                            </a>
                         @endif
                     </div>
                 </form>
             </div>
 
-            <!-- Request Cards List -->
-            <div id="requestsCardsContainer" class="space-y-3.5" data-client-id="{{ auth()->user()?->client?->client_id }}">
+            <!-- Request Cards Feed (Matches Mobile Mockup Feed) -->
+            <div id="requestsCardsContainer" data-client-id="{{ auth()->user()->client?->client_id }}" class="space-y-3 sm:space-y-4">
                 @forelse($requests as $r)
                     @php
                         $catName = strtolower($r->category->category_name ?? '');
                         $prefix = match(true) {
-                            str_contains($catName, 'landscaping') => 'LS',
-                            str_contains($catName, 'janitorial') => 'JS',
-                            str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'CMS',
+                            str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') || str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'CMS',
                             str_contains($catName, 'plumbing') => 'PLS',
-                            str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'EMS',
                             str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'PAS',
+                            str_contains($catName, 'janitorial') => 'JS',
+                            str_contains($catName, 'landscaping') => 'LS',
                             str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'MAN',
                             default => 'REQ'
                         };
-                        $displayStatus = ucfirst($r->current_status ?? 'Pending');
+                        $displayStatus = match(strtolower($r->current_status ?? '')) {
+                            'rejected' => 'Disapproved',
+                            default => ucfirst($r->current_status ?? 'Pending')
+                        };
                     @endphp
                     
                     <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl md:rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 shadow-2xs hover:shadow-xs transition" data-request-card-id="{{ $r->request_id }}">
