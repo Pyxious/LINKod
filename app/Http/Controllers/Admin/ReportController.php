@@ -41,9 +41,17 @@ class ReportController extends Controller
         extract($summaryStats);
 
         $categories = Category::all();
-        $workers    = Worker::with('user', 'team')->get();
+        $workers    = Worker::with(['staff.user', 'team.category'])->get()->map(function($w) {
+            $name = trim(($w->staff?->user?->first_name ?? '') . ' ' . ($w->staff?->user?->last_name ?? ''));
+            $service = $w->team?->team_name ?? $w->team?->category?->category_name ?? 'General Maintenance';
+            return [
+                'worker_id' => $w->worker_id,
+                'name'      => $name ?: 'Worker #' . $w->worker_id,
+                'service'   => $service,
+            ];
+        })->sortBy('name')->values();
 
-        $previewRequests = ServiceRequest::with(['category', 'client.user', 'project.histories', 'evaluation', 'latestHistory', 'histories'])
+        $previewRequests = ServiceRequest::with(['category', 'client.user', 'project.histories', 'project.workers.staff.user', 'project.workers.team.category', 'evaluation', 'latestHistory', 'histories'])
             ->where(function($q) {
                 $q->whereHas('latestHistory', function($lh) {
                     $lh->where('current_status', 'Completed');
@@ -105,6 +113,21 @@ class ReportController extends Controller
                         $taskDesc  = ($hasVerifiedWork && $verifiedWork !== $req->title) ? $verifiedWork : ($req->display_description ?? null);
                     }
 
+                    $projectWorkers = $req->project?->workers ?? collect();
+                    $workerNames = $projectWorkers->map(function($w) {
+                        return trim(($w->staff?->user?->first_name ?? '') . ' ' . ($w->staff?->user?->last_name ?? ''));
+                    })->filter()->values();
+                    $workerIds = $projectWorkers->pluck('worker_id')->values()->all();
+                    $workerDetails = $projectWorkers->map(function($w) use ($req) {
+                        $wName = trim(($w->staff?->user?->first_name ?? '') . ' ' . ($w->staff?->user?->last_name ?? ''));
+                        $wService = $w->team?->team_name ?? $w->team?->category?->category_name ?? $req->category?->category_name ?? 'General Maintenance';
+                        return [
+                            'worker_id' => $w->worker_id,
+                            'name'      => $wName ?: 'Worker #' . $w->worker_id,
+                            'service'   => $wService,
+                        ];
+                    })->values()->all();
+
                     return [
                         'request_id'             => $req->request_id,
                         'category_id'            => $req->category_id,
@@ -122,6 +145,10 @@ class ReportController extends Controller
                         'rating'                 => $ratingVal,
                         'function_ratings'       => $req->evaluation ? $req->evaluation->function_ratings : null,
                         'current_status'         => 'Completed',
+                        'assigned_workers'       => $workerNames->join(', ') ?: 'Unassigned',
+                        'worker_names'           => $workerNames->all(),
+                        'worker_ids'             => $workerIds,
+                        'worker_details'         => $workerDetails,
                     ];
                 })
                 ->sort(function($a, $b) {
@@ -164,12 +191,14 @@ class ReportController extends Controller
     public function export(Request $request)
     {
         $request->validate([
-            'report_type' => 'nullable|string',
-            'category_id' => 'nullable|exists:category,category_id',
-            'start_date'  => 'nullable|date',
-            'end_date'    => 'nullable|date|after_or_equal:start_date',
-            'period'      => 'nullable|string',
-            'report_year' => 'nullable|integer'
+            'report_type'    => 'nullable|string',
+            'category_id'    => 'nullable|exists:category,category_id',
+            'worker_id'      => 'nullable|exists:worker,worker_id',
+            'include_worker' => 'nullable',
+            'start_date'     => 'nullable|date',
+            'end_date'       => 'nullable|date|after_or_equal:start_date',
+            'period'         => 'nullable|string',
+            'report_year'    => 'nullable|integer'
         ]);
 
         if ($request->input('report_type') === 'Summary of Accomplishment & Clientele Satisfaction Survey') {
@@ -178,12 +207,23 @@ class ReportController extends Controller
 
         [$startDate, $endDate, $year, $periodText, $monthRange] = $this->resolveDateRange($request);
 
-        $categoryId = $request->input('category_id');
-        $category   = $categoryId ? Category::find($categoryId) : null;
-        $categoryName = $category ? $category->category_name : 'ALL SERVICE UNITS';
+        $categoryId    = $request->input('category_id');
+        $workerId      = $request->input('worker_id');
+        $includeWorker = $request->boolean('include_worker');
+        $category      = $categoryId ? Category::find($categoryId) : null;
+        $categoryName  = $category ? $category->category_name : 'ALL SERVICE UNITS';
 
         // Fetch ONLY finished/completed requests for Accomplishment Report
-        $query = ServiceRequest::with(['category', 'project.histories', 'client.user', 'evaluation', 'latestHistory', 'histories'])
+        $query = ServiceRequest::with([
+            'category',
+            'project.histories',
+            'project.workers.staff.user',
+            'project.workers.team.category',
+            'client.user',
+            'evaluation',
+            'latestHistory',
+            'histories'
+        ])
             ->where(function($q) {
                 $q->whereHas('latestHistory', function($lh) {
                     $lh->where('current_status', 'Completed');
@@ -195,6 +235,12 @@ class ReportController extends Controller
 
         if ($categoryId) {
             $query->where('category_id', $categoryId);
+        }
+
+        if ($workerId) {
+            $query->whereHas('project.workers', function($wq) use ($workerId) {
+                $wq->where('project_worker.worker_id', $workerId);
+            });
         }
 
         $serviceRequests = $query->get()
@@ -248,13 +294,15 @@ class ReportController extends Controller
         $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
         $sheet = $spreadsheet->getActiveSheet();
 
-        // 1. Header (A to G columns)
-        $sheet->mergeCells('A2:G2');
+        $endCol = $includeWorker ? 'H' : 'G';
+
+        // 1. Header (A to G/H columns)
+        $sheet->mergeCells("A2:{$endCol}2");
         $sheet->setCellValue('A2', "{$year} ACCOMPLISHMENT REPORT");
         $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(14)->setName('Times New Roman');
         $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $sheet->mergeCells('A4:G4');
+        $sheet->mergeCells("A4:{$endCol}4");
         $sheet->setCellValue('A4', "MAINTENANCE SECTION: " . strtoupper($categoryName));
         $sheet->getStyle('A4')->getFont()->setBold(true)->setSize(11)->setName('Arial');
         $sheet->getStyle('A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -273,7 +321,7 @@ class ReportController extends Controller
             $monthRange = ($startMonthStr === $endMonthStr) ? $startMonthStr : "{$startMonthStr} TO {$endMonthStr}";
         }
 
-        $sheet->mergeCells('A6:G6');
+        $sheet->mergeCells("A6:{$endCol}6");
         $sheet->setCellValue('A6', $monthRange);
         $sheet->getStyle('A6')->getFont()->setBold(true)->setSize(11)->setName('Arial');
         $sheet->getStyle('A6')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -297,11 +345,17 @@ class ReportController extends Controller
 
         $sheet->mergeCells('G8:G9');
         $sheet->setCellValue('G8', "CLIENTELE\nSATISFACTION");
+
+        if ($includeWorker) {
+            $sheet->mergeCells('H8:H9');
+            $sheet->setCellValue('H8', "WORKER\nASSIGNED");
+        }
         
-        $sheet->getStyle('A8:G9')->getFont()->setBold(true)->setSize(10)->setName('Arial');
-        $sheet->getStyle('A8:G9')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('A8:G9')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
-        $sheet->getStyle('A8:G9')->getAlignment()->setWrapText(true);
+        $headerRange = "A8:{$endCol}9";
+        $sheet->getStyle($headerRange)->getFont()->setBold(true)->setSize(10)->setName('Arial');
+        $sheet->getStyle($headerRange)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle($headerRange)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle($headerRange)->getAlignment()->setWrapText(true);
 
         // Apply borders to headers
         $styleArray = [
@@ -311,7 +365,7 @@ class ReportController extends Controller
                 ],
             ],
         ];
-        $sheet->getStyle('A8:G9')->applyFromArray($styleArray);
+        $sheet->getStyle($headerRange)->applyFromArray($styleArray);
 
         // 3. Populate Data - Sequential generation starting from 001
         $row = 10;
@@ -393,6 +447,12 @@ class ReportController extends Controller
                 }
             }
 
+            $projectWorkers = $req->project?->workers ?? collect();
+            $workerNames = $projectWorkers->map(function($w) {
+                return trim(($w->staff?->user?->first_name ?? '') . ' ' . ($w->staff?->user?->last_name ?? ''));
+            })->filter()->values();
+            $workerNamesStr = $workerNames->join(', ') ?: 'Unassigned';
+
             $sheet->setCellValue('A'.$row, $reqNum);
             $sheet->setCellValue('B'.$row, $office);
             $sheet->setCellValue('C'.$row, $taskDetails);
@@ -400,17 +460,26 @@ class ReportController extends Controller
             $sheet->setCellValue('E'.$row, $startedDate);
             $sheet->setCellValue('F'.$row, $completionDate);
             $sheet->setCellValue('G'.$row, $ratingVal);
+            if ($includeWorker) {
+                $sheet->setCellValue('H'.$row, $workerNamesStr);
+            }
             
-            $sheet->getStyle('A'.$row.':G'.$row)->getFont()->setSize(10)->setName('Arial');
-            $sheet->getStyle('A'.$row.':G'.$row)->getAlignment()->setWrapText(true);
-            $sheet->getStyle('A'.$row.':G'.$row)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+            $rowRange = "A{$row}:{$endCol}{$row}";
+            $sheet->getStyle($rowRange)->getFont()->setSize(10)->setName('Arial');
+            $sheet->getStyle($rowRange)->getAlignment()->setWrapText(true);
+            $sheet->getStyle($rowRange)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
             $sheet->getStyle('A'.$row.':B'.$row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('C'.$row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
             $sheet->getStyle('D'.$row.':G'.$row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle('A'.$row.':G'.$row)->applyFromArray($styleArray);
+            if ($includeWorker) {
+                $sheet->getStyle('H'.$row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            }
+            $sheet->getStyle($rowRange)->applyFromArray($styleArray);
             
             $row++;
         }
+
+        $sigRow = $row + 2;
 
         // 4. Signatures Section (Prepared By, Certified True and Correct, Noted By)
         $teamLeaderName = 'GSO MAINTENANCE TEAM LEADERS';
@@ -423,8 +492,6 @@ class ReportController extends Controller
                 $teamSectionName = $category ? $category->category_name : $team->team_name;
             }
         }
-
-        $sigRow = $row + 2;
 
         // Prepared By:
         $sheet->setCellValue('A' . $sigRow, "Prepared By:");
@@ -475,6 +542,9 @@ class ReportController extends Controller
         $sheet->getColumnDimension('E')->setWidth(12.5);
         $sheet->getColumnDimension('F')->setWidth(15);
         $sheet->getColumnDimension('G')->setWidth(15);
+        if ($includeWorker) {
+            $sheet->getColumnDimension('H')->setWidth(20);
+        }
 
         $sheet->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4);
         $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_PORTRAIT);
@@ -496,6 +566,11 @@ class ReportController extends Controller
 
     public function printSummary(Request $request)
     {
+        $reportType = $request->input('report_type', 'Accomplishment Report');
+        if ($reportType === 'Accomplishment Report') {
+            return $this->printAccomplishment($request);
+        }
+
         $request->validate([
             'category_id' => 'nullable|exists:category,category_id',
             'start_date'  => 'nullable|date',
@@ -518,6 +593,107 @@ class ReportController extends Controller
             'sectionsWithSurvey',
             'periodText',
             'year'
+        ));
+    }
+
+    public function printAccomplishment(Request $request)
+    {
+        [$startDate, $endDate, $year, $periodText, $monthRange] = $this->resolveDateRange($request);
+        $categoryId    = $request->input('category_id');
+        $workerId      = $request->input('worker_id');
+        $includeWorker = $request->boolean('include_worker');
+
+        $category     = $categoryId ? Category::find($categoryId) : null;
+        $categoryName = $category ? $category->category_name : 'ALL SERVICE UNITS';
+
+        $query = ServiceRequest::with([
+            'category',
+            'project.histories',
+            'project.workers.staff.user',
+            'project.workers.team.category',
+            'client.user',
+            'evaluation',
+            'latestHistory',
+            'histories'
+        ])
+            ->where(function($q) {
+                $q->whereHas('latestHistory', function($lh) {
+                    $lh->where('current_status', 'Completed');
+                })->orWhereHas('project.latestHistory', function($plh) {
+                    $plh->where('current_status', 'Completed');
+                });
+            })
+            ->whereBetween('submitted_at', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        if ($workerId) {
+            $query->whereHas('project.workers', function($wq) use ($workerId) {
+                $wq->where('project_worker.worker_id', $workerId);
+            });
+        }
+
+        $serviceRequests = $query->get()
+            ->sort(function($a, $b) {
+                $catA = strtolower($a->category->category_name ?? '');
+                $catB = strtolower($b->category->category_name ?? '');
+
+                $orderA = match(true) {
+                    str_contains($catA, 'carpentry') || str_contains($catA, 'masonry') || str_contains($catA, 'electrical') || str_contains($catA, 'mechanical') => 1,
+                    str_contains($catA, 'plumbing') => 2,
+                    str_contains($catA, 'painting') || str_contains($catA, 'paint') => 3,
+                    str_contains($catA, 'janitorial') => 4,
+                    str_contains($catA, 'landscaping') => 5,
+                    str_contains($catA, 'manpower') || str_contains($catA, 'event') => 6,
+                    default => 7
+                };
+
+                $orderB = match(true) {
+                    str_contains($catB, 'carpentry') || str_contains($catB, 'masonry') || str_contains($catB, 'electrical') || str_contains($catB, 'mechanical') => 1,
+                    str_contains($catB, 'plumbing') => 2,
+                    str_contains($catB, 'painting') || str_contains($catB, 'paint') => 3,
+                    str_contains($catB, 'janitorial') => 4,
+                    str_contains($catB, 'landscaping') => 5,
+                    str_contains($catB, 'manpower') || str_contains($catB, 'event') => 6,
+                    default => 7
+                };
+
+                if ($orderA !== $orderB) {
+                    return $orderA <=> $orderB;
+                }
+
+                $dateA = $a->submitted_at ? $a->submitted_at->timestamp : 0;
+                $dateB = $b->submitted_at ? $b->submitted_at->timestamp : 0;
+                if ($dateA !== $dateB) {
+                    return $dateA <=> $dateB;
+                }
+
+                return $a->request_id <=> $b->request_id;
+            })
+            ->values();
+
+
+        $teamLeaderName = 'GSO MAINTENANCE TEAM LEADERS';
+        $teamSectionName = 'General Services Office';
+        if ($categoryId) {
+            $team = \App\Models\Team::where('category_id', $categoryId)->with('leader.staff.user')->first();
+            if ($team && $team->leader?->staff?->user) {
+                $u = $team->leader->staff->user;
+                $teamLeaderName = strtoupper(trim($u->first_name . ' ' . $u->last_name));
+                $teamSectionName = $category ? $category->category_name : $team->team_name;
+            }
+        }
+
+        return view('admin.reports.print-accomplishment', compact(
+            'year',
+            'categoryName',
+            'monthRange',
+            'includeWorker',
+            'serviceRequests',
+            'teamLeaderName',
+            'teamSectionName'
         ));
     }
 

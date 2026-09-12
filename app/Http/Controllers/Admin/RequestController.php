@@ -373,6 +373,8 @@ class RequestController extends Controller
                 ]);
             }
 
+            $previous = $serviceRequest->current_status;
+
             $updateData = [
                 'category_id' => $request->category_id,
                 'priority'    => $request->priority,
@@ -389,8 +391,6 @@ class RequestController extends Controller
             }
 
             $serviceRequest->update($updateData);
-
-            $previous = $serviceRequest->current_status;
 
             // Find or create Project
             $project = Project::firstOrCreate([
@@ -479,7 +479,7 @@ class RequestController extends Controller
                 'updated_by'      => auth()->id(),
             ]);
 
-            $dateFormatted = $serviceRequest->scheduled_date?->format('M d, Y') ?? 'Confirmed Schedule';
+            $dateFormatted = $serviceRequest->scheduled_date ? \Carbon\Carbon::parse($serviceRequest->scheduled_date)->format('F d, Y') : 'Confirmed Schedule';
             $windowText = match($serviceRequest->scheduled_time_window) {
                 'AM' => 'Morning (AM)',
                 'PM' => 'Afternoon (PM)',
@@ -487,6 +487,24 @@ class RequestController extends Controller
                 default => $serviceRequest->scheduled_time_window ?? 'Visit'
             };
 
+            // 1. Log Schedule Confirmed in history if not already recorded
+            $hasScheduleConfirmed = $serviceRequest->histories()
+                ->where('current_status', 'Schedule Confirmed')
+                ->exists();
+
+            if (!$hasScheduleConfirmed && $serviceRequest->scheduled_date) {
+                RequestHistory::create([
+                    'request_id'      => $serviceRequest->request_id,
+                    'previous_status' => $previous,
+                    'current_status'  => 'Schedule Confirmed',
+                    'remarks'         => "Admin confirmed visit schedule with client via phone for {$dateFormatted} ({$windowText}). Maintenance personnel assigned.",
+                    'updated_at'      => now()->subSecond(),
+                    'updated_by'      => auth()->id(),
+                ]);
+                $previous = 'Schedule Confirmed';
+            }
+
+            // 2. Log Request Approved in history
             RequestHistory::create([
                 'request_id'      => $serviceRequest->request_id,
                 'previous_status' => $previous,
@@ -498,22 +516,34 @@ class RequestController extends Controller
 
             \App\Models\UserLog::create([
                 'user_id'    => auth()->id(),
-                'action'     => "Admin approved request #{$serviceRequest->request_id} and activated project #{$project->project_id}",
+                'action'     => "Admin confirmed schedule, approved request #{$serviceRequest->request_id}, and assigned workers to project #{$project->project_id}",
                 'ip_address' => request()->ip(),
                 'created_at' => now(),
             ]);
 
-            // Notify client
-            $this->notifications->requestStatusChanged(
-                $serviceRequest->client->user_id,
-                $serviceRequest->title,
-                'Approved',
-                $serviceRequest->request_id,
-                'client'
-            );
+            // Notify client of schedule confirmation and approval
+            if ($serviceRequest->client?->user_id) {
+                if ($serviceRequest->scheduled_date) {
+                    $this->notifications->send(
+                        $serviceRequest->client->user_id,
+                        'schedule_confirmed',
+                        'Visit Schedule Confirmed',
+                        "Your visit schedule has been confirmed for {$dateFormatted} ({$windowText}). Maintenance personnel have been assigned.",
+                        route('client.requests.show', $serviceRequest->request_id, false)
+                    );
+                }
+
+                $this->notifications->requestStatusChanged(
+                    $serviceRequest->client->user_id,
+                    $serviceRequest->title,
+                    'Approved',
+                    $serviceRequest->request_id,
+                    'client'
+                );
+            }
 
             return redirect()->route('admin.requests.show', $id)
-                ->with('success', 'Request approved, project launched, and maintenance workers assigned.');
+                ->with('success', 'Visit schedule confirmed, request approved, and maintenance personnel assigned.');
 
         } catch (\Exception $e) {
             return redirect()->back()
@@ -528,7 +558,7 @@ class RequestController extends Controller
 
             if ($serviceRequest->current_status === 'Rejected') {
                 return redirect()->route('admin.requests.show', $id)
-                    ->with('info', 'This request has already been rejected.');
+                    ->with('info', 'This request has already been disapproved.');
             }
 
             $previous = $serviceRequest->current_status;
@@ -565,19 +595,19 @@ class RequestController extends Controller
                 'schedule_decline_reason' => null,
             ]);
 
-            // 3. Log Rejected history (preserves all prior history steps!)
+            // 3. Log Disapproved / Rejected history
             RequestHistory::create([
                 'request_id'      => $serviceRequest->request_id,
                 'previous_status' => $previous,
                 'current_status'  => 'Rejected',
-                'remarks'         => $remarks,
+                'remarks'         => $remarks ?: 'Request disapproved by GSO Admin.',
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
 
             \App\Models\UserLog::create([
                 'user_id'    => auth()->id(),
-                'action'     => "Admin rejected request #{$serviceRequest->request_id}" . ($remarks ? ": {$remarks}" : ""),
+                'action'     => "Admin disapproved request #{$serviceRequest->request_id}" . ($remarks ? ": {$remarks}" : ""),
                 'ip_address' => request()->ip(),
                 'created_at' => now(),
             ]);
@@ -585,13 +615,13 @@ class RequestController extends Controller
             $this->notifications->requestStatusChanged(
                 $serviceRequest->client->user_id,
                 $serviceRequest->title,
-                'Rejected',
+                'Disapproved',
                 $serviceRequest->request_id,
                 'client'
             );
 
             return redirect()->route('admin.requests.show', $id)
-                ->with('success', 'Request has been rejected and any proposed schedules or worker assignments have been cleared.');
+                ->with('success', 'Request has been disapproved and any assigned personnel have been cleared.');
 
         } catch (\Exception $e) {
             return redirect()->back()
@@ -741,110 +771,7 @@ class RequestController extends Controller
 
     public function proposeSchedule(Request $request, int $id)
     {
-        try {
-            $validated = $request->validate([
-                'scheduled_date'        => 'required|date',
-                'scheduled_time_window' => 'required|in:AM,PM,AM-PM',
-                'category_id'           => 'nullable|exists:category,category_id',
-                'priority'              => 'nullable|in:High,Medium,Low,high,medium,low,urgent,routine,Urgent,Routine',
-                'worker_ids'            => 'nullable|array',
-                'worker_ids.*'          => 'exists:worker,worker_id',
-            ]);
-
-            $serviceRequest = ServiceRequest::with('client.user')->findOrFail($id);
-
-            $updateData = [
-                'scheduled_date'          => $validated['scheduled_date'],
-                'scheduled_time_window'   => $validated['scheduled_time_window'],
-                'schedule_status'         => 'pending_client_approval',
-                'schedule_decline_reason' => null,
-            ];
-
-            if (!empty($validated['category_id'])) {
-                $updateData['category_id'] = $validated['category_id'];
-            }
-            if (!empty($validated['priority'])) {
-                $updateData['priority'] = $validated['priority'];
-            }
-
-            $serviceRequest->update($updateData);
-
-            // Pre-assign workers to Project in pending confirmation state
-            $user  = auth()->user();
-            $staff = $user->staff;
-            if (!$staff) {
-                $staff = \App\Models\Staff::create([
-                    'user_id'    => $user->user_id,
-                    'role'       => $user->role,
-                    'date_hired' => now()->toDateString(),
-                ]);
-            }
-
-            $project = Project::firstOrCreate([
-                'request_id' => $serviceRequest->request_id,
-            ], [
-                'client_id'     => $serviceRequest->client_id,
-                'approved_by'   => $staff?->staff_id,
-                'date_approved' => null,
-            ]);
-
-            $workerIds = $request->input('worker_ids', []);
-            if (!empty($workerIds)) {
-                $syncData = [];
-                foreach ($workerIds as $wId) {
-                    $syncData[$wId] = ['date_assigned' => now()->toDateString()];
-                }
-                $project->workers()->sync($syncData);
-            }
-
-            ProjectHistory::create([
-                'project_id'      => $project->project_id,
-                'previous_status' => $project->current_status,
-                'current_status'  => 'Pending Schedule Confirmation',
-                'updated_at'      => now(),
-                'updated_by'      => auth()->id(),
-            ]);
-
-            $dateFormatted = \Carbon\Carbon::parse($validated['scheduled_date'])->format('F d, Y');
-            $windowText = match($validated['scheduled_time_window']) {
-                'AM' => 'AM',
-                'PM' => 'PM',
-                'AM-PM' => 'AM-PM',
-                default => $validated['scheduled_time_window']
-            };
-
-            RequestHistory::create([
-                'request_id'      => $serviceRequest->request_id,
-                'previous_status' => $serviceRequest->current_status,
-                'current_status'  => 'Schedule Set',
-                'remarks'         => "Admin proposed visit schedule for {$dateFormatted} ({$windowText}). Awaiting client confirmation.",
-                'updated_at'      => now(),
-                'updated_by'      => auth()->id(),
-            ]);
-
-            UserLog::create([
-                'user_id'    => auth()->id(),
-                'action'     => "Admin set visit schedule for request #{$serviceRequest->request_id}: {$dateFormatted} ({$windowText})",
-                'ip_address' => request()->ip(),
-                'created_at' => now(),
-            ]);
-
-            // Notify client
-            if ($serviceRequest->client?->user_id) {
-                $this->notifications->scheduleProposed(
-                    $serviceRequest->client->user_id,
-                    $serviceRequest->title,
-                    $dateFormatted,
-                    $validated['scheduled_time_window'],
-                    $serviceRequest->request_id
-                );
-            }
-
-            return redirect()->route('admin.requests.show', $id)
-                ->with('success', "Visit schedule and maintenance personnel set for {$dateFormatted} ({$windowText}). Client notified for confirmation.");
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error setting schedule: ' . $e->getMessage());
-        }
+        return $this->approve($request, $id);
     }
 
     public function startTaskOverride(Request $request, int $id)
@@ -1016,12 +943,8 @@ class RequestController extends Controller
         try {
             $serviceRequest = ServiceRequest::findOrFail($id);
 
-            if (!$serviceRequest->isScheduleApproved()) {
-                return redirect()->back()->with('error', 'Materials cannot be added until the client has approved the scheduled date.');
-            }
-
-            if (in_array($serviceRequest->current_status, ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'])) {
-                return redirect()->back()->with('error', 'Bill of Materials cannot be modified once work is In Progress or closed.');
+            if (in_array($serviceRequest->current_status, ['Cancelled', 'Rejected'])) {
+                return redirect()->back()->with('error', 'Materials cannot be modified for a cancelled or disapproved request.');
             }
             $user  = auth()->user();
             $staff = $user?->staff;
@@ -1043,7 +966,136 @@ class RequestController extends Controller
 
             return app(\App\Http\Controllers\Admin\BomController::class)->store($request, $project->project_id);
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error adding material to BOM: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error adding material to List of Materials: ' . $e->getMessage());
+        }
+    }
+
+    public function approveBomForClient(int $id)
+    {
+        try {
+            $serviceRequest = ServiceRequest::with('project.billOfMaterials')->findOrFail($id);
+
+            if (!$serviceRequest->project) {
+                return redirect()->back()->with('error', 'No active project found for this request.');
+            }
+
+            // Mark all BOM items as approved
+            $serviceRequest->project->billOfMaterials()->whereNull('date_approved')->update([
+                'date_approved' => now()->toDateString(),
+                'fulfilled_by'  => auth()->user()?->staff?->staff_id,
+            ]);
+
+            $serviceRequest->update(['bom_status' => 'approved']);
+
+            // Ensure verification is recorded first if not already in timeline
+            $alreadyVerified = $serviceRequest->histories()
+                ->where(function ($q) {
+                    $q->where('remarks', 'like', '%verified the List of Materials%')
+                      ->orWhere('remarks', 'like', '%verified%bill of materials%')
+                      ->orWhere('current_status', 'BOM Verified (Awaiting Client Approval)');
+                })
+                ->exists();
+
+            if (!$alreadyVerified) {
+                RequestHistory::create([
+                    'request_id'      => $serviceRequest->request_id,
+                    'previous_status' => $serviceRequest->current_status,
+                    'current_status'  => 'BOM Verified (Awaiting Client Approval)',
+                    'remarks'         => 'GSO Admin verified the List of Materials.',
+                    'updated_at'      => now()->subSeconds(2),
+                    'updated_by'      => auth()->id(),
+                ]);
+            }
+
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => 'BOM Verified (Awaiting Client Approval)',
+                'current_status'  => $serviceRequest->current_status,
+                'remarks'         => 'Admin approved the List of Materials on behalf of the client.',
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            \App\Models\UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Admin approved List of Materials on behalf of the client for request #{$serviceRequest->request_id}",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            return redirect()->route('admin.requests.show', $id)
+                ->with('success', 'List of Materials approved on behalf of the client.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error approving List of Materials: ' . $e->getMessage());
+        }
+    }
+
+    public function storePhysicalEvaluation(Request $request, int $id)
+    {
+        try {
+            $validated = $request->validate([
+                'rating'        => 'required|integer|min:1|max:5',
+                'quality'       => 'required|integer|min:1|max:5',
+                'attitude'      => 'required|integer|min:1|max:5',
+                'safety'        => 'required|integer|min:1|max:5',
+                'time'          => 'required|integer|min:1|max:5',
+                'housekeeping'  => 'required|integer|min:1|max:5',
+                'feedback_text' => 'nullable|string|max:1000',
+                'proof_photo'   => ['required', 'file', new \App\Rules\SecureFileUpload(['jpg', 'jpeg', 'png', 'webp'], 10240)],
+            ], [
+                'proof_photo.required' => 'A photo of the physical signed evaluation form is required.',
+            ]);
+
+            $serviceRequest = ServiceRequest::with('client.user')->findOrFail($id);
+
+            if ($serviceRequest->evaluation) {
+                return redirect()->back()->with('error', 'An evaluation has already been recorded for this request.');
+            }
+
+            $disk = config('filesystems.default', 'public');
+            $proofPath = $request->file('proof_photo')->store('evaluations/proofs', $disk);
+
+            $functionRatings = [
+                'quality'      => (int)$validated['quality'],
+                'attitude'     => (int)$validated['attitude'],
+                'safety'       => (int)$validated['safety'],
+                'time'         => (int)$validated['time'],
+                'housekeeping' => (int)$validated['housekeeping'],
+            ];
+
+            \App\Models\Evaluation::create([
+                'request_id'        => $serviceRequest->request_id,
+                'client_id'         => $serviceRequest->client_id,
+                'rating'            => (int)$validated['rating'],
+                'function_ratings'  => $functionRatings,
+                'feedback_text'     => $validated['feedback_text'] ?? null,
+                'rated_at'          => now(),
+                'show_name'         => true,
+                'rated_by_admin'    => true,
+                'admin_id'          => auth()->id(),
+                'proof_image_path'  => $proofPath,
+            ]);
+
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $serviceRequest->current_status,
+                'current_status'  => $serviceRequest->current_status,
+                'remarks'         => "Admin recorded physical client satisfaction rating ({$validated['rating']}/5 stars) submitted at GSO with photo proof.",
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            \App\Models\UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Admin recorded physical evaluation for request #{$serviceRequest->request_id} (Rating: {$validated['rating']}/5)",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            return redirect()->route('admin.requests.show', $id)
+                ->with('success', 'Physical satisfaction evaluation and photo proof successfully recorded.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error recording physical evaluation: ' . $e->getMessage());
         }
     }
 

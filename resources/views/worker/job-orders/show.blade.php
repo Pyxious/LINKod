@@ -332,8 +332,8 @@
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                   </div>
                   <div>
-                      <p class="font-bold text-amber-800 dark:text-amber-200 mb-0.5">Awaiting Material Approval (BOM)</p>
-                      <p class="text-amber-700 dark:text-amber-300 font-medium text-xs leading-relaxed">Your Bill of Materials request is pending review/client confirmation. You can proceed to update task progress once the BOM is approved.</p>
+                      <p class="font-bold text-amber-800 dark:text-amber-200 mb-0.5">Awaiting Material Approval</p>
+                      <p class="text-amber-700 dark:text-amber-300 font-medium text-xs leading-relaxed">Your List of Materials request is pending review/client confirmation. You can proceed to update task progress once the materials are approved.</p>
                   </div>
               </div>
               @endif
@@ -1140,9 +1140,9 @@
 
             <h3 class="text-gray-900 dark:text-white font-bold text-lg mb-2 flex items-center gap-2">
                 <svg class="w-5 h-5 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                Request Materials / Bill of Materials (BOM)
+                Request Materials / List of Materials
             </h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-5">Specify needed tools, parts, or supplies. Pricing is verified and approved by Admin.</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-5">Specify needed tools, parts, or supplies. The list is verified and approved by Admin.</p>
             
             @if($project->billOfMaterials->count() > 0)
                 <div class="mb-6">
@@ -1163,9 +1163,6 @@
                                     </div>
                                     <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                                         Requested on {{ \Carbon\Carbon::parse($bom->created_at ?? $project->date_assigned)->format('M d, Y') }}
-                                        @if($isApproved && $bom->total_cost > 0)
-                                            • <span class="text-slate-700 dark:text-gray-300 font-semibold">Total: ₱{{ number_format($bom->total_cost, 2) }}</span> (₱{{ number_format($bom->material->unit_cost ?? 0, 2) }}/{{ $unit }})
-                                        @endif
                                     </div>
                                 </div>
                                 <div class="shrink-0">
@@ -1177,7 +1174,7 @@
                                     @else
                                         <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 text-xs font-extrabold rounded-md uppercase">
                                             <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                            Pending Admin Pricing & Approval
+                                            Pending Admin Approval
                                         </span>
                                     @endif
                                 </div>

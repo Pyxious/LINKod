@@ -37,7 +37,7 @@
                         @else
                             bg-amber-100 text-amber-700 border-amber-300
                         @endif">
-                        {{ $request->current_status }}
+                        {{ $request->current_status === 'Rejected' ? 'Disapproved' : ($request->current_status === 'Awaiting Verification of Bill of Materials' ? 'Awaiting Verification of List of Materials' : ($request->current_status === 'BOM Verified (Awaiting Client Approval)' ? 'Materials Verified (Awaiting Client Approval)' : $request->current_status)) }}
                     </span>
                 </div>
 
@@ -291,7 +291,7 @@
                     </div>
                     <div class="flex-1">
                         <h2 class="text-base font-bold text-red-900 dark:text-red-300 uppercase tracking-tight mb-1">
-                            Service Request Disapproved / Rejected
+                            Service Request Disapproved
                         </h2>
                         <p class="text-xs text-red-700 dark:text-red-400 mb-3">
                             This requisition cannot be processed by General Services Office (GSO). Please review the administrator's feedback below:
@@ -324,11 +324,10 @@
 
                 @if($request->scheduled_date && !in_array($request->current_status, ['Rejected', 'Cancelled']))
                     <!-- Scheduled Visit Card -->
-                    <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 {{ $request->schedule_status === 'pending_client_approval' ? 'border-amber-400 dark:border-amber-600 bg-amber-50/20' : ($request->schedule_status === 'approved' ? 'border-emerald-400 dark:border-emerald-600' : 'border-gray-200 dark:border-zinc-800') }} p-6 shadow-sm space-y-4"
-                         x-data="{ rescheduleModal: false, decliningReason: '' }">
+                    <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 border-emerald-400 dark:border-emerald-600 p-6 shadow-sm space-y-4">
                         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-zinc-800">
                             <div class="flex items-center gap-2.5">
-                                <span class="p-2 rounded-xl {{ $request->schedule_status === 'pending_client_approval' ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300' : ($request->schedule_status === 'approved' ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300') }}">
+                                <span class="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                 </span>
                                 <div>
@@ -336,33 +335,23 @@
                                         Maintenance Visit Schedule
                                     </h3>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        Target date for GSO staff on-site inspection and service.
+                                        Confirmed schedule for GSO maintenance visit.
                                     </p>
                                 </div>
                             </div>
 
                             <div>
-                                @if($request->schedule_status === 'approved')
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-bold rounded-full">
-                                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                                        Schedule Confirmed
-                                    </span>
-                                @elseif($request->schedule_status === 'pending_client_approval')
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-xs font-bold rounded-full animate-pulse">
-                                        Action Required: Please Confirm
-                                    </span>
-                                @elseif($request->schedule_status === 'declined')
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 text-xs font-bold rounded-full">
-                                        Reschedule Requested
-                                    </span>
-                                @endif
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-bold rounded-full">
+                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    Confirmed Visit Schedule
+                                </span>
                             </div>
                         </div>
 
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 dark:bg-zinc-800/60 rounded-xl border border-gray-200 dark:border-zinc-700 gap-4">
                             <div class="space-y-1">
                                 <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    Proposed Schedule
+                                    Confirmed Service Schedule
                                 </div>
                                 <div class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
                                     <span class="inline-flex items-center gap-1.5">
@@ -380,49 +369,7 @@
                                 </div>
                             </div>
 
-                            @if($request->schedule_status === 'pending_client_approval')
-                                <div class="flex items-center gap-2 shrink-0">
-                                    <button type="button" @click="rescheduleModal = true" class="px-4 py-2 bg-white dark:bg-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-zinc-600 rounded-xl text-xs font-bold transition shadow-2xs">
-                                        Decline / Reschedule
-                                    </button>
-                                    <form action="{{ route('client.requests.schedule.approve', $request->request_id) }}" method="POST">
-                                        @csrf
-                                        <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                            Confirm Schedule
-                                        </button>
-                                    </form>
-                                </div>
-                            @endif
-                        </div>
 
-                        @if($request->schedule_status === 'declined')
-                            <div class="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-xl text-xs text-rose-700 dark:text-rose-300">
-                                <strong>Reschedule request sent:</strong> "{{ $request->schedule_decline_reason }}". GSO Admin will propose an alternative date shortly.
-                            </div>
-                        @endif
-
-                        <!-- Reschedule Modal -->
-                        <div x-show="rescheduleModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" @keydown.escape.window="rescheduleModal = false">
-                            <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.outside="rescheduleModal = false">
-                                <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800">
-                                    <h4 class="text-sm font-bold text-slate-900 dark:text-white">Request Alternative Schedule</h4>
-                                    <button type="button" @click="rescheduleModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
-                                </div>
-                                <form action="{{ route('client.requests.schedule.decline', $request->request_id) }}" method="POST" class="space-y-4">
-                                    @csrf
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider">
-                                            Reason &amp; Preferred Dates <span class="text-red-500">*</span>
-                                        </label>
-                                        <textarea name="decline_reason" x-model="decliningReason" rows="3" required placeholder="Please state why the proposed date is not suitable and suggest dates/times when your office or facility will be available..." class="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"></textarea>
-                                    </div>
-                                    <div class="flex justify-end gap-2 pt-2">
-                                        <button type="button" @click="rescheduleModal = false" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl">Cancel</button>
-                                        <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs">Submit Reschedule Request</button>
-                                    </div>
-                                </form>
-                            </div>
                         </div>
                     </div>
                 @endif
@@ -448,43 +395,41 @@
 
                     @if($isManpower)
                         <!-- Top Details Grid for Manpower: Category, Campus, Location -->
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                             <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
-                                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Service Category</div>
-                                <div class="text-xs font-bold text-slate-900 dark:text-white">{{ $request->category->category_name ?? 'Manpower' }}</div>
+                                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Service Type</div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white">{{ $request->category->category_name ?? 'Manpower Services' }}</div>
                             </div>
-
                             <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
                                 <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Campus</div>
                                 <div class="text-xs font-bold text-slate-900 dark:text-white">{{ $request->campus ?? 'BU Main' }}</div>
                             </div>
-
                             <div class="bg-blue-50/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
-                                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Office / Location</div>
-                                <div class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ $request->location }}</div>
+                                <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Venue / Specific Area</div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ $m['venue'] ?? $request->location }}</div>
                             </div>
                         </div>
 
-                        <!-- Manpower Request Breakdown (Separate Themed Boxes) -->
-                        <div class="space-y-3.5 mb-2">
-                            <!-- 1. Activity / Event Overview Box -->
-                            <div class="bg-blue-50/60 dark:bg-zinc-800/60 p-4 rounded-xl border border-blue-100 dark:border-zinc-700">
-                                <div class="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-                                    <div class="text-[11px] font-bold text-[#0033a0] dark:text-blue-300 uppercase tracking-wider">
-                                        Activity / Event
+                        <!-- Structured Manpower Flow Sections -->
+                        <div class="space-y-4">
+                            <!-- 1. Activity & Schedule Header -->
+                            <div class="bg-blue-50/30 dark:bg-zinc-800/40 p-4 rounded-xl border border-blue-100/80 dark:border-zinc-700/80">
+                                <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                                    <div class="text-xs font-black text-[#0033a0] dark:text-blue-400 uppercase tracking-wider">
+                                        Activity &amp; Event Schedule
                                     </div>
                                     @if(!empty($m['event_date']))
-                                        <span class="px-2.5 py-0.5 bg-blue-100 dark:bg-blue-950 text-[#0033a0] dark:text-blue-300 rounded-md text-[11px] font-bold">
+                                        <span class="px-2.5 py-0.5 bg-[#0033a0] text-white rounded-full text-[11px] font-bold">
                                             Event Date: {{ $m['event_date'] }}
                                         </span>
                                     @endif
                                 </div>
                                 <div class="text-sm font-bold text-slate-900 dark:text-white">
-                                    {{ $m['activity_title'] ?: $request->title }}
+                                    {{ $m['activity_title'] ?? $request->title }}
                                 </div>
                             </div>
 
-                            <!-- 2. Preparation Box (if provided) -->
+                            <!-- 2. Preparation Details Box (if provided) -->
                             @if(!empty($m['prep_details']))
                                 @php
                                     $prepTimeStr = (!empty($m['prep_regular']) ? ('Regular Time: ' . ($m['prep_regular_time'] ?? '8:00 - 12:00 / 1:00 - 5:00')) : '') 
@@ -493,7 +438,7 @@
                                 <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
                                     <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
                                         <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Preparation
+                                            Preparation &amp; Setup Requirements
                                         </div>
                                         @if(!empty($m['prep_date']) || $prepTimeStr)
                                             <div class="flex items-center gap-1.5 flex-wrap">
@@ -516,7 +461,7 @@
                                 </div>
                             @endif
 
-                            <!-- 3. Event Assistance Box (if provided) -->
+                            <!-- 3. Physical Assistance Details Box (if provided) -->
                             @if(!empty($m['assistance_details']))
                                 @php
                                     $assistTimeStr = (!empty($m['assistance_regular']) ? ('Regular Time: ' . ($m['assistance_regular_time'] ?? '8:00 - 12:00 / 1:00 - 5:00')) : '') 
@@ -525,7 +470,7 @@
                                 <div class="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-gray-200 dark:border-zinc-700">
                                     <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
                                         <div class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Event Assistance
+                                            Physical Assistance Needed
                                         </div>
                                         @if(!empty($m['assistance_date']) || $assistTimeStr)
                                             <div class="flex items-center gap-1.5 flex-wrap">
@@ -657,7 +602,7 @@
                             <!-- Lightbox Modal for Supporting Attachment -->
                             <div x-show="attModal" 
                                  x-cloak 
-                                 class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs"
+                                 class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs" 
                                  @click.outside="attModal = false" 
                                  @keydown.escape.window="attModal = false">
                                 <div class="relative max-w-4xl w-full max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 flex flex-col items-center">
@@ -686,12 +631,12 @@
                     @endif
                 </div>
 
-                <!-- Bill of Materials (BOM) Card -->
+                <!-- List of Materials Card -->
                 <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <svg class="w-5 h-5 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                            Bill of Materials (BOM)
+                            <span>List of Materials</span>
                         </h2>
                         @if($request->project && $request->project->billOfMaterials->count() > 0)
                             <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 uppercase">
@@ -708,27 +653,19 @@
                                         <th class="py-2.5 px-3">Material Item</th>
                                         <th class="py-2.5 px-3 text-center">Unit</th>
                                         <th class="py-2.5 px-3 text-center">Qty</th>
-                                        <th class="py-2.5 px-3 text-right">Unit Cost</th>
-                                        <th class="py-2.5 px-3 text-right">Total Price</th>
+                                        <th class="py-2.5 px-3 text-center">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
-                                    @php $grandTotal = 0; @endphp
                                     @foreach($request->project->billOfMaterials as $bom)
                                         @php 
                                             $unit = $bom->material->unit_of_measurement ?? 'pcs';
-                                            $unitCost = $bom->material->unit_cost ?? 0;
-                                            $itemTotal = $bom->total_cost ?: ($bom->qty * $unitCost);
                                             $isApproved = !is_null($bom->date_approved);
-                                            $grandTotal += $itemTotal;
                                         @endphp
                                         <tr class="hover:bg-gray-50/50 dark:hover:bg-zinc-800/40 transition">
                                             <td class="py-3 px-3 font-bold text-slate-900 dark:text-white">
                                                 <div class="flex items-center gap-2">
                                                     <span>{{ $bom->material->material_name ?? 'Material Item' }}</span>
-                                                    @if(!$isApproved)
-                                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">Pending Pricing</span>
-                                                    @endif
                                                 </div>
                                             </td>
                                             <td class="py-3 px-3 text-center text-gray-500 font-semibold">
@@ -737,30 +674,17 @@
                                             <td class="py-3 px-3 text-center font-bold text-slate-800 dark:text-gray-200">
                                                 {{ rtrim(rtrim(number_format($bom->qty, 2), '0'), '.') }}
                                             </td>
-                                            <td class="py-3 px-3 text-right text-gray-500 font-medium">
-                                                @if($unitCost > 0)
-                                                    ₱{{ number_format($unitCost, 2) }}
+                                            <td class="py-3 px-3 text-center">
+                                                @if($isApproved)
+                                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">Approved</span>
                                                 @else
-                                                    <span class="text-gray-400 italic">--</span>
-                                                @endif
-                                            </td>
-                                            <td class="py-3 px-3 text-right font-bold text-slate-900 dark:text-white">
-                                                @if($itemTotal > 0)
-                                                    ₱{{ number_format($itemTotal, 2) }}
-                                                @else
-                                                    <span class="text-gray-400 italic">--</span>
+                                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">Pending Review</span>
                                                 @endif
                                             </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
-                        </div>
-
-                        <!-- Total Estimated Cost Summary -->
-                        <div class="mt-4 pt-3 border-t border-gray-200 dark:border-zinc-800 flex items-center justify-between bg-gray-50 dark:bg-zinc-800/50 p-4 rounded-xl">
-                            <span class="text-xs font-bold text-slate-700 dark:text-gray-300">Total Estimated Materials Cost:</span>
-                            <span class="text-base font-black text-[#0033a0] dark:text-blue-400">₱{{ number_format($grandTotal, 2) }}</span>
                         </div>
 
                         @if($request->bom_status === 'awaiting_client' || $request->current_status === 'BOM Verified (Awaiting Client Approval)')
@@ -771,46 +695,46 @@
                                         <div class="flex items-center gap-2">
                                             <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
                                             <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-200">
-                                                Action Required: Bill of Materials Approval
+                                                Action Required: List of Materials Approval
                                             </h4>
                                         </div>
                                         <p class="text-xs text-indigo-700 dark:text-indigo-300 mt-1">
-                                            GSO Admin has verified and priced the required materials. Please review and approve to proceed with procurement and maintenance work.
+                                            GSO Admin has prepared the required list of materials. Please review and approve to proceed with procurement and maintenance work.
                                         </p>
                                     </div>
 
                                     <div class="flex items-center gap-2 shrink-0">
-                                        <button type="button" @click="declineBomModal = true" class="px-4 py-2 bg-white dark:bg-zinc-800 hover:bg-gray-50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-bold transition shadow-2xs">
-                                            Decline BOM
+                                        <button type="button" @click="declineBomModal = true" class="px-4 py-2 bg-white dark:bg-zinc-800 hover:bg-gray-50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer">
+                                            Disapprove / Decline
                                         </button>
                                         <form action="{{ route('client.requests.bom.approve', $request->request_id) }}" method="POST">
                                             @csrf
-                                            <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5">
+                                            <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5 cursor-pointer">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                                Approve BOM
+                                                Approve List of Materials
                                             </button>
                                         </form>
                                     </div>
                                 </div>
 
-                                <!-- Decline BOM Modal -->
+                                <!-- Decline List of Materials Modal -->
                                 <div x-show="declineBomModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" @keydown.escape.window="declineBomModal = false">
                                     <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.outside="declineBomModal = false">
                                         <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800">
-                                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">Decline Bill of Materials</h4>
+                                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">Disapprove List of Materials</h4>
                                             <button type="button" @click="declineBomModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
                                         </div>
                                         <form action="{{ route('client.requests.bom.decline', $request->request_id) }}" method="POST" class="space-y-4">
                                             @csrf
                                             <div>
                                                 <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider">
-                                                    Feedback / Note (Optional)
+                                                    Feedback / Reason for Disapproval (Optional)
                                                 </label>
-                                                <textarea name="remarks" rows="3" placeholder="Provide details on why this BOM is declined or if alternative supplies are available on-site..." class="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"></textarea>
+                                                <textarea name="remarks" rows="3" placeholder="Provide details on why this list of materials is disapproved or if alternative supplies are available on-site..." class="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]"></textarea>
                                             </div>
                                             <div class="flex justify-end gap-2 pt-2">
                                                 <button type="button" @click="declineBomModal = false" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl">Cancel</button>
-                                                <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs">Confirm Decline</button>
+                                                <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer">Confirm Disapproval</button>
                                             </div>
                                         </form>
                                     </div>
@@ -820,7 +744,7 @@
 
                     @else
                         <div class="p-6 bg-slate-50 dark:bg-zinc-800/30 rounded-xl text-center border border-gray-100 dark:border-zinc-800">
-                            <p class="text-xs text-gray-400 italic">No Bill of Materials (BOM) required or requested yet for this job.</p>
+                            <p class="text-xs text-gray-400 italic">No List of Materials required or requested yet for this job.</p>
                         </div>
                     @endif
                 </div>
@@ -860,9 +784,9 @@
 
                                 @if($history->remarks)
                                     @php
-                                        $displayRemarks = $history->remarks;
+                                        $displayRemarks = $history->display_remarks ?? $history->remarks;
                                         if ($history->action_title === 'Client Rated Service') {
-                                            $displayRemarks = $history->remarks;
+                                            $displayRemarks = $history->display_remarks ?? $history->remarks;
                                         } elseif ($history->action_title === 'Acceptance' || $history->current_status === 'Pending Verification') {
                                             $displayRemarks = 'Work accomplished by the maintenance unit. Ready for final acceptance.';
                                         } elseif ($history->current_status === 'Completed' && !empty($history->remarks)) {
@@ -917,7 +841,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (newStatus) {
                         const badge = document.getElementById('requestStatusBadge');
                         if (badge) {
-                            badge.textContent = newStatus;
+                            badge.textContent = newStatus === 'Rejected' ? 'Disapproved' : newStatus;
                             badge.className = 'px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border transition-all duration-300 ';
                             if (newStatus === 'Completed') {
                                 badge.className += 'bg-emerald-100 text-emerald-700 border-emerald-300';
@@ -933,7 +857,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (window.LINKodRealtime) {
                             window.LINKodRealtime.showNotificationToast(
                                 'Request Status Updated',
-                                `Requisition #${requestId} is now "${newStatus}"`
+                                `Requisition #${requestId} is now "${newStatus === 'Rejected' ? 'Disapproved' : newStatus}"`
                             );
                         }
                     }
@@ -971,25 +895,25 @@ document.addEventListener('DOMContentLoaded', function() {
                                 actionTitle = 'Schedule Declined';
                             } else if (rem.includes('confirmed visit schedule') || rem.includes('approved schedule') || actionTitle === 'Schedule Confirmed') {
                                 actionTitle = 'Schedule Confirmed';
-                            } else if (rem.includes('client approved bill of materials') || actionTitle === 'BOM Approved by Client') {
-                                actionTitle = 'BOM Approved';
-                            } else if (rem.includes('client declined bill of materials') || actionTitle === 'BOM Declined by Client') {
-                                actionTitle = 'BOM Declined';
-                            } else if (rem.includes('admin verified bill of materials') || actionTitle === 'BOM Verified (Awaiting Client Approval)') {
-                                actionTitle = 'BOM Verified';
-                            } else if (rem.includes('submitted bill of materials') || actionTitle === 'Awaiting Verification of Bill of Materials') {
-                                actionTitle = 'BOM Submitted';
+                            } else if (rem.includes('on behalf of the client') || rem.includes('client approved bill of materials') || rem.includes('approved the list of materials') || actionTitle === 'BOM Approved by Client') {
+                                actionTitle = 'List of Materials Approved';
+                            } else if (rem.includes('client declined bill of materials') || rem.includes('declined the list of materials') || actionTitle === 'BOM Declined by Client') {
+                                actionTitle = 'List of Materials Declined';
+                            } else if (rem.includes('admin verified bill of materials') || rem.includes('verified the list of materials') || actionTitle === 'BOM Verified (Awaiting Client Approval)') {
+                                actionTitle = 'List of Materials Verified';
+                            } else if (rem.includes('submitted bill of materials') || rem.includes('submitted list of materials') || actionTitle === 'Awaiting Verification of Bill of Materials') {
+                                actionTitle = 'List of Materials Submitted';
                             } else if (actionTitle === 'Pending Verification' || actionTitle === 'Completed (Pending Review)') {
                                 actionTitle = 'Acceptance';
                             } else if (actionTitle === 'Submitted') {
                                 actionTitle = 'Submitted';
                             } else if (actionTitle === 'Approved') {
                                 actionTitle = 'Approved';
-                            } else if (actionTitle === 'Rejected') {
-                                actionTitle = 'Rejected';
+                            } else if (actionTitle === 'Rejected' || actionTitle === 'Disapproved') {
+                                actionTitle = 'Disapproved';
                             }
 
-                            const isRej = actionTitle.includes('Rejected') || actionTitle.includes('Cancelled') || actionTitle.includes('Declined');
+                            const isRej = actionTitle.includes('Rejected') || actionTitle.includes('Disapproved') || actionTitle.includes('Cancelled') || actionTitle.includes('Declined');
                             const isComp = actionTitle.includes('Confirmed') || actionTitle.includes('Approved') || actionTitle.includes('Completed');
                             const isWarn = actionTitle.includes('Proposed') || actionTitle.includes('Submitted') || actionTitle.includes('Pending') || actionTitle.includes('On Hold');
                             const bulletBg = isRej ? 'bg-rose-500' : (isComp ? 'bg-emerald-500' : (isWarn ? 'bg-amber-500' : 'bg-blue-600'));
@@ -997,7 +921,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900' 
                                 : (isComp ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900' : (isWarn ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900' : 'bg-blue-50 text-[#0038A8] border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900'));
 
-                            let displayRem = history.remarks || '';
+                            let displayRem = (history.remarks || '')
+                                .replace(/rejected/gi, 'disapproved')
+                                .replace(/rejecting/gi, 'disapproving')
+                                .replace(/reject/gi, 'disapprove')
+                                .replace(/bill of materials/gi, 'List of Materials')
+                                .replace(/\bBOM\b/gi, 'List of Materials');
                             if (actionTitle === 'Acceptance' || history.current_status === 'Pending Verification') {
                                 displayRem = 'Work accomplished by the maintenance unit. Ready for final acceptance.';
                             } else if (history.current_status === 'Completed') {

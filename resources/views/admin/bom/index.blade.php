@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('page-title', 'Bill of Materials')
+@section('page-title', 'List of Materials')
 
 @section('content')
 <div class="w-full max-w-7xl mx-auto font-sans">
@@ -8,8 +8,8 @@
     <!-- Page Banner Header (Matching Requests Page) -->
     <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-5 sm:px-8 py-5 sm:py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 shadow-sm">
         <div>
-            <h1 class="text-[#0033a0] dark:text-blue-400 text-xl sm:text-2xl font-bold mb-1">Bill of Materials (BOM)</h1>
-            <p class="text-[#0033a0]/80 dark:text-gray-300 text-xs sm:text-sm font-medium">Track, monitor, and price university material requisitions from maintenance teams.</p>
+            <h1 class="text-[#0033a0] dark:text-blue-400 text-xl sm:text-2xl font-bold mb-1">List of Materials</h1>
+            <p class="text-[#0033a0]/80 dark:text-gray-300 text-xs sm:text-sm font-medium">Track, monitor, and manage university material requisitions from maintenance teams.</p>
         </div>
         <div class="flex items-center gap-3 w-full sm:w-auto">
             <a href="{{ route('admin.requests.index') }}" class="w-full sm:w-auto text-center bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 text-[#0033a0] dark:text-blue-400 border border-[#0033a0]/30 dark:border-blue-600/50 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition shadow-xs inline-flex items-center justify-center gap-1.5">
@@ -19,16 +19,16 @@
         </div>
     </div>
 
-    <!-- KPI Metric Cards Grid (Matching Requests Page KPI Grid) -->
+    <!-- KPI Metric Cards Grid -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 mb-6 font-sans">
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm">
-            <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Total BOM Jobs</div>
+            <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Total Project Lists</div>
             <div class="text-[#1a3c8f] dark:text-white text-2xl sm:text-3xl font-extrabold leading-none">{{ $counts['all'] ?? 0 }}</div>
         </div>
 
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm">
             <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
-                <span>Pending Pricing</span>
+                <span>Pending Review</span>
                 @if(($counts['pending'] ?? 0) > 0)
                     <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
                 @endif
@@ -39,29 +39,29 @@
         </div>
 
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm">
-            <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Approved BOMs</div>
+            <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Approved Lists</div>
             <div class="text-[#1a3c8f] dark:text-white text-2xl sm:text-3xl font-extrabold leading-none text-emerald-600 dark:text-emerald-400">{{ $counts['approved'] ?? 0 }}</div>
         </div>
 
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm">
-            <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Approved Materials Total</div>
+            <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Total Material Items</div>
             <div class="text-[#1a3c8f] dark:text-white text-xl sm:text-2xl font-black leading-none truncate">
-                ₱{{ number_format($counts['total_cost'] ?? 0, 2) }}
+                {{ $projects->sum(fn($p) => $p->billOfMaterials->count()) }}
             </div>
         </div>
     </div>
 
-    <!-- Filter & Search Controls (Matching Requests Page Controls Bar) -->
+    <!-- Filter & Search Controls -->
     <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 mb-4">
         <!-- Status Tabs -->
         <div class="flex bg-gray-100 dark:bg-zinc-800/80 p-1 rounded-lg gap-1 overflow-x-auto">
             <a href="{{ route('admin.bom.index', ['status' => 'all', 'search' => request('search')]) }}" 
                class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap {{ ($status ?? 'all') === 'all' ? 'bg-white dark:bg-zinc-900 text-gray-900 dark:text-blue-400 shadow-xs font-semibold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 font-medium' }}">
-                All BOMs ({{ $counts['all'] ?? 0 }})
+                All Lists ({{ $counts['all'] ?? 0 }})
             </a>
             <a href="{{ route('admin.bom.index', ['status' => 'pending', 'search' => request('search')]) }}" 
                class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap {{ ($status ?? 'all') === 'pending' ? 'bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-xs font-bold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 font-medium' }}">
-                Pending Pricing ({{ $counts['pending'] ?? 0 }})
+                Pending Review ({{ $counts['pending'] ?? 0 }})
             </a>
             <a href="{{ route('admin.bom.index', ['status' => 'approved', 'search' => request('search')]) }}" 
                class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap {{ ($status ?? 'all') === 'approved' ? 'bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 shadow-xs font-bold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 font-medium' }}">
@@ -90,7 +90,7 @@
         </form>
     </div>
 
-    <!-- Mobile BOM Cards View (Matching Requests Mobile Cards View) -->
+    <!-- Mobile Cards View -->
     <div class="block md:hidden space-y-3 mb-6">
         @forelse($projects as $p)
             @php
@@ -107,7 +107,6 @@
                 };
                 $reqCode = $p->request ? ($prefix . '-' . str_pad($p->request->request_id, 3, '0', STR_PAD_LEFT)) : ('PROJ-' . $p->project_id);
                 $pendingInThis = $p->billOfMaterials->whereNull('date_approved')->count();
-                $totalCost = $p->billOfMaterials->sum('total_cost');
                 $assignedWorkers = $p->workers ?? collect();
             @endphp
 
@@ -116,7 +115,7 @@
                     <span class="font-mono font-bold text-xs text-[#1a3c8f] dark:text-blue-400 bg-blue-50 dark:bg-zinc-800 px-2 py-0.5 rounded">{{ $reqCode }}</span>
                     @if($pendingInThis > 0)
                         <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300">
-                            {{ $pendingInThis }} Pending Pricing
+                            {{ $pendingInThis }} Pending Review
                         </span>
                     @else
                         <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300">
@@ -133,8 +132,7 @@
                 </div>
 
                 <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-zinc-800">
-                    <span>{{ $p->billOfMaterials->count() }} Material Item(s)</span>
-                    <span class="font-black text-[#1a3c8f] dark:text-blue-400 text-sm">₱{{ number_format($totalCost, 2) }}</span>
+                    <span class="font-bold text-slate-700 dark:text-gray-300">{{ $p->billOfMaterials->count() }} Material Item(s)</span>
                 </div>
 
                 @if($assignedWorkers->count() > 0)
@@ -148,12 +146,12 @@
 
                 <div class="pt-2 flex justify-between items-center text-xs border-t border-gray-100 dark:border-zinc-800">
                     <a href="{{ route('admin.requests.show', $p->request->request_id) }}#bom-section" class="text-gray-500 dark:text-gray-400 font-semibold hover:underline">View Request</a>
-                    <a href="{{ route('admin.requests.show', $p->request->request_id) }}#bom-section" class="text-[#1a3c8f] dark:text-blue-400 font-bold hover:underline">Price & Manage &rarr;</a>
+                    <a href="{{ route('admin.requests.show', $p->request->request_id) }}#bom-section" class="text-[#1a3c8f] dark:text-blue-400 font-bold hover:underline">Manage Materials &rarr;</a>
                 </div>
             </div>
         @empty
             <div class="text-center py-8 text-gray-500 bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 text-xs">
-                No Bill of Materials records found matching your filters.
+                No List of Materials records found matching your filters.
             </div>
         @endforelse
 
@@ -162,7 +160,7 @@
         </div>
     </div>
 
-    <!-- Desktop BOM Table View (Matching Requests Page `border-separate` 0 8px) -->
+    <!-- Desktop Table View -->
     <div class="hidden md:block overflow-x-auto">
         <table class="w-full text-left border-separate" style="border-spacing: 0 8px;">
             <thead>
@@ -178,9 +176,6 @@
                     </th>
                     <th class="text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300 dark:border-zinc-800 text-center">
                         Materials Count
-                    </th>
-                    <th class="text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300 dark:border-zinc-800 text-right">
-                        Total Est. Cost
                     </th>
                     <th class="text-[#1a3c8f] dark:text-blue-400 text-[11px] font-bold uppercase pb-2 border-b-2 border-slate-300 dark:border-zinc-800 text-center">
                         Status
@@ -206,7 +201,6 @@
                         };
                         $reqCode = $p->request ? ($prefix . '-' . str_pad($p->request->request_id, 3, '0', STR_PAD_LEFT)) : ('PROJ-' . $p->project_id);
                         $pendingInThis = $p->billOfMaterials->whereNull('date_approved')->count();
-                        $totalCost = $p->billOfMaterials->sum('total_cost');
                         $assignedWorkers = $p->workers ?? collect();
                     @endphp
                     <tr class="bg-white dark:bg-[#1c1c1e] hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition shadow-xs group">
@@ -279,10 +273,10 @@
                                                 <div class="max-h-48 overflow-y-auto space-y-1 pr-1">
                                                     @foreach($assignedWorkers as $w)
                                                         <div class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-gray-300 py-0.5">
-                                                            <span class="w-4 h-4 rounded-full bg-[#1a3c8f] text-white flex items-center justify-center text-[8px] font-extrabold flex-shrink-0">
+                                                             <span class="w-4 h-4 rounded-full bg-[#1a3c8f] text-white flex items-center justify-center text-[8px] font-extrabold flex-shrink-0">
                                                                 {{ strtoupper(substr($w->staff->user->first_name ?? 'W', 0, 1)) }}
-                                                            </span>
-                                                            <span class="truncate text-[11px] font-medium">{{ $w->staff->user->first_name ?? '' }} {{ $w->staff->user->last_name ?? '' }}</span>
+                                                             </span>
+                                                             <span class="truncate text-[11px] font-medium">{{ $w->staff->user->first_name ?? '' }} {{ $w->staff->user->last_name ?? '' }}</span>
                                                         </div>
                                                     @endforeach
                                                 </div>
@@ -300,11 +294,6 @@
                             <span class="font-bold text-slate-800 dark:text-gray-200 bg-gray-100 dark:bg-zinc-800 px-2.5 py-1 rounded-md text-xs">
                                 {{ $p->billOfMaterials->count() }} item(s)
                             </span>
-                        </td>
-
-                        <!-- Total Est. Cost -->
-                        <td class="py-4 border-y border-gray-200 dark:border-zinc-800 text-right font-black text-slate-900 dark:text-white text-[13px]">
-                            ₱{{ number_format($totalCost, 2) }}
                         </td>
 
                         <!-- Status -->
@@ -326,15 +315,15 @@
                         <td class="px-4 py-4 border-y border-r border-gray-200 dark:border-zinc-800 rounded-r-lg text-right">
                             <a href="{{ route('admin.requests.show', $p->request->request_id) }}#bom-section" 
                                class="text-[#1a3c8f] dark:text-blue-400 font-bold hover:underline text-xs inline-flex items-center gap-1">
-                                <span>Manage & Price</span>
+                                <span>Manage Materials</span>
                                 <span>&rarr;</span>
                             </a>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="text-center py-10 text-gray-500 bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 text-xs">
-                            No Bill of Materials records found matching your filters.
+                        <td colspan="6" class="text-center py-10 text-gray-500 bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 text-xs">
+                            No List of Materials records found matching your filters.
                         </td>
                     </tr>
                 @endforelse

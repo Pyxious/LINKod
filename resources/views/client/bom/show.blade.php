@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('page-title', 'Bill of Materials')
+@section('page-title', 'List of Materials')
 
 @section('content')
 <div class="w-full max-w-4xl mx-auto space-y-6 font-sans">
@@ -18,7 +18,7 @@
             </div>
 
             <h1 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                Bill of Materials (BOM) Breakdown
+                List of Materials
             </h1>
 
             <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 font-medium">
@@ -34,7 +34,7 @@
         @endif
     </div>
 
-    <!-- BOM Table Card -->
+    <!-- Materials Table Card -->
     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-7 shadow-sm">
         <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
             <svg class="w-5 h-5 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
@@ -48,25 +48,19 @@
                         <th class="py-3 px-3">Material Item</th>
                         <th class="py-3 px-3 text-center">Unit</th>
                         <th class="py-3 px-3 text-center">Qty</th>
-                        <th class="py-3 px-3 text-right">Unit Price</th>
-                        <th class="py-3 px-3 text-right">Total Price</th>
+                        <th class="py-3 px-3 text-center">Status</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
                     @forelse($project->billOfMaterials as $bom)
                         @php
                             $unit = $bom->material->unit_of_measurement ?? 'pcs';
-                            $unitCost = $bom->material->unit_cost ?? 0;
-                            $itemTotal = $bom->total_cost ?: ($bom->qty * $unitCost);
                             $isApproved = !is_null($bom->date_approved);
                         @endphp
                         <tr class="hover:bg-gray-50/50 dark:hover:bg-zinc-800/40 transition">
                             <td class="py-3 px-3 font-bold text-slate-900 dark:text-white">
                                 <div class="flex items-center gap-2">
                                     <span>{{ $bom->material->material_name ?? 'Material Item' }}</span>
-                                    @if(!$isApproved)
-                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">Pending Pricing</span>
-                                    @endif
                                 </div>
                             </td>
                             <td class="py-3 px-3 text-center text-gray-500 font-semibold">
@@ -75,24 +69,17 @@
                             <td class="py-3 px-3 text-center font-bold text-slate-800 dark:text-gray-200">
                                 {{ rtrim(rtrim(number_format($bom->qty, 2), '0'), '.') }}
                             </td>
-                            <td class="py-3 px-3 text-right text-gray-500 font-medium">
-                                @if($unitCost > 0)
-                                    ₱{{ number_format($unitCost, 2) }}
+                            <td class="py-3 px-3 text-center">
+                                @if($isApproved)
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">Approved</span>
                                 @else
-                                    <span class="text-gray-400 italic">--</span>
-                                @endif
-                            </td>
-                            <td class="py-3 px-3 text-right font-bold text-slate-900 dark:text-white">
-                                @if($itemTotal > 0)
-                                    ₱{{ number_format($itemTotal, 2) }}
-                                @else
-                                    <span class="text-gray-400 italic">--</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">Pending Review</span>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-8 text-center text-gray-400 italic">No materials recorded yet for this project.</td>
+                            <td colspan="4" class="py-8 text-center text-gray-400 italic">No materials recorded yet for this project.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -100,8 +87,8 @@
         </div>
 
         <div class="mt-5 pt-3 border-t border-gray-200 dark:border-zinc-800 flex items-center justify-between bg-gray-50 dark:bg-zinc-800/50 p-4 rounded-xl">
-            <span class="text-xs font-bold text-slate-700 dark:text-gray-300">Total Materials Cost:</span>
-            <span class="text-base font-black text-[#0033a0] dark:text-blue-400">₱{{ number_format($totalCost ?? 0, 2) }}</span>
+            <span class="text-xs font-bold text-slate-700 dark:text-gray-300">Total Listed Items:</span>
+            <span class="text-base font-black text-[#0033a0] dark:text-blue-400">{{ $project->billOfMaterials->count() }} item(s)</span>
         </div>
     </div>
 

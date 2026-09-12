@@ -545,7 +545,7 @@
                             <input type="text" 
                                    x-model="activityTitle" 
                                    name="activity_title" 
-                                   placeholder="e.g. 56th Commencement Exercises, University Intramurals, General Assembly" 
+                                   placeholder="e.g. Commencement Exercises, University Intramurals" 
                                    class="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white font-semibold focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0]"
                                    :disabled="!isEventConcern"
                                    :required="isEventConcern">
@@ -556,7 +556,7 @@
                         <div x-show="isOtherCustomService" x-cloak class="mt-3">
                             <input type="text" 
                                    x-model="customConcern" 
-                                   :placeholder="selectedConcern === 'Other manpower service' ? 'Please specify your custom manpower service...' : (selectedConcern === 'Other janitorial service' ? 'Please specify your custom janitorial / cleaning service...' : 'Please specify your concern / title')" 
+                                   :placeholder="selectedConcern === 'Other manpower service' ? 'Specify manpower service' : (selectedConcern === 'Other janitorial service' ? 'Specify janitorial or cleaning service' : 'Specify concern or title')" 
                                    class="w-full px-4 py-2.5 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0]"
                                    :required="isOtherCustomService">
                         </div>
@@ -608,7 +608,7 @@
                             <div x-show="selectedLocation && selectedLocation.includes('Other')" x-cloak class="mt-2.5">
                                 <input type="text" 
                                        x-model="customLocation" 
-                                       placeholder="Please specify specific venue, office, or room (e.g. BU-PGA Sports Complex, Grounds, Room 204)" 
+                                       placeholder="Specify specific venue, office, or room (e.g. Sports Complex, Room 204)" 
                                        class="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0]"
                                        :required="selectedLocation && selectedLocation.includes('Other')">
                             </div>
@@ -658,7 +658,7 @@
                             <input type="hidden" name="prep_date" :value="prepDate" :disabled="!isManpowerConcern">
                             <!-- Details -->
                             <textarea x-model="prepDetails" name="prep_details" rows="2"
-                                      placeholder="Describe preparation tasks (e.g. Assist PDMO in ground preparation, stage setup, table & chair arrangement)..."
+                                      placeholder="Describe preparation tasks and venue requirements"
                                       class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"
                                       :disabled="!isManpowerConcern"></textarea>
                             <!-- Time Row -->
@@ -679,7 +679,7 @@
                                     </select>
                                     <input type="text" x-model="prepRegularTime"
                                            x-show="prepTimePreset === 'custom'"
-                                           placeholder="e.g. 10:00 - 3:00"
+                                           placeholder="e.g. 10:00 AM - 3:00 PM"
                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
                                            :disabled="!isManpowerConcern">
                                     <span x-show="prepTimePreset !== 'custom'" class="text-gray-600 dark:text-gray-300 font-medium" x-text="prepRegularTime"></span>
@@ -722,7 +722,7 @@
                             <input type="hidden" name="assistance_date" :value="assistanceDate" :disabled="!isManpowerConcern">
                             <!-- Details -->
                             <textarea x-model="assistanceDetails" name="assistance_details" rows="2"
-                                      placeholder="Describe event assistance (e.g. Maintain cleanliness, physical orderliness of venue, ushering assistance)..."
+                                      placeholder="Describe event assistance tasks"
                                       class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"
                                       :disabled="!isManpowerConcern"></textarea>
                             <!-- Time Row -->
@@ -743,7 +743,7 @@
                                     </select>
                                     <input type="text" x-model="assistanceRegularTime"
                                            x-show="assistanceTimePreset === 'custom'"
-                                           placeholder="e.g. 10:00 - 3:00"
+                                           placeholder="e.g. 10:00 AM - 3:00 PM"
                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
                                            :disabled="!isManpowerConcern">
                                     <span x-show="assistanceTimePreset !== 'custom'" class="text-gray-600 dark:text-gray-300 font-medium" x-text="assistanceRegularTime"></span>
@@ -786,7 +786,7 @@
                             <input type="hidden" name="clearing_date" :value="clearingDate" :disabled="!isManpowerConcern">
                             <!-- Details -->
                             <textarea x-model="clearingDetails" name="clearing_details" rows="2"
-                                      placeholder="Describe clearing tasks (e.g. Collect & stack chairs, dismantle booths, and haul/dispose wastes)..."
+                                      placeholder="Describe clearing and post-event tasks"
                                       class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"
                                       :disabled="!isManpowerConcern"></textarea>
                             <!-- Time Row -->
@@ -807,7 +807,7 @@
                                     </select>
                                     <input type="text" x-model="clearingRegularTime"
                                            x-show="clearingTimePreset === 'custom'"
-                                           placeholder="e.g. 10:00 - 3:00"
+                                           placeholder="e.g. 10:00 AM - 3:00 PM"
                                            class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
                                            :disabled="!isManpowerConcern">
                                     <span x-show="clearingTimePreset !== 'custom'" class="text-gray-600 dark:text-gray-300 font-medium" x-text="clearingRegularTime"></span>
@@ -832,7 +832,7 @@
                                 4. Additional Note <span class="text-gray-500 dark:text-gray-400 font-normal lowercase">(supplies, materials, tools, equipment to be used)</span>
                             </label>
                             <textarea x-model="additionalNotes" name="additional_notes" rows="2"
-                                      placeholder="e.g. 100 Monoblock chairs needed, ensure all materials are prepared before the event date..."
+                                      placeholder="Specify required materials, equipment, or special instructions"
                                       class="w-full p-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] resize-y"
                                       :disabled="!isManpowerConcern"></textarea>
                         </div>
@@ -872,7 +872,7 @@
                                 <button type="button" class="hover:text-gray-700 dark:hover:text-gray-200 px-1">☰</button>
                                 <button type="button" class="hover:text-gray-700 dark:hover:text-gray-200 px-1">❝</button>
                             </div>
-                            <textarea name="description" rows="5" placeholder="Provide complete specifications regarding the problem, symptoms, or requested maintenance work..." class="w-full p-4 bg-white dark:bg-zinc-900 text-sm text-gray-900 dark:text-white focus:outline-none border-none resize-y" :disabled="isManpowerConcern" :required="!isManpowerConcern"></textarea>
+                            <textarea name="description" rows="5" placeholder="Provide complete specifications regarding the problem or requested maintenance work" class="w-full p-4 bg-white dark:bg-zinc-900 text-sm text-gray-900 dark:text-white focus:outline-none border-none resize-y" :disabled="isManpowerConcern" :required="!isManpowerConcern"></textarea>
                         </div>
                     </div>
 
