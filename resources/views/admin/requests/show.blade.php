@@ -44,7 +44,7 @@
                     @else
                         bg-blue-100 text-blue-800
                     @endif">
-                    {{ $serviceRequest->current_status }}
+                    {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $serviceRequest->current_status) }}
                 </span>
                 @if($serviceRequest->project?->nature_of_work)
                     <span class="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold rounded-full">
@@ -2009,7 +2009,7 @@
                         Status Timeline &amp; History Audit Log
                     </h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                        Detailed log of all state transitions, scheduling proposals, BOM submissions, and approvals.
+                        Detailed log of all state transitions, scheduling proposals, List of Materials submissions, and approvals.
                     </p>
                 </div>
             </div>

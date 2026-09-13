@@ -18,7 +18,7 @@
                     </span>
                 @endif
                 <span class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border {{ $project->current_status === 'On Hold' ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300' }}">
-                    {{ $project->current_status }}
+                    {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $project->current_status) }}
                 </span>
             </div>
 

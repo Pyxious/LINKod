@@ -45,7 +45,7 @@
                             Worker Portal
                         </h3>
                         <p class="text-slate-600 dark:text-gray-300 text-xs leading-relaxed mb-8">
-                            View and update assigned job orders, track task progress, request materials (BOM), and complete maintenance reports.
+                            View and update assigned job orders, track task progress, request materials (List of Materials), and complete maintenance reports.
                         </p>
                     </div>
 

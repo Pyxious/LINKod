@@ -45,7 +45,8 @@ class TaskProgressController extends Controller
                 'In Progress'
             ];
             if (!in_array($previousStatus, $allowedPreviousStatuses)) {
-                return redirect()->back()->with('error', "Task cannot be updated from status: {$previousStatus}.");
+                $cleanStatus = str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $previousStatus);
+                return redirect()->back()->with('error', "Task cannot be updated from status: {$cleanStatus}.");
             }
 
             // Require before-work photo when moving to In Progress
@@ -187,7 +188,8 @@ class TaskProgressController extends Controller
                 'In Progress'
             ];
             if (!in_array($previousStatus, $allowedPreviousStatuses)) {
-                return response()->json(['success' => false, 'message' => "Task cannot be updated from status: {$previousStatus}."], 422);
+                $cleanStatus = str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $previousStatus);
+                return response()->json(['success' => false, 'message' => "Task cannot be updated from status: {$cleanStatus}."], 422);
             }
 
             if ($validated['status'] === 'In Progress' && !$request->hasFile('proof')) {
