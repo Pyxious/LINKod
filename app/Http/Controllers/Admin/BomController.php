@@ -161,7 +161,7 @@ class BomController extends Controller
 
         $project = Project::with(['client.user', 'billOfMaterials.material', 'workers.staff.user'])->findOrFail($projectId);
         if (in_array($project->current_status, ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'])) {
-            return redirect()->back()->with('error', 'Bill of Materials cannot be modified once work is In Progress or closed.');
+            return redirect()->back()->with('error', 'List of Materials cannot be modified once work is In Progress or closed.');
         }
         $staff   = auth()->user()->staff;
 
@@ -198,7 +198,7 @@ class BomController extends Controller
             'project_id'      => $project->project_id,
             'previous_status' => $project->current_status,
             'current_status'  => $newStatus,
-            'remarks'         => 'GSO Admin verified and priced the Bill of Materials. Awaiting final approval and funding confirmation from client.',
+            'remarks'         => 'GSO Admin verified the List of Materials. Awaiting final approval from client.',
             'updated_at'      => now(),
             'updated_by'      => auth()->id(),
         ]);

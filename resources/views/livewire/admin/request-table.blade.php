@@ -160,7 +160,7 @@
                                 Recurring
                             </span>
                         @endif
-                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $sClass }}">{{ $s }}</span>
+                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $sClass }}">{{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $s) }}</span>
                     </div>
                 </div>
                 <div>
@@ -478,7 +478,7 @@
                             };
                         @endphp
                         <span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold border {{ $sClass }}">
-                            {{ $s }}
+                            {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $s) }}
                         </span>
                     </td>
 

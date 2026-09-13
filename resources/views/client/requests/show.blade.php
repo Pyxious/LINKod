@@ -37,7 +37,7 @@
                         @else
                             bg-amber-100 text-amber-700 border-amber-300
                         @endif">
-                        {{ $request->current_status === 'Rejected' ? 'Disapproved' : ($request->current_status === 'Awaiting Verification of Bill of Materials' ? 'Awaiting Verification of List of Materials' : ($request->current_status === 'BOM Verified (Awaiting Client Approval)' ? 'Materials Verified (Awaiting Client Approval)' : $request->current_status)) }}
+                        {{ $request->current_status === 'Rejected' ? 'Disapproved' : ($request->current_status === 'Awaiting Verification of Bill of Materials' ? 'Awaiting Verification of List of Materials' : ($request->current_status === 'BOM Verified (Awaiting Client Approval)' ? 'List of Materials Verified (Awaiting Client Approval)' : $request->current_status)) }}
                     </span>
                 </div>
 
@@ -926,7 +926,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 .replace(/rejecting/gi, 'disapproving')
                                 .replace(/reject/gi, 'disapprove')
                                 .replace(/bill of materials/gi, 'List of Materials')
-                                .replace(/\bBOM\b/gi, 'List of Materials');
+                                .replace(/\bBOM\b/gi, 'List of Materials')
+                                .replace(/pricing and verification/gi, 'verification')
+                                .replace(/verified and priced/gi, 'verified')
+                                .replace(/\s*\(PHP\s*[\d,]+(\.\d{2})?\)/gi, '')
+                                .replace(/materials\/cash/gi, 'materials');
                             if (actionTitle === 'Acceptance' || history.current_status === 'Pending Verification') {
                                 displayRem = 'Work accomplished by the maintenance unit. Ready for final acceptance.';
                             } else if (history.current_status === 'Completed') {

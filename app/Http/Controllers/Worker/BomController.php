@@ -30,7 +30,7 @@ class BomController extends Controller
         abort_unless(
             $worker && $project->workers->contains('worker_id', $worker->worker_id) && $worker->isTeamLeader(),
             403,
-            'Only Team Leaders are authorized to prepare and submit a Bill of Materials.'
+            'Only Team Leaders are authorized to prepare and submit a List of Materials.'
         );
 
         if ($project->request && !$project->request->isScheduleApproved()) {
@@ -78,7 +78,7 @@ class BomController extends Controller
                 'qty'           => $qty,
                 'total_cost'    => 0.00, // Price is set by Admin before approving
                 'created_by'    => $staff?->staff_id,
-                'date_approved' => null, // Pending Admin pricing & approval
+                'date_approved' => null, // Pending Admin verification & approval
             ]);
 
             $addedItems++;
@@ -91,7 +91,7 @@ class BomController extends Controller
                 'project_id'      => $project->project_id,
                 'previous_status' => $project->current_status,
                 'current_status'  => $newStatus,
-                'remarks'         => 'Team Leader prepared and submitted Bill of Materials for GSO Admin pricing and verification.',
+                'remarks'         => 'Team Leader prepared and submitted List of Materials for GSO Admin verification.',
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
@@ -105,14 +105,14 @@ class BomController extends Controller
                         'request_id'      => $serviceRequest->request_id,
                         'previous_status' => $serviceRequest->current_status,
                         'current_status'  => $newStatus,
-                        'remarks'         => 'Team Leader prepared and submitted Bill of Materials for GSO Admin pricing and verification.',
+                        'remarks'         => 'Team Leader prepared and submitted List of Materials for GSO Admin verification.',
                         'updated_at'      => now(),
                         'updated_by'      => auth()->id(),
                     ]);
                 }
             }
 
-            // Notify Admins about material request requiring pricing & approval
+            // Notify Admins about material request requiring verification & approval
             $admins = User::where('role', 'admin')->get();
             $workerName = auth()->user()->first_name . ' ' . auth()->user()->last_name;
             $projectTitle = $project->request?->title ?? "Project #{$project->project_id}";
@@ -120,15 +120,15 @@ class BomController extends Controller
                 $this->notifications->send(
                     $admin->user_id,
                     'bom_requested',
-                    'Bill of Materials Awaiting Verification',
-                    "Team Leader {$workerName} submitted a Bill of Materials for \"{$projectTitle}\". Review and set prices before forwarding to client.",
+                    'List of Materials Awaiting Verification',
+                    "Team Leader {$workerName} submitted a List of Materials for \"{$projectTitle}\". Review and verify before forwarding to client.",
                     route('admin.bom.show', $project->project_id, false)
                 );
             }
         }
 
         return redirect()->route('worker.job-orders.show', $projectId)
-            ->with('success', 'Materials requested successfully. Status updated to Awaiting Verification of Bill of Materials.');
+            ->with('success', 'Materials requested successfully. Status updated to Awaiting Verification of List of Materials.');
     }
 
     /**
@@ -156,7 +156,7 @@ class BomController extends Controller
                 'fulfilled_by'  => auth()->user()->staff?->staff_id,
             ]);
 
-            $remarks = 'Team Leader confirmed on-site direct materials/cash provided by client. Fast-tracked to In Progress.';
+            $remarks = 'Team Leader confirmed on-site direct materials provided by client. Fast-tracked to In Progress.';
 
             \App\Models\ProjectHistory::create([
                 'project_id'      => $project->project_id,
@@ -199,7 +199,7 @@ class BomController extends Controller
                     $admin->user_id,
                     'bom_client_approved',
                     'Materials Confirmed On-Site',
-                    "Team Leader {$tlName} confirmed on-site direct materials/cash from client for \"{$projectTitle}\". Work is now In Progress.",
+                    "Team Leader {$tlName} confirmed on-site direct materials from client for \"{$projectTitle}\". Work is now In Progress.",
                     route('admin.requests.show', $project->request_id ?? $project->project_id, false)
                 );
             }

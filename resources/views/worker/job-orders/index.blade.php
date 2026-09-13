@@ -239,7 +239,7 @@
                             @elseif($a->project->current_status === 'In Progress') bg-amber-50 text-amber-700 border border-amber-200
                             @elseif($a->project->current_status === 'Completed') bg-emerald-50 text-emerald-700 border border-emerald-200
                             @else bg-blue-50 text-blue-700 border border-blue-200 @endif">
-                            {{ $a->project->current_status }}
+                            {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $a->project->current_status) }}
                         </span>
                         <div class="text-[10px] text-gray-400 font-medium mt-1">
                             Assigned: {{ \Carbon\Carbon::parse($a->date_assigned)->format('M d, Y') }}
@@ -396,7 +396,7 @@
                                 @elseif($a->project->current_status === 'In Progress') bg-amber-50 text-amber-700 border border-amber-200
                                 @elseif($a->project->current_status === 'Completed') bg-emerald-50 text-emerald-700 border border-emerald-200
                                 @else bg-blue-50 text-blue-700 border border-blue-200 @endif">
-                                {{ $a->project->current_status }}
+                                {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $a->project->current_status) }}
                             </span>
                         </td>
 

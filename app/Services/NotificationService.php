@@ -95,7 +95,7 @@ class NotificationService
     }
 
     /**
-     * Notify client that BOM is available.
+     * Notify client that List of Materials is available.
      */
     public function bomAvailable(int $clientUserId, string $projectTitle, ?int $projectId = null): void
     {
@@ -104,8 +104,8 @@ class NotificationService
         $this->send(
             $clientUserId,
             'bom_approved',
-            'Bill of Materials Available',
-            "The Bill of Materials for project \"{$projectTitle}\" has been approved.",
+            'List of Materials Available',
+            "The List of Materials for project \"{$projectTitle}\" has been approved.",
             $actionUrl
         );
     }
@@ -201,7 +201,7 @@ class NotificationService
     }
 
     /**
-     * Notify client that BOM is verified and awaiting their approval.
+     * Notify client that List of Materials is verified and awaiting their approval.
      */
     public function bomVerifiedAwaitingClient(int $clientUserId, string $projectTitle, int $requestId): void
     {
@@ -210,14 +210,14 @@ class NotificationService
         $this->send(
             $clientUserId,
             'bom_verified',
-            'Bill of Materials Verified',
-            "The Bill of Materials for \"{$projectTitle}\" has been verified and priced by GSO Admin. Please review and approve.",
+            'List of Materials Verified',
+            "The List of Materials for \"{$projectTitle}\" has been verified by GSO Admin. Please review and approve.",
             $actionUrl
         );
     }
 
     /**
-     * Notify admin & workers that client approved the BOM.
+     * Notify admin & workers that client approved the List of Materials.
      */
     public function bomApprovedByClient(int $userId, string $projectTitle, int $requestId, string $role = 'admin'): void
     {
@@ -228,14 +228,14 @@ class NotificationService
         $this->send(
             $userId,
             'bom_client_approved',
-            'Bill of Materials Approved',
-            "The client approved the Bill of Materials for \"{$projectTitle}\". Work may proceed.",
+            'List of Materials Approved',
+            "The client approved the List of Materials for \"{$projectTitle}\". Work may proceed.",
             $actionUrl
         );
     }
 
     /**
-     * Notify admin that client declined the BOM.
+     * Notify admin that client declined the List of Materials.
      */
     public function bomDeclinedByClient(int $adminUserId, string $projectTitle, int $requestId, ?string $reason = null): void
     {
@@ -245,8 +245,8 @@ class NotificationService
         $this->send(
             $adminUserId,
             'bom_client_declined',
-            'Bill of Materials Declined',
-            "Client declined the Bill of Materials for \"{$projectTitle}\".{$reasonText}",
+            'List of Materials Declined',
+            "Client declined the List of Materials for \"{$projectTitle}\".{$reasonText}",
             $actionUrl
         );
     }

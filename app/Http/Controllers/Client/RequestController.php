@@ -568,7 +568,7 @@ class RequestController extends Controller
 
             $previousStatus = $serviceRequest->current_status;
             $newStatus = 'Awaiting Materials';
-            $remarks = 'Client approved Bill of Materials (PHP ' . number_format($totalCost, 2) . '). Awaiting materials procurement/delivery before work commences.';
+            $remarks = 'Client approved the List of Materials. Awaiting materials procurement/delivery before work commences.';
 
             \App\Models\ProjectHistory::create([
                 'project_id'      => $project->project_id,
@@ -590,7 +590,7 @@ class RequestController extends Controller
 
             \App\Models\UserLog::create([
                 'user_id'    => auth()->id(),
-                'action'     => "Client approved Bill of Materials for request #{$serviceRequest->request_id}",
+                'action'     => "Client approved List of Materials for request #{$serviceRequest->request_id}",
                 'ip_address' => request()->ip(),
                 'created_at' => now(),
             ]);
@@ -620,9 +620,9 @@ class RequestController extends Controller
             }
 
             return redirect()->route('client.requests.show', $id)
-                ->with('success', 'Bill of Materials approved successfully. Work may commence once materials are ready!');
+                ->with('success', 'List of Materials approved successfully. Work may commence once materials are ready!');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error approving Bill of Materials: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error approving List of Materials: ' . $e->getMessage());
         }
     }
 
@@ -642,7 +642,7 @@ class RequestController extends Controller
                 'request_id'      => $serviceRequest->request_id,
                 'previous_status' => $serviceRequest->current_status,
                 'current_status'  => 'On Hold',
-                'remarks'         => 'Client declined Bill of Materials.' . ($reason ? " Reason: {$reason}" : ''),
+                'remarks'         => 'Client declined List of Materials.' . ($reason ? " Reason: {$reason}" : ''),
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
@@ -652,7 +652,7 @@ class RequestController extends Controller
                     'project_id'      => $serviceRequest->project->project_id,
                     'previous_status' => $serviceRequest->project->current_status,
                     'current_status'  => 'On Hold',
-                    'remarks'         => 'Client declined Bill of Materials.' . ($reason ? " Reason: {$reason}" : ''),
+                    'remarks'         => 'Client declined List of Materials.' . ($reason ? " Reason: {$reason}" : ''),
                     'updated_at'      => now(),
                     'updated_by'      => auth()->id(),
                 ]);
@@ -660,7 +660,7 @@ class RequestController extends Controller
 
             \App\Models\UserLog::create([
                 'user_id'    => auth()->id(),
-                'action'     => "Client declined Bill of Materials for request #{$serviceRequest->request_id}",
+                'action'     => "Client declined List of Materials for request #{$serviceRequest->request_id}",
                 'ip_address' => request()->ip(),
                 'created_at' => now(),
             ]);
@@ -676,9 +676,9 @@ class RequestController extends Controller
             }
 
             return redirect()->route('client.requests.show', $id)
-                ->with('success', 'Bill of Materials declined. GSO Admin has been notified.');
+                ->with('success', 'List of Materials declined. GSO Admin has been notified.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error declining Bill of Materials: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error declining List of Materials: ' . $e->getMessage());
         }
     }
 }

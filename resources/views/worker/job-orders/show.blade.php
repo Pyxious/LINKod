@@ -51,7 +51,7 @@
                 @elseif($project->current_status === 'Pending Verification') bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300
                 @elseif($project->current_status === 'Completed') bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300
                 @else bg-gray-50 text-gray-700 border border-gray-200 dark:bg-zinc-800 dark:text-gray-300 @endif">
-                {{ $project->current_status }}
+                {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $project->current_status) }}
             </span>
             @if($isTeamLeader)
                 <span class="px-2.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-950/40 dark:text-purple-300">
@@ -1195,7 +1195,7 @@
                                     Team Leader On-Site Direct Override
                                 </h4>
                                 <p class="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
-                                    Did the client purchase or provide the requested materials/cash directly to the team on-site?
+                                    Did the client purchase or provide the requested materials directly to the team on-site?
                                 </p>
                             </div>
                             <form action="{{ route('worker.bom.team-leader-approve', $project->project_id) }}" method="POST">
@@ -1374,7 +1374,7 @@
                 @else
                     <div class="p-4 bg-slate-50 dark:bg-zinc-800/40 rounded-xl border border-gray-200 dark:border-zinc-700 text-center">
                         <p class="text-xs text-gray-500 dark:text-gray-400">
-                            <strong>Role Notice:</strong> Only the assigned <strong>Team Leader</strong> or GSO Admin is authorized to prepare and submit a Bill of Materials for this job order.
+                            <strong>Role Notice:</strong> Only the assigned <strong>Team Leader</strong> or GSO Admin is authorized to prepare and submit a List of Materials for this job order.
                         </p>
                     </div>
                 @endif

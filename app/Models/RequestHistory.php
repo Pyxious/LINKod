@@ -97,6 +97,10 @@ class RequestHistory extends Model
         $remarks = str_ireplace('reject', 'disapprove', $remarks);
         $remarks = str_ireplace('bill of materials', 'List of Materials', $remarks);
         $remarks = (string) preg_replace('/\bBOM\b/i', 'List of Materials', $remarks);
+        $remarks = str_ireplace('pricing and verification', 'verification', $remarks);
+        $remarks = str_ireplace('verified and priced', 'verified', $remarks);
+        $remarks = (string) preg_replace('/\s*\(PHP\s*[\d,]+(\.\d{2})?\)/i', '', $remarks);
+        $remarks = str_ireplace('materials/cash', 'materials', $remarks);
 
         return $remarks;
     }
