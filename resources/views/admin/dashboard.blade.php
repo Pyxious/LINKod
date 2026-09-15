@@ -195,11 +195,12 @@
                 <table class="w-full text-left text-xs">
                     <thead>
                         <tr class="border-b border-gray-200 dark:border-zinc-800 text-[11px] font-bold text-[#1a3c8f] dark:text-blue-400 uppercase tracking-wider">
-                            <th class="pb-2.5 pr-3">Requisition No.</th>
+                            <th class="pb-2.5 pr-3 whitespace-nowrap">Requisition No.</th>
+                            <th class="pb-2.5 px-3">Subject</th>
                             <th class="pb-2.5 px-3">Category</th>
-                            <th class="pb-2.5 px-3 text-center">Priority</th>
-                            <th class="pb-2.5 px-3 text-center">Status</th>
-                            <th class="pb-2.5 pl-3 text-right">Date Requested</th>
+                            <th class="pb-2.5 px-3 text-center whitespace-nowrap">Priority</th>
+                            <th class="pb-2.5 px-3 text-center whitespace-nowrap">Status</th>
+                            <th class="pb-2.5 pl-3 text-right whitespace-nowrap">Date Requested</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-zinc-800/80">
@@ -223,17 +224,27 @@
                                     : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
 
                                 $st = $req->current_status;
-                                $stClass = match($st) {
-                                    'Submitted'            => 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
-                                    'Pending', 'Approved'  => 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800',
-                                    'In Progress'          => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
-                                    'Pending Verification' => 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800',
-                                    'Completed'            => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
-                                    default                => 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:border-zinc-700'
+                                $isAwaitingBom = $st === 'Awaiting Verification of Bill of Materials' 
+                                    || $st === 'Awaiting Verification of List of Materials' 
+                                    || ($req->bom_status === 'awaiting_admin' && !in_array($st, ['In Progress', 'Completed', 'Cancelled', 'Rejected']));
+                                $stDisplay = match(true) {
+                                    $isAwaitingBom => 'Awaiting Verification',
+                                    $st === 'BOM Verified (Awaiting Client Approval)' || $st === 'List of Materials Verified (Awaiting Client Approval)' => 'Materials Verified',
+                                    default => $st
+                                };
+                                $stClass = match(true) {
+                                    $isAwaitingBom => 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
+                                    $st === 'Submitted' => 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+                                    in_array($st, ['Pending', 'Approved']) => 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800',
+                                    $st === 'In Progress' => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+                                    in_array($st, ['Pending Verification', 'BOM Verified (Awaiting Client Approval)', 'List of Materials Verified (Awaiting Client Approval)']) => 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
+                                    $st === 'Completed' => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+                                    in_array($st, ['Rejected', 'Cancelled']) => 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+                                    default => 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:border-zinc-700'
                                 };
                             @endphp
                             <tr class="hover:bg-gray-50/80 dark:hover:bg-zinc-800/40 transition">
-                                <td class="py-3 pr-3 font-mono font-bold text-[#0033a0] dark:text-blue-400">
+                                <td class="py-3 pr-3 font-mono font-bold text-[#0033a0] dark:text-blue-400 whitespace-nowrap">
                                     <a href="{{ route('admin.requests.show', $req->request_id) }}" class="hover:underline">
                                         {{ $reqCode }}
                                     </a>
@@ -244,14 +255,14 @@
                                 <td class="py-3 px-3 text-gray-500 dark:text-gray-400">
                                     {{ $req->category->category_name ?? 'General' }}
                                 </td>
-                                <td class="py-3 px-3 text-center">
-                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $prioClass }}">
+                                <td class="py-3 px-3 text-center whitespace-nowrap">
+                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap {{ $prioClass }}">
                                         {{ $prio }}
                                     </span>
                                 </td>
-                                <td class="py-3 px-3 text-center">
-                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $stClass }}">
-                                        {{ $st }}
+                                <td class="py-3 px-3 text-center whitespace-nowrap">
+                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap {{ $stClass }}" title="{{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $st) }}">
+                                        {{ $stDisplay }}
                                     </span>
                                 </td>
                                 <td class="py-3 pl-3 text-right text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">
@@ -260,7 +271,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="py-6 text-center text-xs text-gray-400 italic">
+                                <td colspan="6" class="py-6 text-center text-xs text-gray-400 italic">
                                     No service requests found in inventory.
                                 </td>
                             </tr>

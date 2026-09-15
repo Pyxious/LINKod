@@ -172,6 +172,18 @@ class RequestController extends Controller
 
             if ($isJanitorialAndManpowerCategory) {
                 if ($request->filled('activity_title') || $request->filled('prep_details') || $request->filled('prep_date') || $request->filled('assistance_details') || $request->filled('clearing_details')) {
+                    $timeRegex = '/^(?:(0?[1-9]|1[0-2]):[0-5][0-9]\s*(?:AM|PM|am|pm)\s*(?:-|–|to)\s*(0?[1-9]|1[0-2]):[0-5][0-9]\s*(?:AM|PM|am|pm)|(0?[1-9]|1[0-2]):[0-5][0-9]\s*(?:AM|PM|am|pm)\s*onwards)$/i';
+
+                    if ($request->boolean('prep_overtime') && !preg_match($timeRegex, trim($request->input('prep_overtime_time', '')))) {
+                        return redirect()->back()->withInput()->with('error', 'Please enter a valid Preparation Overtime time format (e.g., 5:00PM-6:00PM).');
+                    }
+                    if ($request->boolean('assistance_overtime') && !preg_match($timeRegex, trim($request->input('assistance_overtime_time', '')))) {
+                        return redirect()->back()->withInput()->with('error', 'Please enter a valid Event Assistance Overtime time format (e.g., 5:00PM-6:00PM).');
+                    }
+                    if ($request->boolean('clearing_overtime') && !preg_match($timeRegex, trim($request->input('clearing_overtime_time', '')))) {
+                        return redirect()->back()->withInput()->with('error', 'Please enter a valid Clearing Overtime time format (e.g., 5:00PM-6:00PM).');
+                    }
+
                     $manpowerData = [
                         'activity_title'          => $request->input('activity_title', $validated['title']),
                         'event_date'              => $request->input('event_date', ''),
@@ -181,19 +193,19 @@ class RequestController extends Controller
                         'prep_regular'            => $request->boolean('prep_regular', true),
                         'prep_overtime'           => $request->boolean('prep_overtime', false),
                         'prep_regular_time'       => $request->input('prep_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
-                        'prep_overtime_time'      => $request->input('prep_overtime_time', ''),
+                        'prep_overtime_time'      => $request->boolean('prep_overtime') ? trim($request->input('prep_overtime_time', '')) : '',
                         'assistance_date'         => $request->input('assistance_date', ''),
                         'assistance_details'      => $request->input('assistance_details', ''),
                         'assistance_regular'      => $request->boolean('assistance_regular', true),
                         'assistance_overtime'     => $request->boolean('assistance_overtime', false),
                         'assistance_regular_time' => $request->input('assistance_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
-                        'assistance_overtime_time'=> $request->input('assistance_overtime_time', ''),
+                        'assistance_overtime_time'=> $request->boolean('assistance_overtime') ? trim($request->input('assistance_overtime_time', '')) : '',
                         'clearing_date'           => $request->input('clearing_date', ''),
                         'clearing_details'        => $request->input('clearing_details', ''),
                         'clearing_regular'        => $request->boolean('clearing_regular', true),
                         'clearing_overtime'       => $request->boolean('clearing_overtime', false),
                         'clearing_regular_time'   => $request->input('clearing_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
-                        'clearing_overtime_time'  => $request->input('clearing_overtime_time', ''),
+                        'clearing_overtime_time'  => $request->boolean('clearing_overtime') ? trim($request->input('clearing_overtime_time', '')) : '',
                         'additional_date'         => $request->input('additional_date', ''),
                         'additional_notes'        => $request->input('additional_notes', ''),
                         'general_description'     => $request->input('description', ''),

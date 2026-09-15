@@ -34,17 +34,27 @@
                     {{ $serviceRequest->is_urgent ? 'bg-red-100 text-red-700 border-red-300' : 'bg-blue-100 text-blue-700 border-blue-300' }}">
                     {{ $serviceRequest->priority_label }}
                 </span>
-                <span class="px-3 py-1 text-[11px] font-bold rounded-full 
-                    @if($serviceRequest->current_status === 'Awaiting Verification of Bill of Materials')
-                        bg-amber-100 text-amber-900 border border-amber-300
+                @php
+                    $isAwaitingVerification = $serviceRequest->current_status === 'Awaiting Verification of Bill of Materials' 
+                        || ($serviceRequest->bom_status === 'awaiting_admin' && !in_array($serviceRequest->current_status, ['In Progress', 'Completed', 'Cancelled', 'Rejected']));
+                @endphp
+                <span class="px-3 py-1 text-[11px] font-bold rounded-full whitespace-nowrap 
+                    @if($isAwaitingVerification)
+                        bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700
                     @elseif($serviceRequest->current_status === 'BOM Verified (Awaiting Client Approval)')
-                        bg-indigo-100 text-indigo-900 border border-indigo-300
+                        bg-indigo-100 text-indigo-900 border border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-700
                     @elseif($serviceRequest->current_status === 'Completed')
-                        bg-emerald-100 text-emerald-800
+                        bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700
                     @else
-                        bg-blue-100 text-blue-800
+                        bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-700
                     @endif">
-                    {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $serviceRequest->current_status) }}
+                    @if($isAwaitingVerification)
+                        Awaiting Verification (List of Materials)
+                    @elseif($serviceRequest->current_status === 'BOM Verified (Awaiting Client Approval)')
+                        List of Materials Verified (Awaiting Client Approval)
+                    @else
+                        {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $serviceRequest->current_status) }}
+                    @endif
                 </span>
                 @if($serviceRequest->project?->nature_of_work)
                     <span class="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold rounded-full">
@@ -126,7 +136,29 @@
         </div>
     </div>
 
-
+    @if($serviceRequest->current_status === 'Awaiting Verification of Bill of Materials' || ($serviceRequest->project && $serviceRequest->project->billOfMaterials()->whereNull('date_approved')->exists()))
+        <!-- Prominent Awaiting Verification Alert Card -->
+        <div class="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/20 border border-amber-300 dark:border-amber-800/80 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="flex items-start sm:items-center gap-3.5">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 sm:mt-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-sm font-bold text-amber-900 dark:text-amber-200">List of Materials Submitted — Verification Required</h3>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-200/70 text-amber-900 dark:bg-amber-900/60 dark:text-amber-300">Action Needed</span>
+                    </div>
+                    <p class="text-xs text-amber-800/90 dark:text-amber-300/80 mt-0.5">The assigned worker submitted required materials for this job order. Please review and verify the item quantities to proceed.</p>
+                </div>
+            </div>
+            <a href="#bom-section" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-xs whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 self-stretch sm:self-auto justify-center cursor-pointer">
+                <span>Review &amp; Verify Materials</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </a>
+        </div>
+    @endif
 
     <!-- Request Details Card -->
     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm"
@@ -383,6 +415,52 @@
     <!-- Unified Maintenance Visit Scheduling & Project Assignment Card -->
     @php
         $isTerminal = in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected']);
+        $manpowerDateRaw = null;
+        if ($isManpower && $serviceRequest->manpower_details) {
+            $mp = $serviceRequest->manpower_details;
+            $manpowerDateRaw = !empty($mp['event_date']) ? $mp['event_date'] : (!empty($mp['prep_date']) ? $mp['prep_date'] : null);
+        }
+
+        $cleanDateForSql = function($raw) {
+            if (empty($raw)) return null;
+            $raw = trim($raw);
+            if (str_contains($raw, ' to ')) {
+                $raw = trim(explode(' to ', $raw)[0]);
+            }
+            try {
+                return \Carbon\Carbon::parse($raw)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return null;
+            }
+        };
+
+        $formatDateDisplay = function($raw) {
+            if (empty($raw)) return null;
+            $raw = trim($raw);
+            if (str_contains($raw, ' to ')) {
+                $parts = explode(' to ', $raw);
+                try {
+                    $d1 = \Carbon\Carbon::parse(trim($parts[0]))->format('M d, Y');
+                    $d2 = \Carbon\Carbon::parse(trim($parts[1]))->format('M d, Y');
+                    return "{$d1} to {$d2}";
+                } catch (\Throwable $e) {
+                    return $raw;
+                }
+            }
+            try {
+                return \Carbon\Carbon::parse($raw)->format('F d, Y (l)');
+            } catch (\Throwable $e) {
+                return $raw;
+            }
+        };
+
+        $sqlScheduledDate = $cleanDateForSql($manpowerDateRaw) 
+            ?? ($serviceRequest->scheduled_date?->format('Y-m-d') ?? date('Y-m-d'));
+
+        $displayScheduledDate = $manpowerDateRaw 
+            ? $formatDateDisplay($manpowerDateRaw) 
+            : ($serviceRequest->scheduled_date?->format('F d, Y (l)') ?? date('F d, Y (l)'));
+
         $showUnifiedBox = !$isTerminal && (
             !$serviceRequest->project 
             || $serviceRequest->project->current_status === 'Pending Schedule Confirmation'
@@ -392,7 +470,7 @@
     @if($showUnifiedBox)
         <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-7 shadow-sm space-y-4"
              x-data="{ 
-                 scheduledDate: '{{ $serviceRequest->scheduled_date?->format('Y-m-d') ?? date('Y-m-d') }}',
+                 scheduledDate: '{{ $sqlScheduledDate }}',
                  timeWindow: '{{ $serviceRequest->scheduled_time_window ?? 'AM-PM' }}',
                  priority: '{{ strtolower($serviceRequest->priority ?? 'routine') }}',
                  scheduleStatus: '{{ $serviceRequest->schedule_status ?? 'none' }}',
@@ -403,21 +481,38 @@
                  :class="{'pb-3 border-b border-gray-100 dark:border-zinc-800': !isMinimized}">
                 <div class="flex items-center gap-2.5">
                     <span class="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        @if($isManpower)
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        @else
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        @endif
                     </span>
                     <div>
                         <h2 class="text-sm font-bold text-slate-900 dark:text-white">
-                            Maintenance Visit Scheduling &amp; Project Assignment
+                            @if($isManpower)
+                                Manpower Request Verification &amp; Personnel Assignment
+                            @else
+                                Maintenance Visit Scheduling &amp; Project Assignment
+                            @endif
                         </h2>
                         <p class="text-xs text-gray-500 dark:text-gray-400">
-                            Set visit schedule, assign maintenance personnel, and process request approval.
+                            @if($isManpower)
+                                Verify priority, assign manpower workers, and approve request immediately based on submitted event schedule.
+                            @else
+                                Set visit schedule, assign maintenance personnel, and process request approval.
+                            @endif
                         </p>
                     </div>
                 </div>
 
                 <!-- Status Badge & Optional Toggle -->
                 <div class="flex items-center gap-2 flex-wrap">
-                    @if($serviceRequest->schedule_status === 'approved')
+                    @if($isManpower)
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-800 text-xs font-bold rounded-full">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            Event Schedule Predetermined
+                        </span>
+                    @elseif($serviceRequest->schedule_status === 'approved')
                         <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-bold rounded-full">
                             <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                             Schedule Confirmed by Client
@@ -450,7 +545,7 @@
             </div>
 
             <!-- Minimized Info Banner when Awaiting -->
-            @if($serviceRequest->schedule_status === 'pending_client_approval')
+            @if(!$isManpower && $serviceRequest->schedule_status === 'pending_client_approval')
                 <div x-show="isMinimized" x-cloak class="pt-1 text-xs text-gray-600 dark:text-gray-400 flex flex-wrap items-center gap-x-5 gap-y-1">
                     @if($serviceRequest->scheduled_date)
                         <span class="inline-flex items-center gap-1.5 font-medium">
@@ -470,7 +565,7 @@
             <!-- Bottom Part: Form & Action Steps (Hidden when isMinimized is true) -->
             <div x-show="!isMinimized" class="space-y-5">
 
-            @if($serviceRequest->schedule_status === 'declined' && $serviceRequest->schedule_decline_reason)
+            @if(!$isManpower && $serviceRequest->schedule_status === 'declined' && $serviceRequest->schedule_decline_reason)
                 <div class="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-xl flex items-start gap-3">
                     <span class="text-rose-600 dark:text-rose-400 shrink-0 text-base">⚠️</span>
                     <div class="text-xs">
@@ -481,7 +576,7 @@
                 </div>
             @endif
 
-            @if($serviceRequest->scheduled_date && $serviceRequest->schedule_status === 'approved')
+            @if(!$isManpower && $serviceRequest->scheduled_date && $serviceRequest->schedule_status === 'approved')
                 <div class="p-4 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center justify-between gap-3">
                     <div class="flex items-center gap-2.5">
                         <span class="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
@@ -513,61 +608,85 @@
                   class="space-y-5">
                 @csrf
 
-                <!-- 1. Schedule Selection -->
-                <div>
-                    <div class="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-extrabold">1</span>
-                        Visit Schedule
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-zinc-800/40 p-4 rounded-xl border border-gray-100 dark:border-zinc-800">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">
-                                Visit Date (Calendar) <span class="text-red-500">*</span>
-                            </label>
-                            <input type="date" 
-                                   name="scheduled_date" 
-                                   x-model="scheduledDate" 
-                                   min="{{ date('Y-m-d') }}" 
-                                   required 
-                                   class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-[#0033a0] shadow-2xs">
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Target date for GSO maintenance staff on-site visit.</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">
-                                Time Window / Duration <span class="text-red-500">*</span>
-                            </label>
-                            <div class="grid grid-cols-3 gap-2">
-                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border-2 cursor-pointer transition text-center"
-                                       :class="timeWindow === 'AM' ? 'border-[#0033a0] bg-blue-50/80 dark:bg-blue-950/40 text-[#0033a0] dark:text-blue-300 font-bold' : 'border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900'">
-                                    <input type="radio" name="scheduled_time_window" value="AM" x-model="timeWindow" class="sr-only">
-                                    <span class="text-xs font-extrabold">AM</span>
-                                    <span class="text-[10px] text-gray-500 dark:text-gray-400">8AM - 12PM</span>
-                                </label>
-
-                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border-2 cursor-pointer transition text-center"
-                                       :class="timeWindow === 'PM' ? 'border-[#0033a0] bg-blue-50/80 dark:bg-blue-950/40 text-[#0033a0] dark:text-blue-300 font-bold' : 'border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900'">
-                                    <input type="radio" name="scheduled_time_window" value="PM" x-model="timeWindow" class="sr-only">
-                                    <span class="text-xs font-extrabold">PM</span>
-                                    <span class="text-[10px] text-gray-500 dark:text-gray-400">1PM - 5PM</span>
-                                </label>
-
-                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border-2 cursor-pointer transition text-center"
-                                       :class="timeWindow === 'AM-PM' ? 'border-[#0033a0] bg-blue-50/80 dark:bg-blue-950/40 text-[#0033a0] dark:text-blue-300 font-bold' : 'border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900'">
-                                    <input type="radio" name="scheduled_time_window" value="AM-PM" x-model="timeWindow" class="sr-only">
-                                    <span class="text-xs font-extrabold">AM - PM</span>
-                                    <span class="text-[10px] text-gray-500 dark:text-gray-400">Whole Day</span>
-                                </label>
+                @if($isManpower)
+                    <input type="hidden" name="scheduled_date" value="{{ $sqlScheduledDate }}">
+                    <input type="hidden" name="scheduled_time_window" value="AM-PM">
+                    <div class="p-3.5 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl flex items-center justify-between gap-3 text-xs">
+                        <div class="flex items-center gap-2.5">
+                            <span class="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-[#0033a0] dark:text-blue-300">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            </span>
+                            <div>
+                                <div class="font-bold text-slate-800 dark:text-gray-200">
+                                    Manpower Schedule Auto-Loaded from Request
+                                </div>
+                                <div class="text-blue-700 dark:text-blue-300 font-medium">
+                                    Target Date: <span class="font-bold">{{ $displayScheduledDate }}</span>
+                                    • Schedule confirmation is bypassed; direct assignment &amp; approval will be applied.
+                                </div>
                             </div>
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Specify whether the visit is morning, afternoon, or whole day.</p>
+                        </div>
+                        <span class="text-[11px] font-bold text-blue-800 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/60 px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-800 shrink-0">
+                            Pre-Scheduled
+                        </span>
+                    </div>
+                @else
+                    <!-- 1. Schedule Selection -->
+                    <div>
+                        <div class="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-extrabold">1</span>
+                            Visit Schedule
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-zinc-800/40 p-4 rounded-xl border border-gray-100 dark:border-zinc-800">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">
+                                    Visit Date (Calendar) <span class="text-red-500">*</span>
+                                </label>
+                                <input type="date" 
+                                       name="scheduled_date" 
+                                       x-model="scheduledDate" 
+                                       min="{{ date('Y-m-d') }}" 
+                                       required 
+                                       class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-[#0033a0] shadow-2xs">
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Target date for GSO maintenance staff on-site visit.</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">
+                                    Time Window / Duration <span class="text-red-500">*</span>
+                                </label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <label class="flex flex-col items-center justify-center p-2 rounded-xl border-2 cursor-pointer transition text-center"
+                                           :class="timeWindow === 'AM' ? 'border-[#0033a0] bg-blue-50/80 dark:bg-blue-950/40 text-[#0033a0] dark:text-blue-300 font-bold' : 'border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900'">
+                                        <input type="radio" name="scheduled_time_window" value="AM" x-model="timeWindow" class="sr-only">
+                                        <span class="text-xs font-extrabold">AM</span>
+                                        <span class="text-[10px] text-gray-500 dark:text-gray-400">8AM - 12PM</span>
+                                    </label>
+
+                                    <label class="flex flex-col items-center justify-center p-2 rounded-xl border-2 cursor-pointer transition text-center"
+                                           :class="timeWindow === 'PM' ? 'border-[#0033a0] bg-blue-50/80 dark:bg-blue-950/40 text-[#0033a0] dark:text-blue-300 font-bold' : 'border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900'">
+                                        <input type="radio" name="scheduled_time_window" value="PM" x-model="timeWindow" class="sr-only">
+                                        <span class="text-xs font-extrabold">PM</span>
+                                        <span class="text-[10px] text-gray-500 dark:text-gray-400">1PM - 5PM</span>
+                                    </label>
+
+                                    <label class="flex flex-col items-center justify-center p-2 rounded-xl border-2 cursor-pointer transition text-center"
+                                           :class="timeWindow === 'AM-PM' ? 'border-[#0033a0] bg-blue-50/80 dark:bg-blue-950/40 text-[#0033a0] dark:text-blue-300 font-bold' : 'border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900'">
+                                        <input type="radio" name="scheduled_time_window" value="AM-PM" x-model="timeWindow" class="sr-only">
+                                        <span class="text-xs font-extrabold">AM - PM</span>
+                                        <span class="text-[10px] text-gray-500 dark:text-gray-400">Whole Day</span>
+                                    </label>
+                                </div>
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Specify whether the visit is morning, afternoon, or whole day.</p>
+                            </div>
                         </div>
                     </div>
-                </div>
+                @endif
 
-                <!-- 2. Category & Priority -->
+                <!-- Verification & Priority -->
                 <div>
                     <div class="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-extrabold">2</span>
+                        <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-extrabold">{{ $isManpower ? '1' : '2' }}</span>
                         Verification &amp; Priority
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -586,21 +705,21 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-800 dark:text-gray-200 mb-1.5">Project Priority <span class="text-red-500">*</span></label>
                             <select name="priority" x-model="priority" class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0]" required>
-                                <option value="routine">Routine Maintenance (Requires Client Schedule Confirmation)</option>
-                                <option value="urgent">High Priority (Bypasses Client Confirmation)</option>
+                                <option value="routine">Routine {{ $isManpower ? 'Manpower Assistance' : 'Maintenance (Requires Client Schedule Confirmation)' }}</option>
+                                <option value="urgent">High Priority {{ $isManpower ? '/ Urgent' : '(Bypasses Client Confirmation)' }}</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
-                <!-- 3. Assign Maintenance Personnel -->
+                <!-- Assign Maintenance Personnel -->
                 <div>
                     <div class="flex items-center justify-between mb-2">
                         <div class="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider flex items-center gap-1.5">
-                            <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-extrabold">3</span>
-                            Assign Maintenance Personnel
+                            <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-extrabold">{{ $isManpower ? '2' : '3' }}</span>
+                            Assign {{ $isManpower ? 'Manpower / Maintenance Personnel' : 'Maintenance Personnel' }}
                         </div>
-                        <span class="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Select one or more staff to assign to this project</span>
+                        <span class="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Select one or more staff to assign to this {{ $isManpower ? 'request' : 'project' }}</span>
                     </div>
                     
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto p-3 border border-blue-200 dark:border-zinc-700 rounded-xl bg-slate-50/50 dark:bg-zinc-900/50">
@@ -667,7 +786,7 @@
                         <button type="submit" 
                                 class="w-full sm:w-auto px-7 py-3 bg-[#0033a0] hover:bg-[#002480] text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-md inline-flex items-center justify-center gap-2 cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                            <span>Confirm Schedule, Approve &amp; Assign Workers</span>
+                            <span>{{ $isManpower ? 'Approve Manpower Request & Assign Workers' : 'Confirm Schedule, Approve & Assign Workers' }}</span>
                         </button>
                     </div>
                 </div>
@@ -1441,26 +1560,37 @@
                  ])) }},
                  showAddMaterial: false,
                  submittingBOM: false,
-                 selectedMaterialId: '',
-                 customName: '',
-                 addUnit: 'pcs',
-                 addQty: 1,
                  catalog: {{ Js::from(($allMaterials ?? collect())->map(fn($m) => ['id' => $m->material_id, 'name' => $m->material_name, 'unit' => $m->unit_of_measurement ?? 'pcs'])) }},
+                 addRows: [
+                     { id: 1, material_id: '', custom_name: '', unit: 'pcs', qty: 1 }
+                 ],
+                 nextRowId: 2,
+                 addMaterialRow() {
+                     this.addRows.push({ id: this.nextRowId++, material_id: '', custom_name: '', unit: 'pcs', qty: 1 });
+                 },
+                 removeMaterialRow(index) {
+                     if (this.addRows.length > 1) {
+                         this.addRows.splice(index, 1);
+                     }
+                 },
                  isDiscrete(unit) {
                      if (!unit) return true;
                      const u = unit.toString().trim().toLowerCase();
                      const continuousUnits = ['meter', 'meters', 'm', 'length', 'lengths', 'ft', 'feet', 'foot', 'liter', 'liters', 'l', 'kg', 'kilo', 'kilos', 'kilogram', 'kilograms', 'gallon', 'gallons', 'gal', 'yard', 'yards', 'yd', 'inch', 'inches', 'cm', 'mm'];
                      return !continuousUnits.includes(u);
                  },
-                 onSelectAddChange() {
-                     if (this.selectedMaterialId && this.selectedMaterialId !== 'custom') {
-                         const found = this.catalog.find(m => m.id == this.selectedMaterialId);
+                 onSelectAddChange(row) {
+                     if (row.material_id && row.material_id !== 'custom') {
+                         const found = this.catalog.find(m => m.id == row.material_id);
                          if (found) {
-                             this.addUnit = found.unit || 'pcs';
+                             row.unit = found.unit || 'pcs';
                          }
-                     } else if (this.selectedMaterialId === 'custom') {
-                         if (!this.addUnit) this.addUnit = 'pcs';
+                     } else if (row.material_id === 'custom') {
+                         if (!row.unit) row.unit = 'pcs';
                      }
+                 },
+                 hasPendingItems() {
+                     return this.items.some(i => !i.is_approved);
                  }
              }">
             
@@ -1471,24 +1601,23 @@
                         <h2 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">
                             List of Materials
                         </h2>
-                        @if($serviceRequest->bom_status === 'approved')
+                        <template x-if="items.length === 0">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 uppercase">
+                                Ready to Add
+                            </span>
+                        </template>
+                        <template x-if="items.length > 0 && hasPendingItems()">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                <span x-text="items.some(i => i.is_approved) ? 'Follow-Up Pending Approval' : 'Pending Approval'">Pending Approval</span>
+                            </span>
+                        </template>
+                        <template x-if="items.length > 0 && !hasPendingItems()">
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
                                 <svg class="w-3 h-3 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                                 Approved
                             </span>
-                        @else
-                            <template x-if="items.length === 0">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 uppercase">
-                                    Ready to Add
-                                </span>
-                            </template>
-                            <template x-if="items.length > 0">
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                    Pending Approval
-                                </span>
-                            </template>
-                        @endif
+                        </template>
                     </div>
                     <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">
                         Specify required materials and quantities for this requisition.
@@ -1501,7 +1630,7 @@
                                 @click="showAddMaterial = !showAddMaterial" 
                                 class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                            <span x-text="showAddMaterial ? 'Close Form' : 'Add Material'">Add Material</span>
+                            <span x-text="showAddMaterial ? 'Close Form' : 'Add Materials'">Add Materials</span>
                         </button>
                     </div>
                 @endif
@@ -1618,19 +1747,20 @@
                                 <span x-text="submittingBOM ? 'Updating...' : 'Update Quantities'">Update Quantities</span>
                             </button>
 
-                            @if($serviceRequest->bom_status !== 'approved')
+                            <template x-if="hasPendingItems()">
                                 <button type="button" 
                                         onclick="document.getElementById('admin-approve-bom-form').submit()" 
                                         class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center gap-1.5 cursor-pointer">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                    <span>Approve List of Materials (on Client's Behalf)</span>
+                                    <span x-text="items.some(i => i.is_approved) ? 'Approve Follow-Up Materials' : 'Approve List of Materials (on Client\'s Behalf)'">Approve List of Materials (on Client's Behalf)</span>
                                 </button>
-                            @else
+                            </template>
+                            <template x-if="!hasPendingItems()">
                                 <span class="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold inline-flex items-center gap-1.5">
                                     <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                                     <span>List of Materials Approved</span>
                                 </span>
-                            @endif
+                            </template>
                         @endif
                     </div>
                 </div>
@@ -1642,102 +1772,130 @@
             </form>
 
             @if($isBomEditable)
-                <!-- Inline Form: Add Additional Material (Toggled) -->
+                <!-- Inline Form: Add Materials (Toggled) -->
                 <div x-show="showAddMaterial" 
                      x-cloak 
                      x-transition 
-                     class="mt-5 pt-5 border-t border-gray-200 dark:border-zinc-800 bg-blue-50/40 dark:bg-zinc-800/30 p-4 rounded-xl">
-                    <h3 class="text-xs font-black uppercase tracking-wider text-[#0033a0] dark:text-blue-400 mb-3 flex items-center gap-1.5">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                        <span>Add Item to List of Materials</span>
-                    </h3>
+                     class="mt-5 pt-5 border-t border-gray-200 dark:border-zinc-800 bg-blue-50/40 dark:bg-zinc-800/30 p-4 sm:p-5 rounded-xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xs font-black uppercase tracking-wider text-[#0033a0] dark:text-blue-400 flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            <span>Add Materials to List</span>
+                        </h3>
+                        <span class="text-[11px] font-semibold text-gray-500" x-text="addRows.length + ' item(s) to add'"></span>
+                    </div>
 
                     <form action="{{ $serviceRequest->project ? route('admin.bom.store', $serviceRequest->project->project_id) : route('admin.requests.bom.store', $serviceRequest->request_id) }}" method="POST">
                         @csrf
                         <input type="hidden" name="redirect_to" value="{{ route('admin.requests.show', $serviceRequest->request_id) }}#bom-section">
-                        <input type="hidden" name="unit_cost" value="0">
                         
-                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                            <!-- Catalog Select -->
-                            <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-5' : 'sm:col-span-7'">
-                                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Select Catalog Material</label>
-                                <select name="material_id" 
-                                        x-model="selectedMaterialId" 
-                                        @change="onSelectAddChange()" 
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-[#0033a0]" 
-                                        required>
-                                    <option value="">Select a material...</option>
-                                    @foreach($allMaterials ?? [] as $m)
-                                        <option value="{{ $m->material_id }}">{{ $m->material_name }} ({{ $m->unit_of_measurement ?? 'pcs' }})</option>
-                                    @endforeach
-                                    <option value="custom" class="font-bold text-[#0033a0]">+ Add New Custom Material...</option>
-                                </select>
-                            </div>
+                        <div class="space-y-3">
+                            <template x-for="(row, rIdx) in addRows" :key="row.id">
+                                <div class="bg-white dark:bg-zinc-800/80 p-3.5 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-xs">
+                                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                                        <!-- Catalog Select -->
+                                        <div :class="row.material_id === 'custom' ? 'sm:col-span-5' : 'sm:col-span-6'">
+                                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                                <span x-text="'Material Item #' + (rIdx + 1)"></span>
+                                            </label>
+                                            <select :name="'items[' + rIdx + '][material_id]'" 
+                                                    x-model="row.material_id" 
+                                                    @change="onSelectAddChange(row)" 
+                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-[#0033a0]" 
+                                                    required>
+                                                <option value="">Select a material...</option>
+                                                @foreach($allMaterials ?? [] as $m)
+                                                    <option value="{{ $m->material_id }}">{{ $m->material_name }} ({{ $m->unit_of_measurement ?? 'pcs' }})</option>
+                                                @endforeach
+                                                <option value="custom" class="font-bold text-[#0033a0]">+ Add New Custom Material...</option>
+                                            </select>
+                                        </div>
 
-                            <!-- Custom Material Name if 'custom' -->
-                            <div class="sm:col-span-4" x-show="selectedMaterialId === 'custom'">
-                                <label class="block text-[11px] font-bold text-[#0033a0] uppercase tracking-wider mb-1">Custom Material Name</label>
-                                <input type="text" 
-                                       name="custom_material_name" 
-                                       x-model="customName" 
-                                       :required="selectedMaterialId === 'custom'" 
-                                       placeholder="e.g. Teflon Tape 1/2 in" 
-                                       class="w-full px-3 py-2 border border-[#0033a0] rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
-                            </div>
+                                        <!-- Custom Material Name if 'custom' -->
+                                        <div class="sm:col-span-3" x-show="row.material_id === 'custom'">
+                                            <label class="block text-[10px] font-bold text-[#0033a0] uppercase tracking-wider mb-1">Custom Name</label>
+                                            <input type="text" 
+                                                   :name="'items[' + rIdx + '][custom_material_name]'" 
+                                                   x-model="row.custom_name" 
+                                                   :required="row.material_id === 'custom'" 
+                                                   placeholder="e.g. Teflon Tape 1/2 in" 
+                                                   class="w-full px-3 py-2 border border-[#0033a0] rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
+                                        </div>
 
-                            <!-- Quantity -->
-                            <div class="sm:col-span-2">
-                                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Quantity</label>
-                                <input type="number" 
-                                       name="qty" 
-                                       x-model.number="addQty" 
-                                       :step="isDiscrete(addUnit) ? '1' : '0.01'" 
-                                       :min="isDiscrete(addUnit) ? '1' : '0.01'" 
-                                       placeholder="1" 
-                                       class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white" 
-                                       required>
-                            </div>
+                                        <!-- Quantity -->
+                                        <div class="sm:col-span-2">
+                                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Quantity</label>
+                                            <input type="number" 
+                                                   :name="'items[' + rIdx + '][qty]'" 
+                                                   x-model.number="row.qty" 
+                                                   :step="isDiscrete(row.unit) ? '1' : '0.01'" 
+                                                   :min="isDiscrete(row.unit) ? '1' : '0.01'" 
+                                                   placeholder="1" 
+                                                   class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white" 
+                                                   required>
+                                        </div>
 
-                            <!-- Unit of Measurement -->
-                            <div :class="selectedMaterialId === 'custom' ? 'sm:col-span-1' : 'sm:col-span-3'">
-                                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Unit</label>
-                                
-                                <div x-show="selectedMaterialId !== 'custom'" class="w-full px-3 py-2 border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/80 rounded-lg text-xs font-bold text-slate-700 dark:text-gray-300 text-center flex items-center justify-center min-h-[38px] select-none">
-                                    <span x-text="addUnit || 'pcs'"></span>
+                                        <!-- Unit of Measurement -->
+                                        <div :class="row.material_id === 'custom' ? 'sm:col-span-1' : 'sm:col-span-3'">
+                                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Unit</label>
+                                            
+                                            <div x-show="row.material_id !== 'custom'" class="w-full px-3 py-2 border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/80 rounded-lg text-xs font-bold text-slate-700 dark:text-gray-300 text-center flex items-center justify-center min-h-[38px] select-none">
+                                                <span x-text="row.unit || 'pcs'"></span>
+                                            </div>
+                                            <input type="hidden" x-show="row.material_id !== 'custom'" :name="'items[' + rIdx + '][unit_of_measurement]'" :value="row.unit">
+
+                                            <select x-show="row.material_id === 'custom'" 
+                                                    :name="'items[' + rIdx + '][unit_of_measurement]'" 
+                                                    x-model="row.unit" 
+                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
+                                                <option value="pcs">pcs</option>
+                                                <option value="meters">meters</option>
+                                                <option value="lengths">lengths</option>
+                                                <option value="rolls">rolls</option>
+                                                <option value="boxes">boxes</option>
+                                                <option value="bags">bags</option>
+                                                <option value="liters">liters</option>
+                                                <option value="sheets">sheets</option>
+                                                <option value="sets">sets</option>
+                                                <option value="units">units</option>
+                                                <option value="kg">kg</option>
+                                                <option value="gallons">gallons</option>
+                                                <option value="pairs">pairs</option>
+                                                <option value="tubes">tubes</option>
+                                                <option value="packs">packs</option>
+                                                <option value="feet">feet</option>
+                                                <option value="can">can</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Remove Row Button (if > 1 rows) -->
+                                        <div class="sm:col-span-1 flex items-center justify-center pb-1">
+                                            <button type="button" 
+                                                    x-show="addRows.length > 1" 
+                                                    @click="removeMaterialRow(rIdx)" 
+                                                    class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer" 
+                                                    title="Remove this item row">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <input type="hidden" x-show="selectedMaterialId !== 'custom'" name="unit_of_measurement" :value="addUnit">
+                            </template>
+                        </div>
 
-                                <select x-show="selectedMaterialId === 'custom'" 
-                                        name="unit_of_measurement" 
-                                        x-model="addUnit" 
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
-                                    <option value="pcs">pcs</option>
-                                    <option value="meters">meters</option>
-                                    <option value="lengths">lengths</option>
-                                    <option value="rolls">rolls</option>
-                                    <option value="boxes">boxes</option>
-                                    <option value="bags">bags</option>
-                                    <option value="liters">liters</option>
-                                    <option value="sheets">sheets</option>
-                                    <option value="sets">sets</option>
-                                    <option value="units">units</option>
-                                    <option value="kg">kg</option>
-                                    <option value="gallons">gallons</option>
-                                    <option value="pairs">pairs</option>
-                                    <option value="tubes">tubes</option>
-                                    <option value="packs">packs</option>
-                                    <option value="feet">feet</option>
-                                    <option value="can">can</option>
-                                </select>
-                            </div>
+                        <!-- Add Another Row & Submit Buttons -->
+                        <div class="mt-4 pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <button type="button" 
+                                    @click="addMaterialRow()" 
+                                    class="w-full sm:w-auto px-4 py-2 border-2 border-dashed border-[#0033a0] dark:border-blue-500 text-[#0033a0] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl text-xs font-bold transition inline-flex items-center justify-center gap-1.5 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                <span>+ Add Another Material Item</span>
+                            </button>
 
-                            <!-- Submit Button -->
-                            <div class="sm:col-span-12 flex justify-end pt-1">
-                                <button type="submit" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                    <span>Add Material to List</span>
-                                </button>
-                            </div>
+                            <button type="submit" class="w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                <span>Save Material(s) to List</span>
+                            </button>
                         </div>
                     </form>
                 </div>

@@ -43,7 +43,7 @@
                     {{ $req->priority_label }}
                 </span>
             @endif
-            <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap
                 @if($project->current_status === 'Pending') bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300
                 @elseif($project->current_status === 'Awaiting Verification of Bill of Materials') bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300
                 @elseif($project->current_status === 'BOM Verified (Awaiting Client Approval)') bg-indigo-50 text-indigo-800 border border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300
@@ -51,7 +51,7 @@
                 @elseif($project->current_status === 'Pending Verification') bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300
                 @elseif($project->current_status === 'Completed') bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300
                 @else bg-gray-50 text-gray-700 border border-gray-200 dark:bg-zinc-800 dark:text-gray-300 @endif">
-                {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $project->current_status) }}
+                {{ $project->current_status === 'Awaiting Verification of Bill of Materials' ? 'Awaiting Verification (List of Materials)' : str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $project->current_status) }}
             </span>
             @if($isTeamLeader)
                 <span class="px-2.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-950/40 dark:text-purple-300">

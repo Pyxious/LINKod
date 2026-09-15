@@ -80,10 +80,6 @@
                         Completed
                     </a>
 
-                    <a href="{{ route('client.requests.index', array_filter(['status' => 'follow_up', 'search' => request('search')])) }}" 
-                       class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'follow_up' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
-                        Follow Up
-                    </a>
 
                     <a href="{{ route('client.requests.index', array_filter(['status' => 'cancelled', 'search' => request('search')])) }}" 
                        class="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'cancelled' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
@@ -133,6 +129,8 @@
                         };
                         $displayStatus = match(strtolower($r->current_status ?? '')) {
                             'rejected' => 'Disapproved',
+                            'awaiting verification of bill of materials', 'awaiting verification of list of materials' => 'Awaiting Verification',
+                            'bom verified (awaiting client approval)', 'list of materials verified (awaiting client approval)' => 'Materials Verified',
                             default => ucfirst($r->current_status ?? 'Pending')
                         };
                     @endphp
