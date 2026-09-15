@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Prevent rapid duplicate clicks and show loading animation on forms with auto-reset safety
+// Prevent rapid duplicate clicks and show loading animation on forms
 document.addEventListener('submit', (e) => {
     const form = e.target;
     if (!form || form.tagName !== 'FORM') return;
@@ -55,8 +55,6 @@ document.addEventListener('submit', (e) => {
     setTimeout(() => {
         if (e.defaultPrevented) return;
 
-        const originalHtml = submitBtn.innerHTML;
-        const originalDisabled = submitBtn.disabled;
         submitBtn.disabled = true;
         submitBtn.classList.add('opacity-75', 'cursor-not-allowed', 'pointer-events-none');
 
@@ -77,15 +75,6 @@ document.addEventListener('submit', (e) => {
                 <span>${loadingText}</span>
             `;
         }
-
-        // Safety guard: Limit animation to 2.5 - 3 seconds so buttons never get permanently stuck
-        setTimeout(() => {
-            if (submitBtn && submitBtn.isConnected) {
-                submitBtn.disabled = originalDisabled;
-                submitBtn.classList.remove('opacity-75', 'cursor-not-allowed', 'pointer-events-none');
-                submitBtn.innerHTML = originalHtml;
-            }
-        }, 3000);
     }, 15);
 });
 
