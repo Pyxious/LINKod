@@ -56,11 +56,13 @@
             viewPreviewModal: false,
             selectedCategoryId: '{{ $preselectedCatId ?? "" }}',
             selectedCategoryName: '',
-            selectedCampus: '',
+            selectedCluster: '{{ old('campus', '') }}',
+            selectedCollege: '',
+            selectedOffice: '',
+            customOffice: '',
+            specificLocation: '',
             selectedConcern: '',
             customConcern: '',
-            selectedLocation: '',
-            customLocation: '',
 
             // Manpower & Event Specific Fields
             activityTitle: '',
@@ -231,65 +233,422 @@
                 ]
             },
 
-            // Locations / Offices grouped by Campus
-            locationsMap: {
-                'BU Main': [
-                    'Administration Building (GSO, OSAS, Registrar, Cashier)',
-                    'College of Education (BUCE)',
-                    'College of Arts and Letters (BUCAL)',
-                    'College of Science (BUCS)',
-                    'College of Nursing (BUCN)',
-                    'College of Medicine (BUCM)',
-                    'Information & Communications Technology Office (ICTO)',
-                    'University Student Center (USC)',
-                    'University Main Library & Amphitheater',
-                    'BU Gymnasium & Sports Complex',
-                    'Other Location (BU Main)'
-                ],
-                'BU Daraga': [
-                    'College of Social Sciences and Philosophy (CSSP)',
-                    'College of Business, Economics and Management (CBEM)',
-                    'Daraga Campus Administration Building',
-                    'Daraga Campus Library',
-                    'Student Activity Center & Canteen',
-                    'Other Location (BU Daraga)'
-                ],
-                'BU East': [
-                    'College of Engineering (BUCENG)',
-                    'College of Industrial Technology (BUCIT)',
-                    'East Campus Administration & Library',
-                    'Mechanical & Electrical Shop Buildings',
-                    'East Campus Student Center',
-                    'Other Location (BU East)'
-                ],
-                'BU Polangui': [
-                    'Polangui Campus Administration Building',
-                    'Department of Information Technology',
-                    'Engineering & Technology Building',
-                    'Nursing & Health Sciences Building',
-                    'Polangui Campus Library & Student Center',
-                    'Other Location (BU Polangui)'
-                ],
-                'BU Tabaco': [
-                    'Tabaco Campus Administration Building',
-                    'Department of Fisheries & Aquaculture',
-                    'Business & Teacher Education Building',
-                    'Tabaco Campus Library',
-                    'Other Location (BU Tabaco)'
-                ],
-                'BU Gubat': [
-                    'Gubat Campus Administration Building',
-                    'Academic & Multi-Purpose Building',
-                    'Gubat Campus Library',
-                    'Other Location (BU Gubat)'
-                ],
-                'BU Guinobatan': [
-                    'College of Agriculture and Forestry (BUCAF) Admin',
-                    'BUCAF Academic & Laboratory Buildings',
-                    'Research, Extension & Demonstration Farm',
-                    'Guinobatan Campus Library & Auditorium',
-                    'Other Location (BU Guinobatan)'
-                ]
+            // Combined College & Campus Units: (Cluster) College Name
+            collegeUnits: [
+                {
+                    cluster: 'Main',
+                    label: '(Main Cluster) GASS & Auxiliary Services',
+                    college: 'GASS & Auxiliary Services',
+                    offices: [
+                        'Office of the University President',
+                        'Office of the Vice President for Academic Affairs (OVPAA)',
+                        'Office of the Vice President for Administration and Finance (OVPAF)',
+                        'Office of the Vice President for Research, Development and Extension (OVPRDE)',
+                        'Office of the Vice President for Planning and Development (OVPPD)',
+                        'General Services Office (GSO)',
+                        'University Registrar\'s Office',
+                        'Cashier\'s Office & Accounting Office',
+                        'Human Resource Development Office (HRDO)',
+                        'Supply and Property Management Office (SPMO)',
+                        'Information & Communications Technology Office (ICTO)',
+                        'University Health Services / Clinic',
+                        'University Main Library & Audio-Visual Hall',
+                        'Office of Student Affairs and Services (OSAS)',
+                        'University Student Center (USC)',
+                        'University Gymnasium & Sports Complex',
+                        'BUCFAO / Auxiliary Services Office',
+                        'Other Office / Facility'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 1',
+                    label: '(Cluster 1) BUCE (College of Education)',
+                    college: 'BUCE (College of Education)',
+                    offices: [
+                        'Dean\'s Office & Administrative Staff',
+                        'Elementary Dept / Integrated Lab School (ILS-Elem)',
+                        'High School Dept / Integrated Lab School (ILS-HS)',
+                        'Dept of Elementary Education (BEED)',
+                        'Dept of Secondary Education (BSED)',
+                        'Science & Mathematics Education Unit',
+                        'Educational Media & Audio-Visual Room (AVR)',
+                        'Reading Clinic & Learning Resource Center',
+                        'Guidance & Counseling Office',
+                        'Faculty Offices & Consultation Rooms',
+                        'Other Office (BUCE)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 1',
+                    label: '(Cluster 1) BUCM (College of Medicine)',
+                    college: 'BUCM (College of Medicine)',
+                    offices: [
+                        'Dean\'s Office & College Secretary',
+                        'Basic Medical Sciences Department',
+                        'Clinical Skills Simulation Laboratory',
+                        'Gross Anatomy & Dissection Laboratory',
+                        'Histology & Pathology Laboratory',
+                        'Physiology & Pharmacology Laboratory',
+                        'Medical Amphitheater & Lecture Halls',
+                        'Medical Library & Learning Hub',
+                        'Faculty Consultation Room',
+                        'Other Office (BUCM)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 1',
+                    label: '(Cluster 1) IPESR (Institute of Physical Education, Sports and Recreation)',
+                    college: 'IPESR (Institute of Physical Education, Sports and Recreation)',
+                    offices: [
+                        'Director\'s Office & Administration',
+                        'Physical Education Department',
+                        'Sports Development & Athletic Office',
+                        'University Gymnasium & Main Court',
+                        'Fitness & Weight Training Gym',
+                        'Dance Studio & Aerobics Hall',
+                        'Equipment & Supplies Custodian Room',
+                        'Swimming Pool Complex & Locker Rooms',
+                        'Other Office (IPESR)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 2',
+                    label: '(Cluster 2) CAL (College of Arts and Letters)',
+                    college: 'CAL (College of Arts and Letters)',
+                    offices: [
+                        'Dean\'s Office & College Secretary',
+                        'Department of English & Humanities',
+                        'Department of Literature & Performing Arts',
+                        'Department of Communication & Journalism',
+                        'Speech and Language Laboratory',
+                        'Campus Radio / Media Production Lab',
+                        'BUCAL Amphitheater & Performance Hall',
+                        'Guidance & Counseling Office',
+                        'Other Office (CAL)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 2',
+                    label: '(Cluster 2) BUGS (Graduate School)',
+                    college: 'BUGS (Graduate School)',
+                    offices: [
+                        'Dean\'s Office & Administrative Staff',
+                        'Doctoral Programs Office',
+                        'Master\'s Programs Office',
+                        'Dissertation & Thesis Defense Room',
+                        'Graduate Research & Seminar Center',
+                        'Graduate School Library',
+                        'Other Office (BUGS)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 2',
+                    label: '(Cluster 2) Language Center',
+                    college: 'Language Center',
+                    offices: [
+                        'Office of the Director',
+                        'Foreign Language Classrooms & Labs',
+                        'Translation, Testing & Review Center',
+                        'Speech & Audio Laboratory',
+                        'Other Office (Language Center)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 2',
+                    label: '(Cluster 2) College of Law',
+                    college: 'College of Law',
+                    offices: [
+                        'Dean\'s Office & Law Secretary',
+                        'Moot Court / Mock Trial Courtroom',
+                        'Law Library & Legal Research Room',
+                        'Free Legal Aid Clinic',
+                        'Bar Operations Center',
+                        'Faculty Lounge & Consultation Rooms',
+                        'Other Office (College of Law)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 2',
+                    label: '(Cluster 2) BU Open University',
+                    college: 'BU Open University',
+                    offices: [
+                        'Office of the Director',
+                        'Distance Learning & E-Learning Center',
+                        'Instructional Materials Development (IMDO)',
+                        'Student Support & Technical Helpdesk',
+                        'Multi-media Recording Studio',
+                        'Other Office (BU Open University)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 2',
+                    label: '(Cluster 2) College of Dental Medicine',
+                    college: 'College of Dental Medicine',
+                    offices: [
+                        'Dean\'s Office & Administration',
+                        'Clinical Dentistry Department',
+                        'Oral Anatomy & Simulation Laboratory',
+                        'Prosthodontics & Restorative Dentistry Lab',
+                        'Dental Radiography & X-ray Room',
+                        'Central Sterilization & Dispensing Unit',
+                        'Dental Infirmary & Patient Waiting Area',
+                        'Other Office (Dental Medicine)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 2',
+                    label: '(Cluster 2) BUJMRIGD (Governance and Development)',
+                    college: 'BUJMRIGD (Governance and Development)',
+                    offices: [
+                        'Director\'s Office & Administration',
+                        'Public Administration & Governance Dept',
+                        'Policy Research & Development Unit',
+                        'Executive Seminar & Conference Hall',
+                        'Other Office (BUJMRIGD)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 3',
+                    label: '(Cluster 3) CS (College of Science)',
+                    college: 'CS (College of Science)',
+                    offices: [
+                        'Dean\'s Office & College Secretary',
+                        'Department of Biology',
+                        'Department of Chemistry',
+                        'Department of Physics',
+                        'Department of Mathematics',
+                        'Department of Computer Science & IT',
+                        'Natural Sciences Laboratories (Bio/Microbio)',
+                        'Chemical Sciences & Instrument Laboratories',
+                        'Physics & Electronics Laboratory',
+                        'Computer & Networking Laboratories',
+                        'Science Research Center & Specimen Museum',
+                        'Other Office (CS)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 3',
+                    label: '(Cluster 3) CN (College of Nursing)',
+                    college: 'CN (College of Nursing)',
+                    offices: [
+                        'Dean\'s Office & Administrative Unit',
+                        'Nursing Arts & Bedside Simulation Laboratory',
+                        'Maternal and Child Health Laboratory',
+                        'Nutrition and Dietetics Laboratory',
+                        'Community Health Nursing Office',
+                        'Clinical Instructors / Faculty Room',
+                        'Nursing Amphitheater & Learning Resource Center',
+                        'Other Office (CN)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 3',
+                    label: '(Cluster 3) RCSMED (Science & Math Education)',
+                    college: 'RCSMED (Science & Math Education)',
+                    offices: [
+                        'Director\'s Office & Administration',
+                        'Science Education Demonstration Lab',
+                        'Mathematics Curriculum & Robotics Lab',
+                        'Training & Workshop Center',
+                        'Other Office (RCSMED)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 4',
+                    label: '(Cluster 4) CIT (College of Industrial Technology)',
+                    college: 'CIT (College of Industrial Technology)',
+                    offices: [
+                        'Dean\'s Office & Administrative Unit',
+                        'Department of Automotive & Power Technology',
+                        'Department of Electrical & Electronics Technology',
+                        'Department of Mechanical & Production Technology',
+                        'Department of Drafting & CAD Technology',
+                        'Department of Food & Service Technology',
+                        'Automotive Shop & Heavy Equipment Bay',
+                        'Machine Shop & Welding Technology Bay',
+                        'Electrical Wiring & Motor Control Laboratory',
+                        'Electronics & Microcontroller Laboratory',
+                        'Food Processing & Baking Laboratory',
+                        'Other Office (CIT)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 4',
+                    label: '(Cluster 4) CENG (College of Engineering)',
+                    college: 'CENG (College of Engineering)',
+                    offices: [
+                        'Dean\'s Office & College Secretary',
+                        'Department of Civil Engineering',
+                        'Department of Electrical Engineering',
+                        'Department of Mechanical Engineering',
+                        'Department of Chemical Engineering',
+                        'Department of Computer Engineering',
+                        'Department of Geodetic Engineering',
+                        'Materials Testing & Soil Mechanics Laboratory',
+                        'Hydraulics & Fluid Mechanics Laboratory',
+                        'CAD & Simulation Center',
+                        'Engineering Workshops & Maker Space',
+                        'Engineering Library & Review Center',
+                        'Other Office (CENG)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 4',
+                    label: '(Cluster 4) IA (Institute of Architecture)',
+                    college: 'IA (Institute of Architecture)',
+                    offices: [
+                        'Director\'s Office & Administration',
+                        'Architectural Design Studios (Studios 1-5)',
+                        'CAD, 3D Rendering & Digital Architecture Lab',
+                        'Manual Drafting Rooms & Light Tables',
+                        'Model-Making Workshop & Laser Cut Bay',
+                        'Building Utilities & Materials Museum',
+                        'Other Office (IA)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 4',
+                    label: '(Cluster 4) ESC (East Campus / Science Center)',
+                    college: 'ESC (East Campus / Science Center)',
+                    offices: [
+                        'East Campus Admin & Property Custodian',
+                        'East Campus General Library',
+                        'East Campus Student Center & Canteen',
+                        'Multi-Purpose Hall & Audio-Visual Room',
+                        'Security & Maintenance Quarters',
+                        'Other Office (ESC)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster 4',
+                    label: '(Cluster 4) RDC (Research and Development Center)',
+                    college: 'RDC (Research and Development Center)',
+                    offices: [
+                        'Director\'s Office & Research Services',
+                        'Intellectual Property / ITSO Office',
+                        'Central Analytical Testing Laboratory',
+                        'Extension & Community Engagement Office',
+                        'Publications & Journal Editorial Office',
+                        'Other Office (RDC)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster Daraga',
+                    label: '(Cluster Daraga) CSSP (College of Social Sciences and Philosophy)',
+                    college: 'CSSP (College of Social Sciences and Philosophy)',
+                    offices: [
+                        'Dean\'s Office & College Secretary',
+                        'Department of Political Science & Public Affairs',
+                        'Department of Sociology & Anthropology',
+                        'Department of Psychology',
+                        'Department of Philosophy',
+                        'Department of Peace Studies',
+                        'Psychological Testing & Assessment Laboratory',
+                        'Social Science Research & Audio-Visual Hall',
+                        'Guidance, Career & Counseling Office',
+                        'Other Office (CSSP)'
+                    ]
+                },
+                {
+                    cluster: 'Cluster Daraga',
+                    label: '(Cluster Daraga) CBEM (College of Business, Economics and Management)',
+                    college: 'CBEM (College of Business, Economics and Management)',
+                    offices: [
+                        'Dean\'s Office & College Secretary',
+                        'Department of Accountancy',
+                        'Department of Business Admin & Marketing',
+                        'Department of Economics',
+                        'Department of Entrepreneurship',
+                        'Center for Entrepreneurship & Business Incubator',
+                        'Accounting Simulation Computer Lab',
+                        'CBEM Auditorium & Multi-Purpose Center',
+                        'Student Organization & Activity Center',
+                        'Other Office (CBEM)'
+                    ]
+                },
+                {
+                    cluster: 'Guinobatan',
+                    label: '(Guinobatan) BUCAF (College of Agriculture and Forestry)',
+                    college: 'BUCAF (College of Agriculture and Forestry)',
+                    offices: [
+                        'Dean\'s Office & Campus Administration',
+                        'Department of Agricultural Sciences',
+                        'Department of Animal Science & Veterinary Clinic',
+                        'Department of Forestry & Agroforestry',
+                        'Department of Agricultural and Biosystems Eng',
+                        'Crop Science & Tissue Culture Laboratory',
+                        'Soil Science & Agricultural Chemistry Lab',
+                        'Farm Machinery Shop & Demo Farm Office',
+                        'BUCAF Campus Library & Auditorium',
+                        'Other Office (BUCAF)'
+                    ]
+                },
+                {
+                    cluster: 'Polangui',
+                    label: '(Polangui) BUPC (Polangui Campus)',
+                    college: 'BUPC (Polangui Campus)',
+                    offices: [
+                        'Campus Director\'s Office & Administration',
+                        'Department of Information Technology & CS',
+                        'Department of Computer Engineering',
+                        'Department of Nursing and Health Sciences',
+                        'Department of Teacher Education',
+                        'Department of Automotive & Mechanical Technology',
+                        'Computer Laboratories (1 to 4)',
+                        'Health Skills Laboratory & Clinic',
+                        'Polangui Campus Library & Student Center',
+                        'Other Office (BUPC)'
+                    ]
+                },
+                {
+                    cluster: 'Tabaco',
+                    label: '(Tabaco) BUTC (Tabaco Campus)',
+                    college: 'BUTC (Tabaco Campus)',
+                    offices: [
+                        'Campus Director\'s Office & Administration',
+                        'Department of Fisheries & Marine Sciences',
+                        'Department of Business Admin & Entrepreneurship',
+                        'Department of Teacher Education',
+                        'Aquaculture Hatchery & Wet Laboratories',
+                        'Post-Harvest & Food Processing Laboratory',
+                        'Oceanography & Marine Biology Lab',
+                        'Tabaco Campus Library & Learning Hub',
+                        'Other Office (BUTC)'
+                    ]
+                },
+                {
+                    cluster: 'Gubat',
+                    label: '(Gubat) BUGC (Gubat Campus)',
+                    college: 'BUGC (Gubat Campus)',
+                    offices: [
+                        'Campus Director\'s Office & Administration',
+                        'Department of Teacher Education',
+                        'Department of Business Administration',
+                        'Department of Information & Computing Sciences',
+                        'Department of Agricultural Technology',
+                        'Computer Laboratory & Multimedia Center',
+                        'Campus Library & Audio-Visual Room',
+                        'Student Services & Guidance Office',
+                        'Other Office (BUGC)'
+                    ]
+                }
+            ],
+
+            onCollegeChange() {
+                const found = this.collegeUnits.find(u => u.college === this.selectedCollege);
+                this.selectedCluster = found ? found.cluster : '';
+                this.selectedOffice = '';
+                this.customOffice = '';
+            },
+
+            get selectedCampus() {
+                return this.selectedCluster;
+            },
+
+            get availableOffices() {
+                if (!this.selectedCollege) return [];
+                const found = this.collegeUnits.find(u => u.college === this.selectedCollege);
+                return found ? found.offices : [];
             },
 
             get availableConcerns() {
@@ -302,11 +661,6 @@
                     'Facility Inspection Request',
                     'Other Concern'
                 ];
-            },
-
-            get availableLocations() {
-                if (!this.selectedCampus) return [];
-                return this.locationsMap[this.selectedCampus] || ['General Campus Area', 'Other Location'];
             },
 
             get isJanitorialAndManpowerCategory() {
@@ -348,10 +702,14 @@
             },
 
             get finalLocation() {
-                if (this.selectedLocation.includes('Other')) {
-                    return this.customLocation || this.selectedLocation;
-                }
-                return this.selectedLocation;
+                if (!this.selectedCollege || !this.selectedOffice) return '';
+                const officeName = (this.selectedOffice.includes('Other') && this.customOffice)
+                    ? this.customOffice.trim()
+                    : this.selectedOffice;
+                const roomPart = this.specificLocation && this.specificLocation.trim() 
+                    ? ` (${this.specificLocation.trim()})` 
+                    : '';
+                return `${this.selectedCollege} — ${officeName}${roomPart}`;
             },
 
             handleFileSelect(event) {
@@ -565,57 +923,83 @@
                         <input type="hidden" name="title" :value="finalTitle">
                     </div>
 
-                    <!-- 3. Campus & Location Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Campus -->
+                    <!-- 3. College/Campus Unit, Office & Specific Room Details -->
+                    <div class="space-y-4">
+                        <!-- Row 1: College / Campus Unit (Full-width solo row so long names fit without truncation) -->
                         <div>
                             <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                                Campus <span class="text-red-500">*</span>
+                                College / Campus Unit <span class="text-red-500">*</span>
                             </label>
-                            <select name="campus" 
-                                    x-model="selectedCampus"
-                                    @change="selectedLocation = ''; customLocation = '';"
+                            <select x-model="selectedCollege"
+                                    @change="onCollegeChange()"
                                     class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] transition" 
                                     required>
-                                <option value="" disabled selected>Select Campus</option>
-                                <option value="BU Main">BU Main</option>
-                                <option value="BU Daraga">BU Daraga</option>
-                                <option value="BU East">BU East</option>
-                                <option value="BU Polangui">BU Polangui</option>
-                                <option value="BU Tabaco">BU Tabaco</option>
-                                <option value="BU Gubat">BU Gubat</option>
-                                <option value="BU Guinobatan">BU Guinobatan</option>
-                            </select>
-                        </div>
-
-                        <!-- Office / Location Dropdown (Dependent on Campus) -->
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                                Office / Location / Venue <span class="text-red-500">*</span>
-                            </label>
-                            
-                            <select x-model="selectedLocation"
-                                    :disabled="!selectedCampus"
-                                    class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] disabled:bg-gray-100 dark:disabled:bg-zinc-800/40 disabled:text-gray-400 disabled:cursor-not-allowed transition" 
-                                    required>
-                                <option value="" disabled selected x-text="selectedCampus ? 'Select venue in ' + selectedCampus : 'Please select a Campus first'"></option>
-                                <template x-for="loc in availableLocations" :key="loc">
-                                    <option :value="loc" x-text="loc"></option>
+                                <option value="" disabled selected>Select College / Campus Unit (e.g. (Cluster 1) BUCE)</option>
+                                <template x-for="unit in collegeUnits" :key="unit.college">
+                                    <option :value="unit.college" x-text="unit.label"></option>
                                 </template>
                             </select>
+                            <input type="hidden" name="campus" :value="selectedCluster">
+                        </div>
 
-                            <!-- Custom Location Input if 'Other' is selected -->
-                            <div x-show="selectedLocation && selectedLocation.includes('Other')" x-cloak class="mt-2.5">
-                                <input type="text" 
-                                       x-model="customLocation" 
-                                       placeholder="Specify specific venue, office, or room (e.g. Sports Complex, Room 204)" 
-                                       class="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0]"
-                                       :required="selectedLocation && selectedLocation.includes('Other')">
+                        <!-- Row 2: Office/Dept & Specific Room share a row (2 columns) -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Column 1: Office / Department / Lab Dropdown -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                                    Office / Department <span class="text-red-500">*</span>
+                                </label>
+                                <select x-model="selectedOffice"
+                                        :disabled="!selectedCollege"
+                                        class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] disabled:bg-gray-100 dark:disabled:bg-zinc-800/40 disabled:text-gray-400 disabled:cursor-not-allowed transition" 
+                                        required>
+                                    <option value="" disabled selected x-text="selectedCollege ? 'Select Office / Department' : 'Select College / Unit first'"></option>
+                                    <template x-for="office in availableOffices" :key="office">
+                                        <option :value="office" x-text="office"></option>
+                                    </template>
+                                </select>
+
+                                <!-- Custom Office Input if 'Other' is selected -->
+                                <div x-show="selectedOffice && selectedOffice.includes('Other')" x-cloak class="mt-2.5">
+                                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
+                                        Specify Office / Facility Name <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="text" 
+                                           x-model="customOffice" 
+                                           placeholder="Specify office, department, or unit name" 
+                                           class="w-full px-4 py-2.5 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0]"
+                                           :required="selectedOffice && selectedOffice.includes('Other')">
+                                </div>
                             </div>
 
-                            <!-- Hidden Input submitting the final location -->
-                            <input type="hidden" name="location" :value="finalLocation">
+                            <!-- Column 2: Specific Room / Exact Location Details -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                                    Location Needed to be Fixed <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" 
+                                       x-model="specificLocation" 
+                                       placeholder="e.g. Room 204, 2nd Floor, Left Wing / Chemistry Lab 1 / Faculty Office Cubicle 3" 
+                                       class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] transition" 
+                                       required>
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Please enter the specific room number, floor, or landmark where work will take place.</p>
+                            </div>
                         </div>
+
+                        <!-- Formatted Location Preview Pill -->
+                        <div x-show="finalLocation" x-cloak class="p-3 bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/80 rounded-xl text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2">
+                            <svg class="w-4 h-4 shrink-0 text-[#0033a0] dark:text-blue-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <div>
+                                <span class="font-bold uppercase tracking-wider text-[10px] text-blue-600 dark:text-blue-400 block mb-0.5">Recorded Location</span>
+                                <span class="font-medium" x-text="finalLocation"></span>
+                            </div>
+                        </div>
+
+                        <!-- Hidden Input submitting the final location -->
+                        <input type="hidden" name="location" :value="finalLocation">
                     </div>
 
                     <!-- Hidden Complexity & Urgency Defaults -->
