@@ -378,7 +378,7 @@
                           </p>
 
                           <form method="POST" action="{{ route('worker.task-progress.materials-arrived', $project->project_id) }}" 
-                                @submit="confirmingMaterials = true; setTimeout(() => { confirmingMaterials = false; }, 3000)"
+                                @submit="confirmingMaterials = true"
                                 class="flex items-center justify-end gap-3 pt-2">
                               @csrf
                               <button type="button" 
@@ -1091,11 +1091,6 @@
 
                         this.photoError = '';
                         this.saving = true;
-
-                        // Safety auto-reset in case of network freeze
-                        setTimeout(() => {
-                            this.saving = false;
-                        }, 4000);
 
                         const formEl = e.target;
                         const submittedStatus = this.currentStatusVal;

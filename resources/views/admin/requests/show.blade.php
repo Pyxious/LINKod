@@ -215,7 +215,7 @@
                     </p>
 
                     <form method="POST" action="{{ route('admin.requests.materials-arrived', $serviceRequest->request_id) }}" 
-                          @submit="confirmingMaterials = true; setTimeout(() => { confirmingMaterials = false; }, 3000)"
+                          @submit="confirmingMaterials = true"
                           class="flex items-center justify-end gap-3 pt-2">
                         @csrf
                         <button type="button" 
@@ -1924,7 +1924,7 @@
                     </p>
 
                     <form id="admin-approve-bom-form" action="{{ route('admin.requests.bom.approve-for-client', $serviceRequest->request_id) }}" method="POST"
-                          @submit="submittingClientApprove = true; setTimeout(() => { submittingClientApprove = false; }, 3000)"
+                          @submit="submittingClientApprove = true"
                           class="flex items-center justify-end gap-3 pt-2">
                         @csrf
                         <button type="button" 
@@ -1965,7 +1965,7 @@
                     </p>
 
                     <form id="admin-confirm-materials-form" action="{{ route('admin.requests.materials-arrived', $serviceRequest->request_id) }}" method="POST"
-                          @submit="submittingBomMaterials = true; setTimeout(() => { submittingBomMaterials = false; }, 3000)"
+                          @submit="submittingBomMaterials = true"
                           class="flex items-center justify-end gap-3 pt-2">
                         @csrf
                         <button type="button" 
@@ -2715,10 +2715,6 @@ function adminOverrideHandler(modalType) {
             }
             this.photoError = '';
             this.saving = true;
-            // 2.5 - 3 seconds safety auto-reset so buttons never get stuck
-            setTimeout(() => {
-                this.saving = false;
-            }, 3000);
         }
     };
 }
