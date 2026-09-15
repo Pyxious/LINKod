@@ -866,7 +866,13 @@ class RequestController extends Controller
 
             $project = $serviceRequest->project;
             $disk = config('filesystems.default', 'public');
+            if ($disk === 's3' && empty(config('filesystems.disks.s3.key'))) {
+                $disk = 'public';
+            }
             $proofPath = $request->file('proof')->store('proofs', $disk);
+            if (!$proofPath) {
+                return redirect()->back()->with('error', 'Failed to save proof photo to storage. Please try again.');
+            }
 
             $previousStatus = $project->current_status;
             $newStatus = 'In Progress';
@@ -936,7 +942,13 @@ class RequestController extends Controller
 
             $project = $serviceRequest->project;
             $disk = config('filesystems.default', 'public');
+            if ($disk === 's3' && empty(config('filesystems.disks.s3.key'))) {
+                $disk = 'public';
+            }
             $proofPath = $request->file('proof')->store('proofs', $disk);
+            if (!$proofPath) {
+                return redirect()->back()->with('error', 'Failed to save proof photo to storage. Please try again.');
+            }
 
             $completionType = $validated['completion_type'] ?? $request->input('completion_type', 'Full Repair');
             $natureOfWork = trim($validated['nature_of_work'] ?? $request->input('nature_of_work', ''));
@@ -1043,7 +1055,7 @@ class RequestController extends Controller
     public function approveBomForClient(int $id)
     {
         try {
-            $serviceRequest = ServiceRequest::with('project.billOfMaterials')->findOrFail($id);
+            $serviceRequest = ServiceRequest::with('project.billOfMaterials', 'project.workers.staff.user')->findOrFail($id);
 
             if (!$serviceRequest->project) {
                 return redirect()->back()->with('error', 'No active project found for this request.');
@@ -1055,40 +1067,52 @@ class RequestController extends Controller
                 'fulfilled_by'  => auth()->user()?->staff?->staff_id,
             ]);
 
-            $wasInProgress = in_array($serviceRequest->current_status, ['In Progress', 'Pending Verification'])
-                || ($serviceRequest->project && in_array($serviceRequest->project->current_status, ['In Progress', 'Pending Verification']));
-            
-            $targetStatus = $wasInProgress ? 'In Progress' : 'Approved';
+            $targetStatus = 'Awaiting Materials';
+            $remarks = 'Admin approved the List of Materials on behalf of the client. Awaiting materials procurement/delivery before work commences.';
 
             $serviceRequest->update([
-                'current_status' => $targetStatus,
                 'bom_status'     => 'approved',
+                'current_status' => $targetStatus,
+            ]);
+
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $serviceRequest->current_status,
+                'current_status'  => $targetStatus,
+                'remarks'         => $remarks,
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
             ]);
 
             if ($serviceRequest->project) {
                 $serviceRequest->project->update([
                     'current_status' => $targetStatus,
                 ]);
-            }
 
-            RequestHistory::create([
-                'request_id'      => $serviceRequest->request_id,
-                'previous_status' => $serviceRequest->current_status,
-                'current_status'  => $targetStatus,
-                'remarks'         => 'Admin approved the List of Materials on behalf of the client.',
-                'updated_at'      => now(),
-                'updated_by'      => auth()->id(),
-            ]);
-
-            if ($serviceRequest->project) {
                 \App\Models\ProjectHistory::create([
                     'project_id'      => $serviceRequest->project->project_id,
                     'previous_status' => $serviceRequest->project->current_status,
                     'current_status'  => $targetStatus,
-                    'remarks'         => 'Admin approved the List of Materials on behalf of the client.',
+                    'remarks'         => $remarks,
                     'updated_at'      => now(),
                     'updated_by'      => auth()->id(),
                 ]);
+
+                // Notify workers that materials are approved and awaiting procurement/arrival
+                $projectTitle = $serviceRequest->title ?? "Project #{$serviceRequest->project->project_id}";
+                $notificationService = new \App\Services\NotificationService();
+                foreach ($serviceRequest->project->workers as $pw) {
+                    $workerUserId = $pw->staff?->user_id ?? $pw->user?->user_id;
+                    if ($workerUserId) {
+                        $notificationService->send(
+                            $workerUserId,
+                            'bom_approved',
+                            'List of Materials Approved',
+                            "Materials for \"{$projectTitle}\" have been approved on client's behalf. Work will begin once materials arrive.",
+                            route('worker.job-orders.show', $serviceRequest->project->project_id, false)
+                        );
+                    }
+                }
             }
 
             \App\Models\UserLog::create([
@@ -1099,9 +1123,84 @@ class RequestController extends Controller
             ]);
 
             return redirect()->route('admin.requests.show', $id)
-                ->with('success', 'List of Materials approved on behalf of the client.');
+                ->with('success', 'List of Materials approved on behalf of the client. Status is now Awaiting Materials.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error approving List of Materials: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Admin confirms that materials have arrived and work can begin.
+     * Transitions status from "Awaiting Materials" → "In Progress".
+     */
+    public function confirmMaterialsArrived(int $id)
+    {
+        try {
+            $serviceRequest = ServiceRequest::with('project.workers.staff.user')->findOrFail($id);
+
+            if ($serviceRequest->current_status !== 'Awaiting Materials') {
+                return redirect()->back()->with('error', 'Materials can only be confirmed when the request is in "Awaiting Materials" status.');
+            }
+
+            $prevStatus = $serviceRequest->current_status;
+            $remarks = 'Admin confirmed that all required materials have arrived. Work is ready to commence.';
+
+            $serviceRequest->update([
+                'current_status' => 'In Progress',
+            ]);
+
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $prevStatus,
+                'current_status'  => 'In Progress',
+                'remarks'         => $remarks,
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            if ($serviceRequest->project) {
+                $serviceRequest->project->update([
+                    'current_status' => 'In Progress',
+                ]);
+
+                \App\Models\ProjectHistory::create([
+                    'project_id'      => $serviceRequest->project->project_id,
+                    'previous_status' => $prevStatus,
+                    'current_status'  => 'In Progress',
+                    'remarks'         => $remarks,
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
+
+                // Notify assigned workers that materials arrived and work can begin
+                $projectTitle = $serviceRequest->title ?? "Project #{$serviceRequest->project->project_id}";
+                $notificationService = new \App\Services\NotificationService();
+
+                foreach ($serviceRequest->project->workers as $pw) {
+                    $workerUserId = $pw->staff?->user_id ?? $pw->user?->user_id;
+                    if ($workerUserId) {
+                        $notificationService->send(
+                            $workerUserId,
+                            'materials_arrived',
+                            'Materials Have Arrived — Begin Work',
+                            "All required materials for \"{$projectTitle}\" have arrived. You may now proceed with the job.",
+                            route('worker.job-orders.show', $serviceRequest->project->project_id, false)
+                        );
+                    }
+                }
+            }
+
+            \App\Models\UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Admin confirmed materials arrived for request #{$serviceRequest->request_id}. Status set to In Progress.",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            return redirect()->route('admin.requests.show', $id)
+                ->with('success', 'Materials confirmed as arrived. The project is now In Progress.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error confirming materials: ' . $e->getMessage());
         }
     }
 

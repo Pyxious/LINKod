@@ -21,6 +21,7 @@ Route::middleware(['auth', '2fa', 'role:worker'])->prefix('worker')->name('worke
 
     Route::put('/job-orders/{id}/progress', [TaskProgressController::class, 'update'])->name('task-progress.update')->middleware('throttle:10,1');
     Route::post('/job-orders/{id}/sync-progress', [TaskProgressController::class, 'syncProgress'])->name('task-progress.sync');
+    Route::post('/job-orders/{id}/materials-arrived', [TaskProgressController::class, 'confirmMaterialsArrived'])->name('task-progress.materials-arrived')->middleware('throttle:10,1');
 
     Route::get('/units', [\App\Http\Controllers\Worker\UnitController::class, 'index'])->name('units.index');
     Route::get('/notifications', [\App\Http\Controllers\Worker\NotificationController::class, 'index'])->name('notifications.index');

@@ -160,7 +160,84 @@
         </div>
     @endif
 
-    <!-- Request Details Card -->
+    @if($serviceRequest->current_status === 'Awaiting Materials')
+        {{-- Awaiting Materials Alert Card (Brand Themed) --}}
+        <div class="bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-indigo-50/70 dark:from-blue-950/40 dark:via-zinc-900 dark:to-blue-950/30 border-2 border-blue-200 dark:border-blue-800/80 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+             x-data="{ showMaterialsModal: false, confirmingMaterials: false }">
+            <div class="flex items-start sm:items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-[#0033a0]/10 dark:bg-blue-400/10 border border-[#0033a0]/20 dark:border-blue-400/20 flex items-center justify-center text-[#0033a0] dark:text-blue-400 shrink-0 mt-0.5 sm:mt-0 shadow-2xs">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2.5 flex-wrap">
+                        <h3 class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">Awaiting Materials Delivery</h3>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-100 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+                            Pending Arrival
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-600 dark:text-gray-300 mt-1 leading-relaxed">
+                        The List of Materials has been approved. Once all materials have physically arrived, confirm below to begin the job order.
+                    </p>
+                </div>
+            </div>
+            <div class="shrink-0 w-full sm:w-auto">
+                <button type="button" 
+                        @click="showMaterialsModal = true" 
+                        class="w-full sm:w-auto px-6 py-2.5 bg-[#0033a0] hover:bg-[#002480] active:scale-[0.99] text-white rounded-xl text-xs font-extrabold transition-all shadow-md hover:shadow-lg inline-flex items-center justify-center gap-2 cursor-pointer">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span>Confirm Materials Arrived</span>
+                </button>
+            </div>
+
+            <!-- Custom Materials Arrival Confirmation Modal -->
+            <div x-show="showMaterialsModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+                 @keydown.escape.window="showMaterialsModal = false">
+                <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 text-left"
+                     @click.outside="showMaterialsModal = false">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center justify-center shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-base font-extrabold text-slate-900 dark:text-white">Confirm Materials Arrival</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Requisition #{{ str_pad($serviceRequest->request_id, 4, '0', STR_PAD_LEFT) }}</p>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-slate-600 dark:text-gray-300 leading-relaxed">
+                        Are you sure all approved materials have physically arrived on-site? Confirming will transition this requisition status to <span class="font-bold text-[#0033a0] dark:text-blue-400">In Progress</span> and enable workers to commence work.
+                    </p>
+
+                    <form method="POST" action="{{ route('admin.requests.materials-arrived', $serviceRequest->request_id) }}" 
+                          @submit="confirmingMaterials = true; setTimeout(() => { confirmingMaterials = false; }, 3000)"
+                          class="flex items-center justify-end gap-3 pt-2">
+                        @csrf
+                        <button type="button" 
+                                @click="showMaterialsModal = false" 
+                                class="px-4 py-2.5 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition cursor-pointer">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                :disabled="confirmingMaterials"
+                                data-no-auto-loading
+                                class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-extrabold rounded-xl shadow-md inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                            <svg x-show="confirmingMaterials" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span x-text="confirmingMaterials ? 'Confirming...' : 'Yes, Confirm Arrival'">Yes, Confirm Arrival</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Request Details Card --}}
+
     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm"
          x-data="{ lightboxOpen: false, lightboxImg: '', lightboxTitle: '' }">
         <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 mb-4">
@@ -1147,24 +1224,34 @@
                 </div>
 
                 <div class="flex items-center gap-2 flex-wrap">
-                    @if(in_array($serviceRequest->current_status, ['Approved', 'Pending', 'On Hold', 'Awaiting Materials', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)', 'Schedule Set', 'Schedule Confirmed']))
-                        @if($serviceRequest->isScheduleApproved())
+                    @php
+                        $overrideBeforeHistory = $serviceRequest->project?->histories?->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->where('proof_attachment', '!=', '0')->last();
+                        $overrideHasBeforePhoto = !empty($overrideBeforeHistory?->proof_attachment) && $overrideBeforeHistory->proof_attachment !== '0';
+                        $isMaterialsBlocking = in_array($serviceRequest->current_status, [
+                            'Awaiting Verification of Bill of Materials',
+                            'BOM Verified (Awaiting Client Approval)',
+                            'Awaiting Materials'
+                        ]);
+                    @endphp
+
+                    @if((!$isMaterialsBlocking && in_array($serviceRequest->current_status, ['Approved', 'Pending', 'On Hold', 'Schedule Set', 'Schedule Confirmed'])) || ($serviceRequest->current_status === 'In Progress' && !$overrideHasBeforePhoto))
+                        @if($serviceRequest->isScheduleApproved() || $serviceRequest->current_status === 'In Progress')
                             <button type="button" @click="showStartModal = true" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                Start Task (Before Photo)
+                                <span>Start Task (Before Photo)</span>
                             </button>
                         @else
                             <button type="button" disabled class="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-xl cursor-not-allowed inline-flex items-center gap-1.5 opacity-80" title="Client must approve the scheduled date before starting task">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                Start Task (Before Photo)
+                                <span>Start Task (Before Photo)</span>
                             </button>
                         @endif
                     @endif
 
-                    @if(in_array($serviceRequest->current_status, ['In Progress', 'Pending Verification']))
+                    @if(in_array($serviceRequest->current_status, ['In Progress', 'Pending Verification']) && $overrideHasBeforePhoto)
                         <button type="button" @click="showCompleteModal = true" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            Complete Task (After Photo &amp; Close)
+                            <span>Complete Task (After Photo &amp; Close)</span>
                         </button>
                     @endif
                 </div>
@@ -1185,6 +1272,14 @@
 
                     <form action="{{ route('admin.requests.start-override', $serviceRequest->request_id) }}" method="POST" enctype="multipart/form-data" class="space-y-4" @submit="validateAndSubmit($event)">
                         @csrf
+
+                        <!-- Inline Photo Error Notice -->
+                        <div x-show="photoError" x-cloak class="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded-xl text-rose-800 dark:text-rose-200 text-xs font-semibold flex items-center gap-2.5 shadow-xs">
+                            <div class="w-5 h-5 rounded-lg bg-rose-500 text-white flex items-center justify-center shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <span x-text="photoError"></span>
+                        </div>
 
                         <!-- Proof Photo Upload & Camera Trigger -->
                         <div>
@@ -1257,7 +1352,7 @@
 
                         <div class="flex justify-end gap-2 pt-2">
                             <button type="button" @click="closeModal()" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl cursor-pointer">Cancel</button>
-                            <button type="submit" :disabled="saving" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                            <button type="submit" data-no-auto-loading :disabled="saving" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
                                 <svg x-show="saving" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                 <span x-text="saving ? 'Starting...' : 'Set In Progress'">Set In Progress</span>
                             </button>
@@ -1399,6 +1494,14 @@
                             </div>
                         </div>
 
+                        <!-- Inline Photo Error Notice -->
+                        <div x-show="photoError" x-cloak class="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded-xl text-rose-800 dark:text-rose-200 text-xs font-semibold flex items-center gap-2.5 shadow-xs">
+                            <div class="w-5 h-5 rounded-lg bg-rose-500 text-white flex items-center justify-center shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <span x-text="photoError"></span>
+                        </div>
+
                         <!-- Proof Photo Upload & Camera Trigger -->
                         <div class="pt-3 border-t border-gray-100 dark:border-zinc-800">
                             <div class="flex items-center justify-between mb-2">
@@ -1462,7 +1565,7 @@
 
                         <div class="flex justify-end gap-2 pt-2">
                             <button type="button" @click="closeModal()" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl cursor-pointer">Cancel</button>
-                            <button type="submit" :disabled="saving" class="px-5 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                            <button type="submit" data-no-auto-loading :disabled="saving" class="px-5 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
                                 <svg x-show="saving" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                 <span x-text="saving ? 'Completing...' : 'Complete & Close Requisition'">Complete &amp; Close Requisition</span>
                             </button>
@@ -1560,6 +1663,10 @@
                  ])) }},
                  showAddMaterial: false,
                  submittingBOM: false,
+                 showClientApproveModal: false,
+                 showBomMaterialsModal: false,
+                 submittingClientApprove: false,
+                 submittingBomMaterials: false,
                  catalog: {{ Js::from(($allMaterials ?? collect())->map(fn($m) => ['id' => $m->material_id, 'name' => $m->material_name, 'unit' => $m->unit_of_measurement ?? 'pcs'])) }},
                  addRows: [
                      { id: 1, material_id: '', custom_name: '', unit: 'pcs', qty: 1 }
@@ -1609,14 +1716,26 @@
                         <template x-if="items.length > 0 && hasPendingItems()">
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">
                                 <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                <span x-text="items.some(i => i.is_approved) ? 'Follow-Up Pending Approval' : 'Pending Approval'">Pending Approval</span>
+                                <span>Pending Admin Verification</span>
                             </span>
                         </template>
                         <template x-if="items.length > 0 && !hasPendingItems()">
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
-                                <svg class="w-3 h-3 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                                Approved
-                            </span>
+                            @if(in_array($serviceRequest->current_status, ['BOM Verified (Awaiting Client Approval)', 'List of Materials Verified (Awaiting Client Approval)']) || $serviceRequest->bom_status === 'awaiting_client')
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 uppercase">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                                    <span>Verified (Awaiting Client)</span>
+                                </span>
+                            @elseif($serviceRequest->current_status === 'Awaiting Materials')
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 uppercase">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                    <span>Approved (Awaiting Delivery)</span>
+                                </span>
+                            @else
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
+                                    <svg class="w-3 h-3 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    <span>Approved</span>
+                                </span>
+                            @endif
                         </template>
                     </div>
                     <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">
@@ -1741,35 +1860,129 @@
 
                     <div class="flex items-center gap-2.5 flex-wrap">
                         @if($isBomEditable)
-                            <button type="submit" 
-                                    :disabled="submittingBOM" 
-                                    class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-2 cursor-pointer">
-                                <span x-text="submittingBOM ? 'Updating...' : 'Update Quantities'">Update Quantities</span>
-                            </button>
-
                             <template x-if="hasPendingItems()">
-                                <button type="button" 
-                                        onclick="document.getElementById('admin-approve-bom-form').submit()" 
-                                        class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center gap-1.5 cursor-pointer">
+                                <button type="submit" 
+                                        :disabled="submittingBOM" 
+                                        class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                    <span x-text="items.some(i => i.is_approved) ? 'Approve Follow-Up Materials' : 'Approve List of Materials (on Client\'s Behalf)'">Approve List of Materials (on Client's Behalf)</span>
+                                    <span x-text="submittingBOM ? 'Verifying...' : 'Verify & Forward to Client'">Verify & Forward to Client</span>
                                 </button>
                             </template>
+
                             <template x-if="!hasPendingItems()">
-                                <span class="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold inline-flex items-center gap-1.5">
-                                    <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                                    <span>List of Materials Approved</span>
-                                </span>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <button type="submit" 
+                                            :disabled="submittingBOM" 
+                                            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-gray-200 rounded-xl text-xs font-bold transition inline-flex items-center gap-1.5 cursor-pointer">
+                                        <span x-text="submittingBOM ? 'Updating...' : 'Update Quantities'">Update Quantities</span>
+                                    </button>
+
+                                    @if(in_array($serviceRequest->current_status, ['BOM Verified (Awaiting Client Approval)', 'List of Materials Verified (Awaiting Client Approval)']) || $serviceRequest->bom_status === 'awaiting_client')
+                                        <button type="button" 
+                                                @click="showClientApproveModal = true" 
+                                                class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center gap-1.5 cursor-pointer">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                            <span>Approve on Client's Behalf</span>
+                                        </button>
+                                    @elseif($serviceRequest->current_status === 'Awaiting Materials')
+                                        <button type="button"
+                                                @click="showBomMaterialsModal = true"
+                                                class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center gap-1.5 cursor-pointer">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            <span>Confirm Materials Arrived</span>
+                                        </button>
+                                    @else
+                                        <span class="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold inline-flex items-center gap-1.5">
+                                            <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                            <span>List of Materials Approved</span>
+                                        </span>
+                                    @endif
+                                </div>
                             </template>
                         @endif
                     </div>
                 </div>
             </form>
 
-            <!-- Hidden Admin Approve on Client's Behalf Form -->
-            <form id="admin-approve-bom-form" action="{{ route('admin.requests.bom.approve-for-client', $serviceRequest->request_id) }}" method="POST" class="hidden">
-                @csrf
-            </form>
+            <!-- Custom Modal: Approve on Client's Behalf -->
+            <div x-show="showClientApproveModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+                 @keydown.escape.window="showClientApproveModal = false">
+                <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 text-left"
+                     @click.outside="showClientApproveModal = false">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <h4 class="text-base font-extrabold text-slate-900 dark:text-white">Approve List of Materials</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Authorizing on Client's Behalf</p>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-slate-600 dark:text-gray-300 leading-relaxed">
+                        Are you sure you want to approve this List of Materials on behalf of the client? The requisition status will update to <span class="font-bold text-amber-600 dark:text-amber-400">Awaiting Materials</span> until supplies physically arrive.
+                    </p>
+
+                    <form id="admin-approve-bom-form" action="{{ route('admin.requests.bom.approve-for-client', $serviceRequest->request_id) }}" method="POST"
+                          @submit="submittingClientApprove = true; setTimeout(() => { submittingClientApprove = false; }, 3000)"
+                          class="flex items-center justify-end gap-3 pt-2">
+                        @csrf
+                        <button type="button" 
+                                @click="showClientApproveModal = false" 
+                                class="px-4 py-2.5 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition cursor-pointer">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                :disabled="submittingClientApprove"
+                                data-no-auto-loading
+                                class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-md inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                            <svg x-show="submittingClientApprove" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span x-text="submittingClientApprove ? 'Approving...' : 'Confirm Approval'">Confirm Approval</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Custom Modal: Confirm Materials Arrived -->
+            <div x-show="showBomMaterialsModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+                 @keydown.escape.window="showBomMaterialsModal = false">
+                <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 text-left"
+                     @click.outside="showBomMaterialsModal = false">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center justify-center shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-base font-extrabold text-slate-900 dark:text-white">Confirm Materials Arrival</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Requisition #{{ str_pad($serviceRequest->request_id, 4, '0', STR_PAD_LEFT) }}</p>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-slate-600 dark:text-gray-300 leading-relaxed">
+                        Are you sure all approved materials have physically arrived on site? Confirming will transition this requisition status to <span class="font-bold text-[#0033a0] dark:text-blue-400">In Progress</span>.
+                    </p>
+
+                    <form id="admin-confirm-materials-form" action="{{ route('admin.requests.materials-arrived', $serviceRequest->request_id) }}" method="POST"
+                          @submit="submittingBomMaterials = true; setTimeout(() => { submittingBomMaterials = false; }, 3000)"
+                          class="flex items-center justify-end gap-3 pt-2">
+                        @csrf
+                        <button type="button" 
+                                @click="showBomMaterialsModal = false" 
+                                class="px-4 py-2.5 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition cursor-pointer">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                :disabled="submittingBomMaterials"
+                                data-no-auto-loading
+                                class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-extrabold rounded-xl shadow-md inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                            <svg x-show="submittingBomMaterials" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span x-text="submittingBomMaterials ? 'Confirming...' : 'Yes, Confirm Arrival'">Yes, Confirm Arrival</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
 
             @if($isBomEditable)
                 <!-- Inline Form: Add Materials (Toggled) -->
@@ -1889,7 +2102,7 @@
                                     @click="addMaterialRow()" 
                                     class="w-full sm:w-auto px-4 py-2 border-2 border-dashed border-[#0033a0] dark:border-blue-500 text-[#0033a0] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl text-xs font-bold transition inline-flex items-center justify-center gap-1.5 cursor-pointer">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                <span>+ Add Another Material Item</span>
+                                <span>Add Another Material</span>
                             </button>
 
                             <button type="submit" class="w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer">
@@ -1915,8 +2128,8 @@
 
     @if($serviceRequest->project && $serviceRequest->project->current_status === 'Pending Verification')
         @php
-            $beforeHistory = $serviceRequest->project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->last();
-            $afterHistory = $serviceRequest->project->histories->whereIn('current_status', ['Pending Verification', 'Completed'])->whereNotNull('proof_attachment')->last();
+            $beforeHistory = $serviceRequest->project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->where('proof_attachment', '!=', '0')->last();
+            $afterHistory = $serviceRequest->project->histories->whereIn('current_status', ['Pending Verification', 'Completed'])->whereNotNull('proof_attachment')->where('proof_attachment', '!=', '0')->last();
         @endphp
         <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border-2 border-blue-400 dark:border-blue-700 p-7 shadow-sm"
              x-data="{ lightboxOpen: false, lightboxImg: '', lightboxTitle: '' }">
@@ -2295,6 +2508,7 @@ function adminOverrideHandler(modalType) {
         natureOfWork: '',
         recommendation: '',
         saving: false,
+        photoError: '',
         proofFile: '',
         proofSize: '',
         proofPreviewUrl: '',
@@ -2306,6 +2520,7 @@ function adminOverrideHandler(modalType) {
 
         handleFile(file) {
             if (!file) return;
+            this.photoError = '';
             this.proofFile = file.name;
             this.proofSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
             this.capturedFile = file;
@@ -2460,6 +2675,7 @@ function adminOverrideHandler(modalType) {
         },
 
         clearProof() {
+            this.photoError = '';
             this.proofFile = '';
             this.proofSize = '';
             this.proofPreviewUrl = '';
@@ -2474,6 +2690,8 @@ function adminOverrideHandler(modalType) {
 
         closeModal() {
             this.closeCamera();
+            this.photoError = '';
+            this.saving = false;
             if (this.modalType === 'start') {
                 this.$dispatch('close-start-modal');
             } else {
@@ -2485,11 +2703,22 @@ function adminOverrideHandler(modalType) {
             const fileInput = this.$refs.fileInput;
             const file = (fileInput && fileInput.files && fileInput.files[0]) || this.capturedFile;
             if (!file) {
-                e.preventDefault();
-                alert(this.modalType === 'start' ? 'A Before-Work photo is required to start this task.' : 'An After-Work / accomplishment photo is required to complete this task.');
-                return;
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                this.photoError = this.modalType === 'start' 
+                    ? 'A Before-Work photo is required before starting this task.' 
+                    : 'A Proof of Completion photo is required before closing this task.';
+                this.saving = false;
+                return false;
             }
+            this.photoError = '';
             this.saving = true;
+            // 2.5 - 3 seconds safety auto-reset so buttons never get stuck
+            setTimeout(() => {
+                this.saving = false;
+            }, 3000);
         }
     };
 }

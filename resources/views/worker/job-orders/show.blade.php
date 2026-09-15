@@ -288,26 +288,23 @@
 
 
         @php
-            $beforeHistory = $project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->last();
-            $afterHistory = $project->histories->whereIn('current_status', ['Pending Verification', 'Completed'])->whereNotNull('proof_attachment')->last();
-            $hasProofPhotos = ($beforeHistory && $beforeHistory->proof_attachment) || ($afterHistory && $afterHistory->proof_attachment);
-            $hasBeforePhoto = !empty($beforeHistory?->proof_attachment);
-            $hasAfterPhoto  = !empty($afterHistory?->proof_attachment);
-            $isWorkingInProgress = ($project->current_status === 'In Progress') || $hasBeforePhoto;
-            $defaultNextStatus   = $isWorkingInProgress ? 'Completed' : 'In Progress';
+            $beforeHistory = $project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->where('proof_attachment', '!=', '0')->last();
+            $afterHistory = $project->histories->whereIn('current_status', ['Pending Verification', 'Completed'])->whereNotNull('proof_attachment')->where('proof_attachment', '!=', '0')->last();
+            $hasProofPhotos = ($beforeHistory && $beforeHistory->proof_attachment && $beforeHistory->proof_attachment !== '0') || ($afterHistory && $afterHistory->proof_attachment && $afterHistory->proof_attachment !== '0');
+            $hasBeforePhoto = !empty($beforeHistory?->proof_attachment) && $beforeHistory->proof_attachment !== '0';
+            $hasAfterPhoto  = !empty($afterHistory?->proof_attachment) && $afterHistory->proof_attachment !== '0';
+            $defaultNextStatus = $hasBeforePhoto ? 'Completed' : 'In Progress';
+            $isBomActive = in_array($project->current_status, [
+                'On Hold',
+                'Awaiting Verification of Bill of Materials',
+                'BOM Verified (Awaiting Client Approval)',
+                'Awaiting Materials'
+            ]);
         @endphp
-
-
 
         @if(!in_array($project->current_status, ['Completed', 'Pending Verification']))
 
         <!-- 2nd Box: Update Task Progress & Attach Proofs -->
-        @php
-            $hasBeforePhoto = !empty($beforeHistory?->proof_attachment);
-            $hasAfterPhoto  = !empty($afterHistory?->proof_attachment);
-            $isWorkingInProgress = ($project->current_status === 'In Progress') || $hasBeforePhoto;
-            $defaultNextStatus   = $isWorkingInProgress ? 'Completed' : 'In Progress';
-        @endphp
         <div class="bg-white dark:bg-[#1c1c1e] border-2 border-[#1a3c8f]/30 dark:border-blue-700/60 rounded-2xl shadow-sm p-5 sm:p-7"
              x-data="workerTaskProgress({{ $project->project_id }}, '{{ $defaultNextStatus }}', {{ json_encode($project->request->title ?? 'Project #' . $project->project_id) }}, '{{ route('worker.task-progress.sync', $project->project_id) }}')">
 
@@ -319,13 +316,9 @@
                   <span class="text-xs font-bold px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap shrink-0 leading-none">
                       Action Required
                   </span>
-              </div>
+             </div>
 
-              @php
-                  $hasPendingBom = $project->billOfMaterials->where('date_approved', null)->isNotEmpty();
-              @endphp
-
-              @if(in_array($project->current_status, ['On Hold', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)']) && $hasPendingBom)
+              @if(in_array($project->current_status, ['On Hold', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)']))
               {{-- BOM still awaiting admin/client approval — don't let worker update yet --}}
               <div class="p-4 bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700 rounded-2xl mb-5 text-slate-800 dark:text-amber-100 text-xs sm:text-sm font-semibold flex items-start gap-3 shadow-xs">
                   <div class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
@@ -333,13 +326,82 @@
                   </div>
                   <div>
                       <p class="font-bold text-amber-800 dark:text-amber-200 mb-0.5">Awaiting Material Approval</p>
-                      <p class="text-amber-700 dark:text-amber-300 font-medium text-xs leading-relaxed">Your List of Materials request is pending review/client confirmation. You can proceed to update task progress once the materials are approved.</p>
+                      <p class="text-amber-700 dark:text-amber-300 font-medium text-xs leading-relaxed">Your List of Materials request is pending review/client confirmation. You can proceed to update task progress once the materials are approved and delivered.</p>
                   </div>
               </div>
               @endif
 
-              @if(!(in_array($project->current_status, ['On Hold', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)']) && $hasPendingBom))
-              {{-- Only show update form if not blocked by pending BOM --}}
+              @if($project->current_status === 'Awaiting Materials')
+              {{-- Materials have been approved — waiting for physical delivery (Brand Themed) --}}
+              <div class="p-5 sm:p-6 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-indigo-50/70 dark:from-blue-950/40 dark:via-zinc-900 dark:to-blue-950/30 border-2 border-blue-200 dark:border-blue-800/80 rounded-2xl mb-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                   x-data="{ showWorkerMaterialsModal: false, confirmingMaterials: false }">
+                  <div class="flex items-start sm:items-center gap-4">
+                      <div class="w-12 h-12 rounded-xl bg-[#0038A8]/10 dark:bg-blue-400/10 border border-[#0038A8]/20 dark:border-blue-400/20 flex items-center justify-center text-[#0038A8] dark:text-blue-400 shrink-0 mt-0.5 sm:mt-0 shadow-2xs">
+                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                      </div>
+                      <div>
+                          <div class="flex items-center gap-2.5 flex-wrap">
+                              <p class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">Awaiting Materials Delivery</p>
+                              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-100 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+                                  Pending Arrival
+                              </span>
+                          </div>
+                          <p class="text-slate-600 dark:text-gray-300 font-medium text-xs leading-relaxed mt-1">The List of Materials has been approved. Once all materials have physically arrived on site, confirm below to begin the job order.</p>
+                      </div>
+                  </div>
+                  <div class="shrink-0 w-full sm:w-auto">
+                      <button type="button" 
+                              @click="showWorkerMaterialsModal = true" 
+                              class="w-full sm:w-auto px-6 py-2.5 bg-[#0038A8] hover:bg-[#002480] active:scale-[0.99] text-white rounded-xl text-xs font-extrabold transition-all shadow-md hover:shadow-lg inline-flex items-center justify-center gap-2 cursor-pointer">
+                          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                          <span>Confirm Materials Arrived</span>
+                      </button>
+                  </div>
+
+                  <!-- Custom Worker Materials Arrival Modal -->
+                  <div x-show="showWorkerMaterialsModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+                       @keydown.escape.window="showWorkerMaterialsModal = false">
+                      <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 text-left"
+                           @click.outside="showWorkerMaterialsModal = false">
+                          <div class="flex items-center gap-3.5">
+                              <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center justify-center shrink-0">
+                                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                              </div>
+                              <div>
+                                  <h4 class="text-base font-extrabold text-slate-900 dark:text-white">Confirm Materials Arrival</h4>
+                                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Job Order #{{ $project->project_id }}</p>
+                              </div>
+                          </div>
+
+                          <p class="text-xs text-slate-600 dark:text-gray-300 leading-relaxed">
+                              Have all requested materials arrived at the site? Confirming will update the job order status to <span class="font-bold text-[#0038A8] dark:text-blue-400">In Progress</span> and let you proceed with work.
+                          </p>
+
+                          <form method="POST" action="{{ route('worker.task-progress.materials-arrived', $project->project_id) }}" 
+                                @submit="confirmingMaterials = true; setTimeout(() => { confirmingMaterials = false; }, 3000)"
+                                class="flex items-center justify-end gap-3 pt-2">
+                              @csrf
+                              <button type="button" 
+                                      @click="showWorkerMaterialsModal = false" 
+                                      class="px-4 py-2.5 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition cursor-pointer">
+                                  Cancel
+                              </button>
+                              <button type="submit" 
+                                      :disabled="confirmingMaterials"
+                                      data-no-auto-loading
+                                      class="px-5 py-2.5 bg-[#0038A8] hover:bg-[#002480] text-white text-xs font-extrabold rounded-xl shadow-md inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                                  <svg x-show="confirmingMaterials" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                  <span x-text="confirmingMaterials ? 'Confirming...' : 'Yes, Materials Arrived'">Yes, Materials Arrived</span>
+                              </button>
+                          </form>
+                      </div>
+                  </div>
+              </div>
+              @endif
+
+              @if(!$isBomActive)
+              {{-- Only show update form if not blocked by pending BOM and materials have arrived --}}
+
 
               <!-- Offline Success Notice (Step 1) -->
               <div x-show="offlineSaved && !taskFinishedOffline" x-cloak class="p-4 bg-blue-50/80 dark:bg-blue-950/40 border-2 border-blue-200 dark:border-blue-800 rounded-2xl mb-5 text-slate-800 dark:text-blue-100 text-xs sm:text-sm font-semibold flex items-start sm:items-center gap-3 shadow-xs">
@@ -398,6 +460,14 @@
                             :class="currentStatusVal === 'In Progress' ? 'bg-blue-100 dark:bg-blue-900/60 text-[#0033a0] dark:text-blue-200' : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200'"
                             x-text="currentStatusVal === 'In Progress' ? 'In Progress' : 'To Complete'">
                       </span>
+                  </div>
+
+                  <!-- Inline Photo Error Notice -->
+                  <div x-show="photoError" x-cloak class="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded-xl text-rose-800 dark:text-rose-200 text-xs font-semibold flex items-center gap-2.5 shadow-xs">
+                      <div class="w-5 h-5 rounded-lg bg-rose-500 text-white flex items-center justify-center shrink-0">
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                      </div>
+                      <span x-text="photoError"></span>
                   </div>
 
                   <!-- Proof Photo Upload & Camera Card -->
@@ -489,6 +559,7 @@
                       @if($project->request?->isScheduleApproved())
                           <button type="submit" 
                                   :disabled="saving || taskFinishedOffline || !proofFile" 
+                                  data-no-auto-loading
                                   :class="[
                                       (saving || taskFinishedOffline || !proofFile) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer active:scale-[0.99]',
                                       currentStatusVal === 'In Progress' ? 'bg-[#0033a0] hover:bg-[#002480]' : 'bg-emerald-600 hover:bg-emerald-700'
@@ -791,6 +862,7 @@
                     currentStatusVal: defaultNextStatus || 'In Progress',
                     completionType: 'Full Repair',
                     saving: false,
+                    photoError: '',
                     proofFile: '',
                     proofSize: '',
                     proofPreviewUrl: '',
@@ -805,6 +877,7 @@
 
                     handleFile(file) {
                         if (!file) return;
+                        this.photoError = '';
                         this.proofFile = file.name;
                         this.proofSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
                         this.capturedFile = file;
@@ -982,6 +1055,7 @@
                     },
 
                     clearProof() {
+                        this.photoError = '';
                         this.proofFile = '';
                         this.proofSize = '';
                         this.proofPreviewUrl = '';
@@ -1008,11 +1082,21 @@
                         const file = (fileInput && fileInput.files && fileInput.files[0]) || this.capturedFile;
 
                         if (!file) {
-                            alert(this.currentStatusVal === 'In Progress' ? 'A Before-Work photo is required before setting task to In Progress.' : 'An After-Work / proof of completion photo is required.');
+                            this.photoError = this.currentStatusVal === 'In Progress' 
+                                ? 'A Before-Work photo is required before setting task to In Progress.' 
+                                : 'An After-Work / proof of completion photo is required.';
+                            this.saving = false;
                             return;
                         }
 
+                        this.photoError = '';
                         this.saving = true;
+
+                        // Safety auto-reset in case of network freeze
+                        setTimeout(() => {
+                            this.saving = false;
+                        }, 4000);
+
                         const formEl = e.target;
                         const submittedStatus = this.currentStatusVal;
 
@@ -1134,8 +1218,8 @@
             }
         </script>
 
-        <!-- 3rd Box: Material Requisition (Optional - Hidden when In Progress or Completed) -->
-        @if(!$isWorkingInProgress && !in_array($project->current_status, ['In Progress', 'Pending Verification', 'Completed']))
+        <!-- 3rd Box: Material Requisition -->
+        @if(!in_array($project->current_status, ['Pending Verification', 'Completed']))
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">
 
             <h3 class="text-gray-900 dark:text-white font-bold text-lg mb-2 flex items-center gap-2">

@@ -60,15 +60,21 @@ class TaskProgressController extends Controller
             }
 
             $disk = config('filesystems.default', 'public');
+            if ($disk === 's3' && empty(config('filesystems.disks.s3.key'))) {
+                $disk = 'public';
+            }
             $proofPath = null;
             if ($request->hasFile('proof')) {
                 $proofPath = $request->file('proof')->store('proofs', $disk);
+                if (!$proofPath) {
+                    return redirect()->back()->with('error', 'Failed to save proof photo to storage. Please try again.');
+                }
             }
 
             $actualStatus = $validated['status'] === 'Completed' ? 'Pending Verification' : $validated['status'];
 
             // Guard against duplicate rapid clicks (unless worker is uploading a missing before-work photo for an In Progress task)
-            $hasExistingBeforePhoto = $project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->isNotEmpty();
+            $hasExistingBeforePhoto = $project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->where('proof_attachment', '!=', '0')->isNotEmpty();
             if ($previousStatus === $actualStatus && !($actualStatus === 'In Progress' && !$hasExistingBeforePhoto && $proofPath)) {
                 return redirect()->route('worker.job-orders.show', $projectId)
                     ->with('info', "Task status is already {$actualStatus}.");
@@ -201,9 +207,15 @@ class TaskProgressController extends Controller
             }
 
             $disk = config('filesystems.default', 'public');
+            if ($disk === 's3' && empty(config('filesystems.disks.s3.key'))) {
+                $disk = 'public';
+            }
             $proofPath = null;
             if ($request->hasFile('proof')) {
                 $proofPath = $request->file('proof')->store('proofs', $disk);
+                if (!$proofPath) {
+                    return response()->json(['success' => false, 'message' => 'Failed to store proof photo to storage.'], 500);
+                }
             }
 
             $actualStatus = $validated['status'] === 'Completed' ? 'Pending Verification' : $validated['status'];
@@ -311,5 +323,65 @@ class TaskProgressController extends Controller
                 'message' => 'Error syncing task status: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Worker confirms that materials have arrived and work can begin.
+     * Transitions status from "Awaiting Materials" → "In Progress".
+     */
+    public function confirmMaterialsArrived(int $projectId)
+    {
+        $worker  = auth()->user()->staff?->worker;
+        $project = Project::with('request')->findOrFail($projectId);
+
+        abort_unless(
+            $worker && $project->workers->contains('worker_id', $worker->worker_id),
+            403
+        );
+
+        if ($project->current_status !== 'Awaiting Materials') {
+            return redirect()->back()->with('error', 'Materials can only be confirmed when the project is in "Awaiting Materials" status.');
+        }
+
+        $prevStatus = $project->current_status;
+        $remarks = 'Worker confirmed that all required materials have arrived. Work is ready to commence.';
+
+        $project->update([
+            'current_status' => 'In Progress',
+        ]);
+
+        ProjectHistory::create([
+            'project_id'      => $project->project_id,
+            'previous_status' => $prevStatus,
+            'current_status'  => 'In Progress',
+            'remarks'         => $remarks,
+            'updated_at'      => now(),
+            'updated_by'      => auth()->id(),
+        ]);
+
+        if ($project->request) {
+            $project->request->update([
+                'current_status' => 'In Progress',
+            ]);
+
+            \App\Models\RequestHistory::create([
+                'request_id'      => $project->request->request_id,
+                'previous_status' => $prevStatus,
+                'current_status'  => 'In Progress',
+                'remarks'         => $remarks,
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+        }
+
+        \App\Models\UserLog::create([
+            'user_id'    => auth()->id(),
+            'action'     => "Worker confirmed materials arrived for project #{$project->project_id}. Status set to In Progress.",
+            'ip_address' => request()->ip(),
+            'created_at' => now(),
+        ]);
+
+        return redirect()->route('worker.job-orders.show', $projectId)
+            ->with('success', 'Materials confirmed as arrived. You may now begin work.');
     }
 }

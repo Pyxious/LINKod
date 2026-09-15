@@ -24,7 +24,7 @@ class DashboardController extends Controller
             $availablePct     = $totalWorkers > 0 ? round(($availableWorkers / $totalWorkers) * 100) : 0;
 
             // Task status breakdown from project_history
-            $statuses = ['Pending', 'On Hold', 'In Progress', 'Pending Verification', 'Completed', 'Cancelled'];
+            $statuses = ['Pending', 'Awaiting Materials', 'In Progress', 'Pending Verification', 'Completed', 'Cancelled'];
             $taskStatus = [];
             foreach ($statuses as $status) {
                 $taskStatus[$status] = Project::whereHas('latestHistory', fn($q) =>
@@ -44,11 +44,11 @@ class DashboardController extends Controller
 
             // Client request progress counts
             $requestProgress = [
-                'Submitted'   => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Submitted'))->count(),
-                'Approved'    => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Approved'))->count(),
-                'On Hold'     => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'On Hold'))->count(),
-                'In Progress' => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'In Progress'))->count(),
-                'Completed'   => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count(),
+                'Submitted'         => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Submitted'))->count(),
+                'Approved'          => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Approved'))->count(),
+                'Awaiting Materials' => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Awaiting Materials'))->count(),
+                'In Progress'       => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'In Progress'))->count(),
+                'Completed'         => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count(),
             ];
 
             return compact(

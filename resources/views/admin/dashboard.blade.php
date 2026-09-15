@@ -78,7 +78,7 @@
                 </div>
             </div>
             <div class="space-y-2 flex-1 text-xs">
-                @foreach(['Pending' => '#facc15', 'On Hold' => '#f97316', 'In Progress' => '#eab308', 'Pending Verification' => '#94a3b8', 'Completed' => '#4ade80', 'Cancelled' => '#f87171'] as $st => $c)
+                @foreach(['Pending' => '#facc15', 'Awaiting Materials' => '#f97316', 'In Progress' => '#eab308', 'Pending Verification' => '#94a3b8', 'Completed' => '#4ade80', 'Cancelled' => '#f87171'] as $st => $c)
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-2">
                             <span class="w-3 h-3 rounded-full shrink-0" style="background-color: {{ $c }};"></span>
@@ -102,7 +102,7 @@
         </div>
 
         <div class="grid grid-cols-5 gap-2 text-center my-6">
-            @foreach(['Submitted' => '#1e40af', 'Approved' => '#f87171', 'On Hold' => '#f97316', 'In Progress' => '#eab308', 'Completed' => '#4ade80'] as $st => $col)
+            @foreach(['Submitted' => '#1e40af', 'Approved' => '#f87171', 'Awaiting Materials' => '#f97316', 'In Progress' => '#eab308', 'Completed' => '#4ade80'] as $st => $col)
                 @php $cnt = $requestProgress[$st] ?? 0; @endphp
                 <div class="flex flex-col items-center">
                     <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold mb-2 shadow-xs" style="background-color: {{ $col }};">
@@ -299,11 +299,11 @@
 new Chart(document.getElementById('taskDonut'), {
     type: 'doughnut',
     data: {
-        labels: ['Pending', 'On Hold', 'In Progress', 'Pending Verification', 'Completed', 'Cancelled'],
+        labels: ['Pending', 'Awaiting Materials', 'In Progress', 'Pending Verification', 'Completed', 'Cancelled'],
         datasets: [{
             data: [
                 {{ $taskStatus['Pending'] ?? 0 }},
-                {{ $taskStatus['On Hold'] ?? 0 }},
+                {{ $taskStatus['Awaiting Materials'] ?? 0 }},
                 {{ $taskStatus['In Progress'] ?? 0 }},
                 {{ $taskStatus['Pending Verification'] ?? 0 }},
                 {{ $taskStatus['Completed'] ?? 0 }},
