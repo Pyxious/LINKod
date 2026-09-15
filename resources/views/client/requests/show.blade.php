@@ -30,6 +30,8 @@
                             bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800
                         @elseif($request->current_status === 'BOM Verified (Awaiting Client Approval)')
                             bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800
+                        @elseif($request->current_status === 'Awaiting Materials')
+                            bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800
                         @elseif(in_array($request->current_status, ['In Progress', 'Pending Verification']))
                             bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800
                         @elseif(in_array($request->current_status, ['Cancelled', 'Rejected']))
@@ -37,7 +39,7 @@
                         @else
                             bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800
                         @endif">
-                        {{ $request->current_status === 'Rejected' ? 'Disapproved' : ($request->current_status === 'Awaiting Verification of Bill of Materials' ? 'Awaiting Verification (List of Materials)' : ($request->current_status === 'BOM Verified (Awaiting Client Approval)' ? 'Materials Verified (Awaiting Client Approval)' : $request->current_status)) }}
+                        {{ $request->current_status === 'Rejected' ? 'Disapproved' : ($request->current_status === 'Awaiting Verification of Bill of Materials' ? 'Awaiting Verification (List of Materials)' : ($request->current_status === 'BOM Verified (Awaiting Client Approval)' ? 'Materials Verified (Awaiting Client Approval)' : ($request->current_status === 'Awaiting Materials' ? 'Awaiting Materials' : $request->current_status))) }}
                     </span>
                 </div>
 

@@ -1002,31 +1002,6 @@ function adminRequestForm(config = {}) {
         get availableConcerns() {
             if (!this.selectedCategoryName) return [];
             const catLower = this.selectedCategoryName.toLowerCase();
-            
-            if (catLower.includes('janitor') || catLower.includes('manpower')) {
-                return this.concernsMap['Janitorial and Manpower'];
-            }
-            if (catLower.includes('plumb')) {
-                return this.concernsMap['Plumbing'];
-            }
-            if (catLower.includes('paint')) {
-                return this.concernsMap['Painting'];
-            }
-            if (catLower.includes('landscape') || catLower.includes('grounds')) {
-                return this.concernsMap['Landscaping'];
-            }
-            if (catLower.includes('aircon') || catLower.includes('conditioning')) {
-                return this.concernsMap['Air Conditioning'];
-            }
-            if (catLower.includes('carpent') || catLower.includes('mason') || catLower.includes('electr')) {
-                return [
-                    ...this.concernsMap['Carpentry'],
-                    ...this.concernsMap['Electrical'],
-                    'Masonry / Concrete & Tile Repair',
-                    'Other General Repair Concern'
-                ];
-            }
-
             const matchKey = Object.keys(this.concernsMap).find(k => catLower.includes(k.toLowerCase()));
             return matchKey ? this.concernsMap[matchKey] : [
                 'General Repair & Maintenance Request',

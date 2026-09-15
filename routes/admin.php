@@ -35,6 +35,7 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
     Route::post('/requests/{id}/complete-override', [RequestController::class, 'completeTaskOverride'])->name('requests.complete-override')->middleware('throttle:10,1');
     Route::post('/requests/{id}/bom', [RequestController::class, 'storeBom'])->name('requests.bom.store')->middleware('throttle:15,1');
     Route::post('/requests/{id}/bom/approve-for-client', [RequestController::class, 'approveBomForClient'])->name('requests.bom.approve-for-client')->middleware('throttle:10,1');
+    Route::post('/requests/{id}/materials-arrived', [RequestController::class, 'confirmMaterialsArrived'])->name('requests.materials-arrived')->middleware('throttle:10,1');
     Route::post('/requests/{id}/physical-evaluation', [RequestController::class, 'storePhysicalEvaluation'])->name('requests.physical-evaluation')->middleware('throttle:10,1');
     Route::post('/requests/{id}/history/{historyId}/update-time', [RequestController::class, 'updateHistoryTime'])->name('requests.history.update-time')->middleware('throttle:30,1');
 

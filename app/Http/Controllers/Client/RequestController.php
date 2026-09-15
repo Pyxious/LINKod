@@ -574,13 +574,18 @@ class RequestController extends Controller
 
             $totalCost = $project->billOfMaterials->sum('total_cost');
 
-            $serviceRequest->update([
-                'bom_status' => 'approved',
-            ]);
-
             $previousStatus = $serviceRequest->current_status;
             $newStatus = 'Awaiting Materials';
             $remarks = 'Client approved the List of Materials. Awaiting materials procurement/delivery before work commences.';
+
+            $serviceRequest->update([
+                'bom_status'     => 'approved',
+                'current_status' => $newStatus,
+            ]);
+
+            $project->update([
+                'current_status' => $newStatus,
+            ]);
 
             \App\Models\ProjectHistory::create([
                 'project_id'      => $project->project_id,

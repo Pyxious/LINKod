@@ -147,14 +147,48 @@ class BomController extends Controller
                 'qty'           => $qty,
                 'total_cost'    => $qty * $unitCost,
                 'created_by'    => $staff?->staff_id,
-                'date_approved' => now()->toDateString(), // Admin added items are approved directly
-                'fulfilled_by'  => $staff?->staff_id,
+                'date_approved' => null, // Requires Admin verification before forwarding to client
+                'fulfilled_by'  => null,
             ]);
             $addedCount++;
         }
 
         if ($addedCount === 0) {
             return redirect()->back()->with('error', 'Please select or enter valid material(s).');
+        }
+
+        $prevProjectStatus = $project->current_status;
+        $newStatus = 'Awaiting Verification of Bill of Materials';
+
+        $project->update(['current_status' => $newStatus]);
+
+        ProjectHistory::create([
+            'project_id'      => $project->project_id,
+            'previous_status' => $prevProjectStatus,
+            'current_status'  => $newStatus,
+            'remarks'         => "Admin added {$addedCount} material item(s) to List of Materials. Awaiting verification.",
+            'updated_at'      => now(),
+            'updated_by'      => auth()->id(),
+        ]);
+
+        if ($project->request_id) {
+            $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
+            if ($serviceRequest) {
+                $prevReqStatus = $serviceRequest->current_status;
+                $serviceRequest->update([
+                    'current_status' => $newStatus,
+                    'bom_status'     => 'awaiting_admin',
+                ]);
+
+                RequestHistory::create([
+                    'request_id'      => $serviceRequest->request_id,
+                    'previous_status' => $prevReqStatus,
+                    'current_status'  => $newStatus,
+                    'remarks'         => "Admin added {$addedCount} material item(s) to List of Materials. Awaiting verification.",
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
+            }
         }
 
         UserLog::create([
@@ -165,10 +199,10 @@ class BomController extends Controller
         ]);
 
         if ($request->filled('redirect_to')) {
-            return redirect($request->input('redirect_to'))->with('success', "{$addedCount} material item(s) added to List of Materials.");
+            return redirect($request->input('redirect_to'))->with('success', "{$addedCount} material item(s) added to List of Materials. Please verify items to forward to client.");
         }
 
-        return redirect()->back()->with('success', "{$addedCount} material item(s) added to List of Materials.");
+        return redirect()->back()->with('success', "{$addedCount} material item(s) added to List of Materials. Please verify items to forward to client.");
     }
 
     public function approve(Request $request, int $projectId)
@@ -176,7 +210,7 @@ class BomController extends Controller
         $validated = $request->validate([
             'items'                       => 'required|array|min:1',
             'items.*.bom_id'              => 'required|exists:bill_of_materials,bom_id',
-            'items.*.unit_cost'           => 'required|numeric|min:0',
+            'items.*.unit_cost'           => 'nullable|numeric|min:0',
             'items.*.qty'                 => 'required|numeric|min:0.01',
             'items.*.unit_of_measurement' => 'nullable|string|max:50',
         ]);
@@ -195,10 +229,10 @@ class BomController extends Controller
 
             if ($bom) {
                 $qty = (float)$item['qty'];
-                $unitCost = (float)$item['unit_cost'];
+                $unitCost = (float)($item['unit_cost'] ?? 0);
                 $unit = trim($item['unit_of_measurement'] ?? '') ?: ($bom->material?->unit_of_measurement ?? 'pcs');
 
-                if ($bom->material) {
+                if ($bom->material && $unitCost > 0) {
                     $bom->material->update([
                         'unit_cost' => $unitCost,
                         'unit_of_measurement' => $unit,
@@ -214,15 +248,15 @@ class BomController extends Controller
             }
         }
 
-        $wasInProgress = in_array($project->current_status, ['In Progress', 'Pending Verification']);
-        $newStatus = $wasInProgress ? $project->current_status : 'BOM Verified (Awaiting Client Approval)';
-        $remarks = $wasInProgress
-            ? 'GSO Admin verified and updated List of Materials.'
-            : 'GSO Admin verified the List of Materials. Awaiting final approval from client.';
+        $prevStatus = $project->current_status;
+        $newStatus = 'BOM Verified (Awaiting Client Approval)';
+        $remarks = 'GSO Admin verified the List of Materials. Awaiting final approval from client.';
+
+        $project->update(['current_status' => $newStatus]);
 
         ProjectHistory::create([
             'project_id'      => $project->project_id,
-            'previous_status' => $project->current_status,
+            'previous_status' => $prevStatus,
             'current_status'  => $newStatus,
             'remarks'         => $remarks,
             'updated_at'      => now(),
@@ -232,11 +266,15 @@ class BomController extends Controller
         if ($project->request_id) {
             $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
             if ($serviceRequest) {
-                $serviceRequest->update(['bom_status' => $wasInProgress ? 'approved' : 'awaiting_client']);
+                $prevReqStatus = $serviceRequest->current_status;
+                $serviceRequest->update([
+                    'current_status' => $newStatus,
+                    'bom_status'     => 'awaiting_client',
+                ]);
 
                 RequestHistory::create([
                     'request_id'      => $serviceRequest->request_id,
-                    'previous_status' => $serviceRequest->current_status,
+                    'previous_status' => $prevReqStatus,
                     'current_status'  => $newStatus,
                     'remarks'         => $remarks,
                     'updated_at'      => now(),
@@ -245,45 +283,45 @@ class BomController extends Controller
             }
         }
 
-            UserLog::create([
-                'user_id'    => auth()->id(),
-                'action'     => "Admin verified List of Materials for project #{$project->project_id}",
-                'ip_address' => request()->ip(),
-                'created_at' => now(),
-            ]);
+        UserLog::create([
+            'user_id'    => auth()->id(),
+            'action'     => "Admin verified List of Materials for project #{$project->project_id}",
+            'ip_address' => request()->ip(),
+            'created_at' => now(),
+        ]);
 
-            $projectTitle = $project->request?->title ?? "Project #{$project->project_id}";
+        $projectTitle = $project->request?->title ?? "Project #{$project->project_id}";
 
-            // Notify client that List of Materials is verified and awaits client confirmation
-            if ($project->client?->user_id) {
-                $this->notifications->bomVerifiedAwaitingClient(
-                    $project->client->user_id,
-                    $projectTitle,
-                    $project->request_id ?? $project->project_id
-                );
-            }
+        // Notify client that List of Materials is verified and awaits client confirmation
+        if ($project->client?->user_id) {
+            $this->notifications->bomVerifiedAwaitingClient(
+                $project->client->user_id,
+                $projectTitle,
+                $project->request_id ?? $project->project_id
+            );
+        }
 
-            // Notify assigned workers that List of Materials has been verified by admin
-            if ($project->workers) {
-                foreach ($project->workers as $pw) {
-                    $workerUserId = $pw->staff?->user_id ?? $pw->user?->user_id;
-                    if ($workerUserId) {
-                        $this->notifications->send(
-                            $workerUserId,
-                            'bom_verified',
-                            'List of Materials Verified by Admin',
-                            "The requested materials for \"{$projectTitle}\" have been verified. Awaiting client approval.",
-                            route('worker.job-orders.show', $project->project_id, false)
-                        );
-                    }
+        // Notify assigned workers that List of Materials has been verified by admin
+        if ($project->workers) {
+            foreach ($project->workers as $pw) {
+                $workerUserId = $pw->staff?->user_id ?? $pw->user?->user_id;
+                if ($workerUserId) {
+                    $this->notifications->send(
+                        $workerUserId,
+                        'bom_verified',
+                        'List of Materials Verified by Admin',
+                        "The requested materials for \"{$projectTitle}\" have been verified. Awaiting client approval.",
+                        route('worker.job-orders.show', $project->project_id, false)
+                    );
                 }
             }
+        }
 
-            if ($request->filled('redirect_to')) {
-                return redirect($request->input('redirect_to'))->with('success', 'List of Materials updated successfully. Forwarded to client for approval.');
-            }
+        if ($request->filled('redirect_to')) {
+            return redirect($request->input('redirect_to'))->with('success', 'List of Materials verified successfully. Forwarded to client for approval.');
+        }
 
-            return redirect()->back()->with('success', 'List of Materials updated successfully. Forwarded to client for approval.');
+        return redirect()->back()->with('success', 'List of Materials verified successfully. Forwarded to client for approval.');
     }
 
     public function destroyItem(int $projectId, int $bomId)

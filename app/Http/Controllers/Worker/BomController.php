@@ -86,8 +86,7 @@ class BomController extends Controller
 
         if ($addedItems > 0) {
             $prevProjectStatus = $project->current_status;
-            $wasInProgress = in_array($prevProjectStatus, ['In Progress', 'Pending Verification']);
-            $newStatus = $wasInProgress ? $prevProjectStatus : 'Awaiting Verification of Bill of Materials';
+            $newStatus = 'Awaiting Verification of Bill of Materials';
 
             $project->update(['current_status' => $newStatus]);
 
@@ -104,16 +103,15 @@ class BomController extends Controller
                 $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
                 if ($serviceRequest) {
                     $prevReqStatus = $serviceRequest->current_status;
-                    $newReqStatus = $wasInProgress ? $prevReqStatus : 'Awaiting Verification of Bill of Materials';
                     $serviceRequest->update([
-                        'current_status' => $newReqStatus,
+                        'current_status' => $newStatus,
                         'bom_status'     => 'awaiting_admin',
                     ]);
 
                     \App\Models\RequestHistory::create([
                         'request_id'      => $serviceRequest->request_id,
                         'previous_status' => $prevReqStatus,
-                        'current_status'  => $newReqStatus,
+                        'current_status'  => $newStatus,
                         'remarks'         => 'Team Leader prepared and submitted List of Materials for GSO Admin verification.',
                         'updated_at'      => now(),
                         'updated_by'      => auth()->id(),
