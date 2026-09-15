@@ -140,13 +140,22 @@
                     : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
 
                 $s = $r->current_status;
-                $sClass = match($s) {
-                    'Pending', 'Approved', 'Submitted'=>'bg-orange-50 text-orange-600 border-orange-300',
-                    'On Hold', 'Awaiting Materials', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)'=>'bg-amber-50 text-amber-700 border-amber-300',
-                    'In Progress', 'Pending Verification'=>'bg-blue-50 text-blue-700 border-blue-300',
-                    'Completed'=>'bg-emerald-50 text-emerald-700 border-emerald-300',
-                    'Rejected', 'Cancelled'=>'bg-red-50 text-red-600 border-red-300',
-                    default=>'bg-gray-50 text-gray-600 border-gray-300'
+                $isAwaitingBom = $s === 'Awaiting Verification of Bill of Materials' 
+                    || $s === 'Awaiting Verification of List of Materials' 
+                    || ($r->bom_status === 'awaiting_admin' && !in_array($s, ['In Progress', 'Completed', 'Cancelled', 'Rejected']));
+                $sDisplay = match(true) {
+                    $isAwaitingBom => 'Awaiting Verification',
+                    $s === 'BOM Verified (Awaiting Client Approval)' || $s === 'List of Materials Verified (Awaiting Client Approval)' => 'Materials Verified',
+                    default => str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $s)
+                };
+                $sClass = match(true) {
+                    $isAwaitingBom => 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
+                    in_array($s, ['Pending', 'Approved', 'Submitted']) => 'bg-orange-50 text-orange-600 border-orange-300',
+                    in_array($s, ['On Hold', 'Awaiting Materials', 'BOM Verified (Awaiting Client Approval)', 'List of Materials Verified (Awaiting Client Approval)']) => 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
+                    in_array($s, ['In Progress', 'Pending Verification']) => 'bg-blue-50 text-blue-700 border-blue-300',
+                    $s === 'Completed' => 'bg-emerald-50 text-emerald-700 border-emerald-300',
+                    in_array($s, ['Rejected', 'Cancelled']) => 'bg-red-50 text-red-600 border-red-300',
+                    default => 'bg-gray-50 text-gray-600 border-gray-300'
                 };
                 $assignedWorkers = $r->project?->workers ?? collect();
             @endphp
@@ -160,7 +169,7 @@
                                 Recurring
                             </span>
                         @endif
-                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $sClass }}">{{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $s) }}</span>
+                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap {{ $sClass }}" title="{{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $s) }}">{{ $sDisplay }}</span>
                     </div>
                 </div>
                 <div>
@@ -468,17 +477,26 @@
                     <td class="px-3 py-3 border-y border-gray-200 dark:border-zinc-800 whitespace-nowrap">
                         @php
                             $s = $r->current_status;
-                            $sClass = match($s) {
-                                'Pending', 'Approved', 'Submitted'=>'bg-orange-50 text-orange-600 border-orange-300',
-                                'On Hold', 'Awaiting Materials', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)'=>'bg-amber-50 text-amber-700 border-amber-300',
-                                'In Progress', 'Pending Verification'=>'bg-blue-50 text-blue-700 border-blue-300',
-                                'Completed'=>'bg-emerald-50 text-emerald-600 border-emerald-300',
-                                'Rejected', 'Cancelled'=>'bg-red-50 text-red-600 border-red-300',
-                                default=>'bg-gray-50 text-gray-600 border-gray-300'
+                            $isAwaitingBom = $s === 'Awaiting Verification of Bill of Materials' 
+                                || $s === 'Awaiting Verification of List of Materials' 
+                                || ($r->bom_status === 'awaiting_admin' && !in_array($s, ['In Progress', 'Completed', 'Cancelled', 'Rejected']));
+                            $sDisplay = match(true) {
+                                $isAwaitingBom => 'Awaiting Verification',
+                                $s === 'BOM Verified (Awaiting Client Approval)' || $s === 'List of Materials Verified (Awaiting Client Approval)' => 'Materials Verified',
+                                default => str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $s)
+                            };
+                            $sClass = match(true) {
+                                $isAwaitingBom => 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
+                                in_array($s, ['Pending', 'Approved', 'Submitted']) => 'bg-orange-50 text-orange-600 border-orange-300',
+                                in_array($s, ['On Hold', 'Awaiting Materials', 'BOM Verified (Awaiting Client Approval)', 'List of Materials Verified (Awaiting Client Approval)']) => 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
+                                in_array($s, ['In Progress', 'Pending Verification']) => 'bg-blue-50 text-blue-700 border-blue-300',
+                                $s === 'Completed' => 'bg-emerald-50 text-emerald-600 border-emerald-300',
+                                in_array($s, ['Rejected', 'Cancelled']) => 'bg-red-50 text-red-600 border-red-300',
+                                default => 'bg-gray-50 text-gray-600 border-gray-300'
                             };
                         @endphp
-                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold border {{ $sClass }}">
-                            {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $s) }}
+                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold border whitespace-nowrap {{ $sClass }}" title="{{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $s) }}">
+                            {{ $sDisplay }}
                         </span>
                     </td>
 

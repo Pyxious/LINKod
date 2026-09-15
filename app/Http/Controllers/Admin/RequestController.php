@@ -157,6 +157,18 @@ class RequestController extends Controller
 
             // Package Manpower structured details into description if provided
             if ($request->filled('activity_title') || $request->filled('prep_details') || $request->filled('prep_date') || $request->filled('assistance_details') || $request->filled('clearing_details')) {
+                $timeRegex = '/^(?:(0?[1-9]|1[0-2]):[0-5][0-9]\s*(?:AM|PM|am|pm)\s*(?:-|–|to)\s*(0?[1-9]|1[0-2]):[0-5][0-9]\s*(?:AM|PM|am|pm)|(0?[1-9]|1[0-2]):[0-5][0-9]\s*(?:AM|PM|am|pm)\s*onwards)$/i';
+
+                if ($request->boolean('prep_overtime') && !preg_match($timeRegex, trim($request->input('prep_overtime_time', '')))) {
+                    return redirect()->back()->withInput()->with('error', 'Please enter a valid Preparation Overtime time format (e.g., 5:00PM-6:00PM).');
+                }
+                if ($request->boolean('assistance_overtime') && !preg_match($timeRegex, trim($request->input('assistance_overtime_time', '')))) {
+                    return redirect()->back()->withInput()->with('error', 'Please enter a valid Event Assistance Overtime time format (e.g., 5:00PM-6:00PM).');
+                }
+                if ($request->boolean('clearing_overtime') && !preg_match($timeRegex, trim($request->input('clearing_overtime_time', '')))) {
+                    return redirect()->back()->withInput()->with('error', 'Please enter a valid Clearing Overtime time format (e.g., 5:00PM-6:00PM).');
+                }
+
                 $manpowerData = [
                     'activity_title'          => $request->input('activity_title', $validated['title']),
                     'event_date'              => $request->input('event_date', ''),
@@ -166,19 +178,19 @@ class RequestController extends Controller
                     'prep_regular'            => $request->boolean('prep_regular', true),
                     'prep_overtime'           => $request->boolean('prep_overtime', false),
                     'prep_regular_time'       => $request->input('prep_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
-                    'prep_overtime_time'      => $request->input('prep_overtime_time', ''),
+                    'prep_overtime_time'      => $request->boolean('prep_overtime') ? trim($request->input('prep_overtime_time', '')) : '',
                     'assistance_date'         => $request->input('assistance_date', ''),
                     'assistance_details'      => $request->input('assistance_details', ''),
                     'assistance_regular'      => $request->boolean('assistance_regular', true),
                     'assistance_overtime'     => $request->boolean('assistance_overtime', false),
                     'assistance_regular_time' => $request->input('assistance_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
-                    'assistance_overtime_time'=> $request->input('assistance_overtime_time', ''),
+                    'assistance_overtime_time'=> $request->boolean('assistance_overtime') ? trim($request->input('assistance_overtime_time', '')) : '',
                     'clearing_date'           => $request->input('clearing_date', ''),
                     'clearing_details'        => $request->input('clearing_details', ''),
                     'clearing_regular'        => $request->boolean('clearing_regular', true),
                     'clearing_overtime'       => $request->boolean('clearing_overtime', false),
                     'clearing_regular_time'   => $request->input('clearing_regular_time', '8:00 - 12:00 / 1:00 - 5:00'),
-                    'clearing_overtime_time'  => $request->input('clearing_overtime_time', ''),
+                    'clearing_overtime_time'  => $request->boolean('clearing_overtime') ? trim($request->input('clearing_overtime_time', '')) : '',
                     'additional_date'         => $request->input('additional_date', ''),
                     'additional_notes'        => $request->input('additional_notes', ''),
                     'general_description'     => $request->input('description', ''),
@@ -380,7 +392,33 @@ class RequestController extends Controller
                 'priority'    => $request->priority,
             ];
 
-            if ($request->filled('scheduled_date')) {
+            if ($serviceRequest->is_manpower) {
+                $m = $serviceRequest->manpower_details;
+                $rawDate = $request->input('scheduled_date') 
+                    ?: (!empty($m['event_date']) ? $m['event_date'] : null)
+                    ?: (!empty($m['prep_date']) ? $m['prep_date'] : null);
+
+                $manpowerDate = null;
+                if ($rawDate) {
+                    $rawDate = trim($rawDate);
+                    if (str_contains($rawDate, ' to ')) {
+                        $rawDate = trim(explode(' to ', $rawDate)[0]);
+                    }
+                    try {
+                        $manpowerDate = \Carbon\Carbon::parse($rawDate)->format('Y-m-d');
+                    } catch (\Throwable $e) {
+                        $manpowerDate = null;
+                    }
+                }
+
+                $manpowerDate = $manpowerDate 
+                    ?: ($serviceRequest->scheduled_date ? $serviceRequest->scheduled_date->format('Y-m-d') : now()->toDateString());
+
+                $updateData['scheduled_date'] = $manpowerDate;
+                $updateData['scheduled_time_window'] = $request->input('scheduled_time_window', 'AM-PM');
+                $updateData['schedule_status'] = 'approved';
+                $updateData['schedule_decline_reason'] = null;
+            } elseif ($request->filled('scheduled_date')) {
                 $updateData['scheduled_date'] = $request->scheduled_date;
                 $updateData['scheduled_time_window'] = $request->input('scheduled_time_window', $serviceRequest->scheduled_time_window ?? 'AM-PM');
                 $updateData['schedule_status'] = 'approved';
@@ -487,63 +525,95 @@ class RequestController extends Controller
                 default => $serviceRequest->scheduled_time_window ?? 'Visit'
             };
 
-            // 1. Log Schedule Confirmed in history if not already recorded
-            $hasScheduleConfirmed = $serviceRequest->histories()
-                ->where('current_status', 'Schedule Confirmed')
-                ->exists();
-
-            if (!$hasScheduleConfirmed && $serviceRequest->scheduled_date) {
+            if ($serviceRequest->is_manpower) {
                 RequestHistory::create([
                     'request_id'      => $serviceRequest->request_id,
                     'previous_status' => $previous,
-                    'current_status'  => 'Schedule Confirmed',
-                    'remarks'         => "Admin confirmed visit schedule with client via phone for {$dateFormatted} ({$windowText}). Maintenance personnel assigned.",
-                    'updated_at'      => now()->subSecond(),
+                    'current_status'  => 'Approved',
+                    'remarks'         => 'Manpower request verified and approved. Maintenance personnel assigned.',
+                    'updated_at'      => now(),
                     'updated_by'      => auth()->id(),
                 ]);
-                $previous = 'Schedule Confirmed';
-            }
 
-            // 2. Log Request Approved in history
-            RequestHistory::create([
-                'request_id'      => $serviceRequest->request_id,
-                'previous_status' => $previous,
-                'current_status'  => 'Approved',
-                'remarks'         => "Request approved for {$dateFormatted} ({$windowText}). Maintenance workers assigned.",
-                'updated_at'      => now(),
-                'updated_by'      => auth()->id(),
-            ]);
+                \App\Models\UserLog::create([
+                    'user_id'    => auth()->id(),
+                    'action'     => "Admin approved manpower request #{$serviceRequest->request_id} and assigned workers to project #{$project->project_id}",
+                    'ip_address' => request()->ip(),
+                    'created_at' => now(),
+                ]);
 
-            \App\Models\UserLog::create([
-                'user_id'    => auth()->id(),
-                'action'     => "Admin confirmed schedule, approved request #{$serviceRequest->request_id}, and assigned workers to project #{$project->project_id}",
-                'ip_address' => request()->ip(),
-                'created_at' => now(),
-            ]);
-
-            // Notify client of schedule confirmation and approval
-            if ($serviceRequest->client?->user_id) {
-                if ($serviceRequest->scheduled_date) {
-                    $this->notifications->send(
+                if ($serviceRequest->client?->user_id) {
+                    $this->notifications->requestStatusChanged(
                         $serviceRequest->client->user_id,
-                        'schedule_confirmed',
-                        'Visit Schedule Confirmed',
-                        "Your visit schedule has been confirmed for {$dateFormatted} ({$windowText}). Maintenance personnel have been assigned.",
-                        route('client.requests.show', $serviceRequest->request_id, false)
+                        $serviceRequest->title,
+                        'Approved',
+                        $serviceRequest->request_id,
+                        'client'
                     );
                 }
+            } else {
+                // 1. Log Schedule Confirmed in history if not already recorded
+                $hasScheduleConfirmed = $serviceRequest->histories()
+                    ->where('current_status', 'Schedule Confirmed')
+                    ->exists();
 
-                $this->notifications->requestStatusChanged(
-                    $serviceRequest->client->user_id,
-                    $serviceRequest->title,
-                    'Approved',
-                    $serviceRequest->request_id,
-                    'client'
-                );
+                if (!$hasScheduleConfirmed && $serviceRequest->scheduled_date) {
+                    RequestHistory::create([
+                        'request_id'      => $serviceRequest->request_id,
+                        'previous_status' => $previous,
+                        'current_status'  => 'Schedule Confirmed',
+                        'remarks'         => "Admin confirmed visit schedule with client via phone for {$dateFormatted} ({$windowText}). Maintenance personnel assigned.",
+                        'updated_at'      => now()->subSecond(),
+                        'updated_by'      => auth()->id(),
+                    ]);
+                    $previous = 'Schedule Confirmed';
+                }
+
+                // 2. Log Request Approved in history
+                RequestHistory::create([
+                    'request_id'      => $serviceRequest->request_id,
+                    'previous_status' => $previous,
+                    'current_status'  => 'Approved',
+                    'remarks'         => "Request approved for {$dateFormatted} ({$windowText}). Maintenance workers assigned.",
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
+
+                \App\Models\UserLog::create([
+                    'user_id'    => auth()->id(),
+                    'action'     => "Admin confirmed schedule, approved request #{$serviceRequest->request_id}, and assigned workers to project #{$project->project_id}",
+                    'ip_address' => request()->ip(),
+                    'created_at' => now(),
+                ]);
+
+                // Notify client of schedule confirmation and approval
+                if ($serviceRequest->client?->user_id) {
+                    if ($serviceRequest->scheduled_date) {
+                        $this->notifications->send(
+                            $serviceRequest->client->user_id,
+                            'schedule_confirmed',
+                            'Visit Schedule Confirmed',
+                            "Your visit schedule has been confirmed for {$dateFormatted} ({$windowText}). Maintenance personnel have been assigned.",
+                            route('client.requests.show', $serviceRequest->request_id, false)
+                        );
+                    }
+
+                    $this->notifications->requestStatusChanged(
+                        $serviceRequest->client->user_id,
+                        $serviceRequest->title,
+                        'Approved',
+                        $serviceRequest->request_id,
+                        'client'
+                    );
+                }
             }
 
+            $successMsg = $serviceRequest->is_manpower
+                ? 'Manpower request approved and maintenance personnel assigned successfully.'
+                : 'Visit schedule confirmed, request approved, and maintenance personnel assigned.';
+
             return redirect()->route('admin.requests.show', $id)
-                ->with('success', 'Visit schedule confirmed, request approved, and maintenance personnel assigned.');
+                ->with('success', $successMsg);
 
         } catch (\Exception $e) {
             return redirect()->back()
@@ -985,36 +1055,41 @@ class RequestController extends Controller
                 'fulfilled_by'  => auth()->user()?->staff?->staff_id,
             ]);
 
-            $serviceRequest->update(['bom_status' => 'approved']);
+            $wasInProgress = in_array($serviceRequest->current_status, ['In Progress', 'Pending Verification'])
+                || ($serviceRequest->project && in_array($serviceRequest->project->current_status, ['In Progress', 'Pending Verification']));
+            
+            $targetStatus = $wasInProgress ? 'In Progress' : 'Approved';
 
-            // Ensure verification is recorded first if not already in timeline
-            $alreadyVerified = $serviceRequest->histories()
-                ->where(function ($q) {
-                    $q->where('remarks', 'like', '%verified the List of Materials%')
-                      ->orWhere('remarks', 'like', '%verified%bill of materials%')
-                      ->orWhere('current_status', 'BOM Verified (Awaiting Client Approval)');
-                })
-                ->exists();
+            $serviceRequest->update([
+                'current_status' => $targetStatus,
+                'bom_status'     => 'approved',
+            ]);
 
-            if (!$alreadyVerified) {
-                RequestHistory::create([
-                    'request_id'      => $serviceRequest->request_id,
-                    'previous_status' => $serviceRequest->current_status,
-                    'current_status'  => 'BOM Verified (Awaiting Client Approval)',
-                    'remarks'         => 'GSO Admin verified the List of Materials.',
-                    'updated_at'      => now()->subSeconds(2),
-                    'updated_by'      => auth()->id(),
+            if ($serviceRequest->project) {
+                $serviceRequest->project->update([
+                    'current_status' => $targetStatus,
                 ]);
             }
 
             RequestHistory::create([
                 'request_id'      => $serviceRequest->request_id,
-                'previous_status' => 'BOM Verified (Awaiting Client Approval)',
-                'current_status'  => $serviceRequest->current_status,
+                'previous_status' => $serviceRequest->current_status,
+                'current_status'  => $targetStatus,
                 'remarks'         => 'Admin approved the List of Materials on behalf of the client.',
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
+
+            if ($serviceRequest->project) {
+                \App\Models\ProjectHistory::create([
+                    'project_id'      => $serviceRequest->project->project_id,
+                    'previous_status' => $serviceRequest->project->current_status,
+                    'current_status'  => $targetStatus,
+                    'remarks'         => 'Admin approved the List of Materials on behalf of the client.',
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
+            }
 
             \App\Models\UserLog::create([
                 'user_id'    => auth()->id(),

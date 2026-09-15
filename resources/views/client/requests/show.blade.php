@@ -23,21 +23,21 @@
                     <span class="px-3 py-1 bg-[#0033a0] text-white text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-sm">
                         Requisition #{{ str_pad($request->request_id, 4, '0', STR_PAD_LEFT) }}
                     </span>
-                    <span id="requestStatusBadge" data-request-status-badge class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border
+                    <span id="requestStatusBadge" data-request-status-badge class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border whitespace-nowrap
                         @if($request->current_status === 'Completed')
-                            bg-emerald-100 text-emerald-700 border-emerald-300
+                            bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800
                         @elseif($request->current_status === 'Awaiting Verification of Bill of Materials')
-                            bg-amber-100 text-amber-800 border-amber-300
+                            bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800
                         @elseif($request->current_status === 'BOM Verified (Awaiting Client Approval)')
-                            bg-indigo-100 text-indigo-800 border-indigo-300
+                            bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800
                         @elseif(in_array($request->current_status, ['In Progress', 'Pending Verification']))
-                            bg-blue-100 text-blue-700 border-blue-300
+                            bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800
                         @elseif(in_array($request->current_status, ['Cancelled', 'Rejected']))
-                            bg-rose-100 text-rose-700 border-rose-300
+                            bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800
                         @else
-                            bg-amber-100 text-amber-700 border-amber-300
+                            bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800
                         @endif">
-                        {{ $request->current_status === 'Rejected' ? 'Disapproved' : ($request->current_status === 'Awaiting Verification of Bill of Materials' ? 'Awaiting Verification of List of Materials' : ($request->current_status === 'BOM Verified (Awaiting Client Approval)' ? 'List of Materials Verified (Awaiting Client Approval)' : $request->current_status)) }}
+                        {{ $request->current_status === 'Rejected' ? 'Disapproved' : ($request->current_status === 'Awaiting Verification of Bill of Materials' ? 'Awaiting Verification (List of Materials)' : ($request->current_status === 'BOM Verified (Awaiting Client Approval)' ? 'Materials Verified (Awaiting Client Approval)' : $request->current_status)) }}
                     </span>
                 </div>
 

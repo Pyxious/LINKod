@@ -51,796 +51,11 @@
             </div>
         @endif
 
-        <form x-data="{
-            submitting: false,
-            viewPreviewModal: false,
-            selectedCategoryId: '{{ $preselectedCatId ?? "" }}',
-            selectedCategoryName: '',
-            selectedCluster: '{{ old('campus', '') }}',
-            selectedCollege: '',
-            selectedOffice: '',
-            customOffice: '',
-            specificLocation: '',
-            selectedConcern: '',
-            customConcern: '',
-
-            // Manpower & Event Specific Fields
-            activityTitle: '',
-            eventDate: '',
-            prepDateFrom: '',
-            prepDateTo: '',
-            prepDetails: '',
-            prepRegular: true,
-            prepOvertime: false,
-            prepTimePreset: 'regular',
-            prepRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
-            prepOvertimeTime: '',
-
-            assistanceDateFrom: '',
-            assistanceDateTo: '',
-            assistanceDetails: '',
-            assistanceRegular: true,
-            assistanceOvertime: false,
-            assistanceTimePreset: 'regular',
-            assistanceRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
-            assistanceOvertimeTime: '',
-
-            clearingDateFrom: '',
-            clearingDateTo: '',
-            clearingDetails: '',
-            clearingRegular: true,
-            clearingOvertime: false,
-            clearingTimePreset: 'regular',
-            clearingRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
-            clearingOvertimeTime: '',
-
-            additionalNotes: '',
-
-            // Janitorial Form State
-            janitorialAreas: '',
-            janitorialType: 'Deep Cleaning & Disinfection',
-            janitorialFrequency: 'One-time',
-            janitorialSupplies: '',
-            janitorialSchedule: '',
-
-            // Time preset options
-            timePresets: [
-                { value: 'morning',   label: 'Morning (8:00 AM – 12:00 PM)',        time: '8:00 - 12:00' },
-                { value: 'afternoon', label: 'Afternoon (1:00 PM – 5:00 PM)',        time: '1:00 - 5:00' },
-                { value: 'regular',   label: 'Regular Time (8:00 AM – 5:00 PM)',     time: '8:00 - 12:00 / 1:00 - 5:00' },
-                { value: 'fullday',   label: 'Full Day (8:00 AM – 5:00 PM)',         time: '8:00 - 5:00' },
-                { value: 'custom',    label: 'Custom Time…',                         time: '' },
-            ],
-
-            applyTimePreset(section) {
-                const map = { prep: 'prepTimePreset', assistance: 'assistanceTimePreset', clearing: 'clearingTimePreset' };
-                const timeMap = { prep: 'prepRegularTime', assistance: 'assistanceRegularTime', clearing: 'clearingRegularTime' };
-                const preset = this.timePresets.find(p => p.value === this[map[section]]);
-                if (preset && preset.value !== 'custom') {
-                    this[timeMap[section]] = preset.time;
-                }
-            },
-
-            formatDateRange(from, to) {
-                if (!from && !to) return '';
-                if (!to || from === to) return from;
-                return from + ' to ' + to;
-            },
-
-            get prepDate() { return this.formatDateRange(this.prepDateFrom, this.prepDateTo); },
-            get assistanceDate() { return this.formatDateRange(this.assistanceDateFrom, this.assistanceDateTo); },
-            get clearingDate() { return this.formatDateRange(this.clearingDateFrom, this.clearingDateTo); },
-
-            init() {
-                if (this.selectedCategoryId) {
-                    this.$nextTick(() => {
-                        const selectEl = this.$refs.categorySelect;
-                        if (selectEl) {
-                            selectEl.value = this.selectedCategoryId;
-                            const selectedOpt = selectEl.options[selectEl.selectedIndex];
-                            this.selectedCategoryName = selectedOpt ? selectedOpt.text : '';
-                        }
-                    });
-                }
-            },
-
-            // Attachment State
-            fileName: '',
-            fileSizeFormatted: '',
-            filePreviewUrl: '',
-            isImage: false,
-            cameraActive: false,
-            cameraStream: null,
-
-            // Concerns grouped by category keyword
-            concernsMap: {
-                'Electrical': [
-                    'Power Outlet Repair / Installation',
-                    'Lighting Fixture Repair / Replacement',
-                    'Circuit Breaker Tripping / Power Outage',
-                    'Wiring Inspection & Electrical Safety',
-                    'Ceiling Fan / Exhaust Fan Repair',
-                    'Other Electrical Concern'
-                ],
-                'Carpentry': [
-                    'Door Lock / Handle / Hinge Repair',
-                    'Window Glass & Wooden Frame Repair',
-                    'Table / Desk Fabrication or Repair',
-                    'Chair / Bench Repair',
-                    'Ceiling / Roof Leak Inspection & Repair',
-                    'Cabinet / Drawer Repair',
-                    'Other Carpentry Concern'
-                ],
-                'Plumbing': [
-                    'Faucet / Pipe Leak Repair',
-                    'Toilet / Urinal Clog Repair',
-                    'Water Pressure Issue / Pump Concern',
-                    'Drainage / Sewage Clog',
-                    'Water Tank / Fixture Installation',
-                    'Other Plumbing Concern'
-                ],
-                'Air Conditioning': [
-                    'Aircon Cleaning & Preventive Maintenance',
-                    'Aircon Cooling Failure / Freon Refill',
-                    'Aircon Water Leakage Repair',
-                    'Aircon Noise / Power Issue',
-                    'Other Aircon Concern'
-                ],
-                'Aircon': [
-                    'Aircon Cleaning & Preventive Maintenance',
-                    'Aircon Cooling Failure / Freon Refill',
-                    'Aircon Water Leakage Repair',
-                    'Aircon Noise / Power Issue',
-                    'Other Aircon Concern'
-                ],
-                'Landscaping': [
-                    'Grass Cutting / Lawn Mowing',
-                    'Tree Trimming & Branch Removal',
-                    'Garden & Grounds Cleaning / Clearing',
-                    'Planting & Campus Beautification Request',
-                    'Weed Control & Soil Maintenance',
-                    'Other Landscaping Concern'
-                ],
-                'Janitorial and Manpower': [
-                    'Event & Activity Venue Setup',
-                    'Heavy Equipment & Furniture Relocation',
-                    'Hauling & Waste Disposal Assistance',
-                    'Other manpower service',
-                    'Deep Cleaning & Disinfection Service',
-                    'Waste Management & Garbage Collection',
-                    'Restroom Sanitation & Supplies Check',
-                    'Other janitorial service'
-                ],
-                'Manpower': [
-                    'Event & Activity Venue Setup',
-                    'Heavy Equipment & Furniture Relocation',
-                    'Hauling & Waste Disposal Assistance',
-                    'Other manpower service',
-                    'Deep Cleaning & Disinfection Service',
-                    'Waste Management & Garbage Collection',
-                    'Restroom Sanitation & Supplies Check',
-                    'Other janitorial service'
-                ],
-                'Janitorial': [
-                    'Event & Activity Venue Setup',
-                    'Heavy Equipment & Furniture Relocation',
-                    'Hauling & Waste Disposal Assistance',
-                    'Other manpower service',
-                    'Deep Cleaning & Disinfection Service',
-                    'Waste Management & Garbage Collection',
-                    'Restroom Sanitation & Supplies Check',
-                    'Other janitorial service'
-                ]
-            },
-
-            // Combined College & Campus Units: (Cluster) College Name
-            collegeUnits: [
-                {
-                    cluster: 'Main',
-                    label: '(Main Cluster) GASS & Auxiliary Services',
-                    college: 'GASS & Auxiliary Services',
-                    offices: [
-                        'Office of the University President',
-                        'Office of the Vice President for Academic Affairs (OVPAA)',
-                        'Office of the Vice President for Administration and Finance (OVPAF)',
-                        'Office of the Vice President for Research, Development and Extension (OVPRDE)',
-                        'Office of the Vice President for Planning and Development (OVPPD)',
-                        'General Services Office (GSO)',
-                        'University Registrar\'s Office',
-                        'Cashier\'s Office & Accounting Office',
-                        'Human Resource Development Office (HRDO)',
-                        'Supply and Property Management Office (SPMO)',
-                        'Information & Communications Technology Office (ICTO)',
-                        'University Health Services / Clinic',
-                        'University Main Library & Audio-Visual Hall',
-                        'Office of Student Affairs and Services (OSAS)',
-                        'University Student Center (USC)',
-                        'University Gymnasium & Sports Complex',
-                        'BUCFAO / Auxiliary Services Office',
-                        'Other Office / Facility'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 1',
-                    label: '(Cluster 1) BUCE (College of Education)',
-                    college: 'BUCE (College of Education)',
-                    offices: [
-                        'Dean\'s Office & Administrative Staff',
-                        'Elementary Dept / Integrated Lab School (ILS-Elem)',
-                        'High School Dept / Integrated Lab School (ILS-HS)',
-                        'Dept of Elementary Education (BEED)',
-                        'Dept of Secondary Education (BSED)',
-                        'Science & Mathematics Education Unit',
-                        'Educational Media & Audio-Visual Room (AVR)',
-                        'Reading Clinic & Learning Resource Center',
-                        'Guidance & Counseling Office',
-                        'Faculty Offices & Consultation Rooms',
-                        'Other Office (BUCE)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 1',
-                    label: '(Cluster 1) BUCM (College of Medicine)',
-                    college: 'BUCM (College of Medicine)',
-                    offices: [
-                        'Dean\'s Office & College Secretary',
-                        'Basic Medical Sciences Department',
-                        'Clinical Skills Simulation Laboratory',
-                        'Gross Anatomy & Dissection Laboratory',
-                        'Histology & Pathology Laboratory',
-                        'Physiology & Pharmacology Laboratory',
-                        'Medical Amphitheater & Lecture Halls',
-                        'Medical Library & Learning Hub',
-                        'Faculty Consultation Room',
-                        'Other Office (BUCM)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 1',
-                    label: '(Cluster 1) IPESR (Institute of Physical Education, Sports and Recreation)',
-                    college: 'IPESR (Institute of Physical Education, Sports and Recreation)',
-                    offices: [
-                        'Director\'s Office & Administration',
-                        'Physical Education Department',
-                        'Sports Development & Athletic Office',
-                        'University Gymnasium & Main Court',
-                        'Fitness & Weight Training Gym',
-                        'Dance Studio & Aerobics Hall',
-                        'Equipment & Supplies Custodian Room',
-                        'Swimming Pool Complex & Locker Rooms',
-                        'Other Office (IPESR)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 2',
-                    label: '(Cluster 2) CAL (College of Arts and Letters)',
-                    college: 'CAL (College of Arts and Letters)',
-                    offices: [
-                        'Dean\'s Office & College Secretary',
-                        'Department of English & Humanities',
-                        'Department of Literature & Performing Arts',
-                        'Department of Communication & Journalism',
-                        'Speech and Language Laboratory',
-                        'Campus Radio / Media Production Lab',
-                        'BUCAL Amphitheater & Performance Hall',
-                        'Guidance & Counseling Office',
-                        'Other Office (CAL)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 2',
-                    label: '(Cluster 2) BUGS (Graduate School)',
-                    college: 'BUGS (Graduate School)',
-                    offices: [
-                        'Dean\'s Office & Administrative Staff',
-                        'Doctoral Programs Office',
-                        'Master\'s Programs Office',
-                        'Dissertation & Thesis Defense Room',
-                        'Graduate Research & Seminar Center',
-                        'Graduate School Library',
-                        'Other Office (BUGS)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 2',
-                    label: '(Cluster 2) Language Center',
-                    college: 'Language Center',
-                    offices: [
-                        'Office of the Director',
-                        'Foreign Language Classrooms & Labs',
-                        'Translation, Testing & Review Center',
-                        'Speech & Audio Laboratory',
-                        'Other Office (Language Center)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 2',
-                    label: '(Cluster 2) College of Law',
-                    college: 'College of Law',
-                    offices: [
-                        'Dean\'s Office & Law Secretary',
-                        'Moot Court / Mock Trial Courtroom',
-                        'Law Library & Legal Research Room',
-                        'Free Legal Aid Clinic',
-                        'Bar Operations Center',
-                        'Faculty Lounge & Consultation Rooms',
-                        'Other Office (College of Law)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 2',
-                    label: '(Cluster 2) BU Open University',
-                    college: 'BU Open University',
-                    offices: [
-                        'Office of the Director',
-                        'Distance Learning & E-Learning Center',
-                        'Instructional Materials Development (IMDO)',
-                        'Student Support & Technical Helpdesk',
-                        'Multi-media Recording Studio',
-                        'Other Office (BU Open University)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 2',
-                    label: '(Cluster 2) College of Dental Medicine',
-                    college: 'College of Dental Medicine',
-                    offices: [
-                        'Dean\'s Office & Administration',
-                        'Clinical Dentistry Department',
-                        'Oral Anatomy & Simulation Laboratory',
-                        'Prosthodontics & Restorative Dentistry Lab',
-                        'Dental Radiography & X-ray Room',
-                        'Central Sterilization & Dispensing Unit',
-                        'Dental Infirmary & Patient Waiting Area',
-                        'Other Office (Dental Medicine)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 2',
-                    label: '(Cluster 2) BUJMRIGD (Governance and Development)',
-                    college: 'BUJMRIGD (Governance and Development)',
-                    offices: [
-                        'Director\'s Office & Administration',
-                        'Public Administration & Governance Dept',
-                        'Policy Research & Development Unit',
-                        'Executive Seminar & Conference Hall',
-                        'Other Office (BUJMRIGD)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 3',
-                    label: '(Cluster 3) CS (College of Science)',
-                    college: 'CS (College of Science)',
-                    offices: [
-                        'Dean\'s Office & College Secretary',
-                        'Department of Biology',
-                        'Department of Chemistry',
-                        'Department of Physics',
-                        'Department of Mathematics',
-                        'Department of Computer Science & IT',
-                        'Natural Sciences Laboratories (Bio/Microbio)',
-                        'Chemical Sciences & Instrument Laboratories',
-                        'Physics & Electronics Laboratory',
-                        'Computer & Networking Laboratories',
-                        'Science Research Center & Specimen Museum',
-                        'Other Office (CS)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 3',
-                    label: '(Cluster 3) CN (College of Nursing)',
-                    college: 'CN (College of Nursing)',
-                    offices: [
-                        'Dean\'s Office & Administrative Unit',
-                        'Nursing Arts & Bedside Simulation Laboratory',
-                        'Maternal and Child Health Laboratory',
-                        'Nutrition and Dietetics Laboratory',
-                        'Community Health Nursing Office',
-                        'Clinical Instructors / Faculty Room',
-                        'Nursing Amphitheater & Learning Resource Center',
-                        'Other Office (CN)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 3',
-                    label: '(Cluster 3) RCSMED (Science & Math Education)',
-                    college: 'RCSMED (Science & Math Education)',
-                    offices: [
-                        'Director\'s Office & Administration',
-                        'Science Education Demonstration Lab',
-                        'Mathematics Curriculum & Robotics Lab',
-                        'Training & Workshop Center',
-                        'Other Office (RCSMED)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 4',
-                    label: '(Cluster 4) CIT (College of Industrial Technology)',
-                    college: 'CIT (College of Industrial Technology)',
-                    offices: [
-                        'Dean\'s Office & Administrative Unit',
-                        'Department of Automotive & Power Technology',
-                        'Department of Electrical & Electronics Technology',
-                        'Department of Mechanical & Production Technology',
-                        'Department of Drafting & CAD Technology',
-                        'Department of Food & Service Technology',
-                        'Automotive Shop & Heavy Equipment Bay',
-                        'Machine Shop & Welding Technology Bay',
-                        'Electrical Wiring & Motor Control Laboratory',
-                        'Electronics & Microcontroller Laboratory',
-                        'Food Processing & Baking Laboratory',
-                        'Other Office (CIT)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 4',
-                    label: '(Cluster 4) CENG (College of Engineering)',
-                    college: 'CENG (College of Engineering)',
-                    offices: [
-                        'Dean\'s Office & College Secretary',
-                        'Department of Civil Engineering',
-                        'Department of Electrical Engineering',
-                        'Department of Mechanical Engineering',
-                        'Department of Chemical Engineering',
-                        'Department of Computer Engineering',
-                        'Department of Geodetic Engineering',
-                        'Materials Testing & Soil Mechanics Laboratory',
-                        'Hydraulics & Fluid Mechanics Laboratory',
-                        'CAD & Simulation Center',
-                        'Engineering Workshops & Maker Space',
-                        'Engineering Library & Review Center',
-                        'Other Office (CENG)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 4',
-                    label: '(Cluster 4) IA (Institute of Architecture)',
-                    college: 'IA (Institute of Architecture)',
-                    offices: [
-                        'Director\'s Office & Administration',
-                        'Architectural Design Studios (Studios 1-5)',
-                        'CAD, 3D Rendering & Digital Architecture Lab',
-                        'Manual Drafting Rooms & Light Tables',
-                        'Model-Making Workshop & Laser Cut Bay',
-                        'Building Utilities & Materials Museum',
-                        'Other Office (IA)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 4',
-                    label: '(Cluster 4) ESC (East Campus / Science Center)',
-                    college: 'ESC (East Campus / Science Center)',
-                    offices: [
-                        'East Campus Admin & Property Custodian',
-                        'East Campus General Library',
-                        'East Campus Student Center & Canteen',
-                        'Multi-Purpose Hall & Audio-Visual Room',
-                        'Security & Maintenance Quarters',
-                        'Other Office (ESC)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster 4',
-                    label: '(Cluster 4) RDC (Research and Development Center)',
-                    college: 'RDC (Research and Development Center)',
-                    offices: [
-                        'Director\'s Office & Research Services',
-                        'Intellectual Property / ITSO Office',
-                        'Central Analytical Testing Laboratory',
-                        'Extension & Community Engagement Office',
-                        'Publications & Journal Editorial Office',
-                        'Other Office (RDC)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster Daraga',
-                    label: '(Cluster Daraga) CSSP (College of Social Sciences and Philosophy)',
-                    college: 'CSSP (College of Social Sciences and Philosophy)',
-                    offices: [
-                        'Dean\'s Office & College Secretary',
-                        'Department of Political Science & Public Affairs',
-                        'Department of Sociology & Anthropology',
-                        'Department of Psychology',
-                        'Department of Philosophy',
-                        'Department of Peace Studies',
-                        'Psychological Testing & Assessment Laboratory',
-                        'Social Science Research & Audio-Visual Hall',
-                        'Guidance, Career & Counseling Office',
-                        'Other Office (CSSP)'
-                    ]
-                },
-                {
-                    cluster: 'Cluster Daraga',
-                    label: '(Cluster Daraga) CBEM (College of Business, Economics and Management)',
-                    college: 'CBEM (College of Business, Economics and Management)',
-                    offices: [
-                        'Dean\'s Office & College Secretary',
-                        'Department of Accountancy',
-                        'Department of Business Admin & Marketing',
-                        'Department of Economics',
-                        'Department of Entrepreneurship',
-                        'Center for Entrepreneurship & Business Incubator',
-                        'Accounting Simulation Computer Lab',
-                        'CBEM Auditorium & Multi-Purpose Center',
-                        'Student Organization & Activity Center',
-                        'Other Office (CBEM)'
-                    ]
-                },
-                {
-                    cluster: 'Guinobatan',
-                    label: '(Guinobatan) BUCAF (College of Agriculture and Forestry)',
-                    college: 'BUCAF (College of Agriculture and Forestry)',
-                    offices: [
-                        'Dean\'s Office & Campus Administration',
-                        'Department of Agricultural Sciences',
-                        'Department of Animal Science & Veterinary Clinic',
-                        'Department of Forestry & Agroforestry',
-                        'Department of Agricultural and Biosystems Eng',
-                        'Crop Science & Tissue Culture Laboratory',
-                        'Soil Science & Agricultural Chemistry Lab',
-                        'Farm Machinery Shop & Demo Farm Office',
-                        'BUCAF Campus Library & Auditorium',
-                        'Other Office (BUCAF)'
-                    ]
-                },
-                {
-                    cluster: 'Polangui',
-                    label: '(Polangui) BUPC (Polangui Campus)',
-                    college: 'BUPC (Polangui Campus)',
-                    offices: [
-                        'Campus Director\'s Office & Administration',
-                        'Department of Information Technology & CS',
-                        'Department of Computer Engineering',
-                        'Department of Nursing and Health Sciences',
-                        'Department of Teacher Education',
-                        'Department of Automotive & Mechanical Technology',
-                        'Computer Laboratories (1 to 4)',
-                        'Health Skills Laboratory & Clinic',
-                        'Polangui Campus Library & Student Center',
-                        'Other Office (BUPC)'
-                    ]
-                },
-                {
-                    cluster: 'Tabaco',
-                    label: '(Tabaco) BUTC (Tabaco Campus)',
-                    college: 'BUTC (Tabaco Campus)',
-                    offices: [
-                        'Campus Director\'s Office & Administration',
-                        'Department of Fisheries & Marine Sciences',
-                        'Department of Business Admin & Entrepreneurship',
-                        'Department of Teacher Education',
-                        'Aquaculture Hatchery & Wet Laboratories',
-                        'Post-Harvest & Food Processing Laboratory',
-                        'Oceanography & Marine Biology Lab',
-                        'Tabaco Campus Library & Learning Hub',
-                        'Other Office (BUTC)'
-                    ]
-                },
-                {
-                    cluster: 'Gubat',
-                    label: '(Gubat) BUGC (Gubat Campus)',
-                    college: 'BUGC (Gubat Campus)',
-                    offices: [
-                        'Campus Director\'s Office & Administration',
-                        'Department of Teacher Education',
-                        'Department of Business Administration',
-                        'Department of Information & Computing Sciences',
-                        'Department of Agricultural Technology',
-                        'Computer Laboratory & Multimedia Center',
-                        'Campus Library & Audio-Visual Room',
-                        'Student Services & Guidance Office',
-                        'Other Office (BUGC)'
-                    ]
-                }
-            ],
-
-            onCollegeChange() {
-                const found = this.collegeUnits.find(u => u.college === this.selectedCollege);
-                this.selectedCluster = found ? found.cluster : '';
-                this.selectedOffice = '';
-                this.customOffice = '';
-            },
-
-            get selectedCampus() {
-                return this.selectedCluster;
-            },
-
-            get availableOffices() {
-                if (!this.selectedCollege) return [];
-                const found = this.collegeUnits.find(u => u.college === this.selectedCollege);
-                return found ? found.offices : [];
-            },
-
-            get availableConcerns() {
-                if (!this.selectedCategoryName) return [];
-                const catLower = this.selectedCategoryName.toLowerCase();
-                const matchKey = Object.keys(this.concernsMap).find(k => catLower.includes(k.toLowerCase()));
-                return matchKey ? this.concernsMap[matchKey] : [
-                    'General Repair & Maintenance Request',
-                    'Equipment Repair Request',
-                    'Facility Inspection Request',
-                    'Other Concern'
-                ];
-            },
-
-            get isJanitorialAndManpowerCategory() {
-                const name = (this.selectedCategoryName || '').toLowerCase();
-                return name.includes('manpower') || name.includes('janitor');
-            },
-
-            get isManpowerConcern() {
-                if (!this.isJanitorialAndManpowerCategory) return false;
-                const c = (this.selectedConcern || '').toLowerCase();
-                return c.includes('event') || c.includes('relocation') || c.includes('hauling') || c === 'other manpower service';
-            },
-
-            get isJanitorialConcern() {
-                if (!this.isJanitorialAndManpowerCategory) return false;
-                const c = (this.selectedConcern || '').toLowerCase();
-                return c.includes('clean') || c.includes('waste management') || c.includes('restroom') || c.includes('sanitation') || c === 'other janitorial service';
-            },
-
-            get isOtherCustomService() {
-                return this.selectedConcern === 'Other manpower service' || 
-                       this.selectedConcern === 'Other janitorial service' || 
-                       (this.selectedConcern && this.selectedConcern.includes('Other') && !this.isEventConcern);
-            },
-
-            get isEventConcern() {
-                return (this.selectedConcern || '') === 'Event & Activity Venue Setup' ||
-                       (this.selectedConcern || '').toLowerCase().includes('event & activity');
-            },
-
-            get finalTitle() {
-                if (this.isEventConcern && this.activityTitle) {
-                    return this.activityTitle;
-                }
-                if (this.isOtherCustomService && this.customConcern) {
-                    return this.customConcern;
-                }
-                return this.selectedConcern || '';
-            },
-
-            get finalLocation() {
-                if (!this.selectedCollege || !this.selectedOffice) return '';
-                const officeName = (this.selectedOffice.includes('Other') && this.customOffice)
-                    ? this.customOffice.trim()
-                    : this.selectedOffice;
-                const roomPart = this.specificLocation && this.specificLocation.trim() 
-                    ? ` (${this.specificLocation.trim()})` 
-                    : '';
-                return `${this.selectedCollege} — ${officeName}${roomPart}`;
-            },
-
-            handleFileSelect(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                this.processFile(file);
-            },
-
-            processFile(file) {
-                this.fileName = file.name;
-                this.isImage = file.type.startsWith('image/');
-                const origSizeFormatted = this.formatBytes(file.size);
-                this.fileSizeFormatted = origSizeFormatted;
-
-                if (this.isImage) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        this.filePreviewUrl = e.target.result;
-                        this.compressImage(e.target.result, (compressedBlob, compressedUrl) => {
-                            this.filePreviewUrl = compressedUrl;
-                            const compSizeFormatted = this.formatBytes(compressedBlob.size);
-                            this.fileSizeFormatted = origSizeFormatted + ' → compressed to ~' + compSizeFormatted;
-
-                            const dataTransfer = new DataTransfer();
-                            dataTransfer.items.add(new File([compressedBlob], file.name, { type: 'image/jpeg' }));
-                            this.$refs.fileInput.files = dataTransfer.files;
-                        });
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    this.filePreviewUrl = '';
-                }
-            },
-
-            compressImage(dataUrl, callback) {
-                const img = new Image();
-                img.onload = () => {
-                    const maxWidth = 1200;
-                    const maxHeight = 1200;
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > height) {
-                        if (width > maxWidth) {
-                            height = Math.round((height * maxWidth) / width);
-                            width = maxWidth;
-                        }
-                    } else {
-                        if (height > maxHeight) {
-                            width = Math.round((width * maxHeight) / height);
-                            height = maxHeight;
-                        }
-                    }
-
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    canvas.toBlob((blob) => {
-                        const url = URL.createObjectURL(blob);
-                        callback(blob, url);
-                    }, 'image/jpeg', 0.75);
-                };
-                img.src = dataUrl;
-            },
-
-            removeFile() {
-                this.fileName = '';
-                this.fileSizeFormatted = '';
-                this.filePreviewUrl = '';
-                this.isImage = false;
-                if (this.$refs.fileInput) {
-                    this.$refs.fileInput.value = '';
-                }
-            },
-
-            openCamera() {
-                this.cameraActive = true;
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                    .then(stream => {
-                        this.cameraStream = stream;
-                        this.$nextTick(() => {
-                            if (this.$refs.video) {
-                                this.$refs.video.srcObject = stream;
-                            }
-                        });
-                    })
-                    .catch(err => {
-                        alert('Camera access denied or unavailable: ' + err.message);
-                        this.cameraActive = false;
-                    });
-            },
-
-            captureCameraPhoto() {
-                const video = this.$refs.video;
-                if (!video) return;
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth || 640;
-                canvas.height = video.videoHeight || 480;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                canvas.toBlob((blob) => {
-                    const file = new File([blob], 'camera_photo_' + Date.now() + '.jpg', { type: 'image/jpeg' });
-                    this.processFile(file);
-                    this.closeCamera();
-                }, 'image/jpeg', 0.75);
-            },
-
-            closeCamera() {
-                if (this.cameraStream) {
-                    this.cameraStream.getTracks().forEach(track => track.stop());
-                    this.cameraStream = null;
-                }
-                this.cameraActive = false;
-            },
-
-            formatBytes(bytes) {
-                if (bytes === 0) return '0 Bytes';
-                const k = 1024;
-                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-            }
-        }" 
-        @submit="submitting = true" 
-        action="{{ route('client.requests.store') }}" 
-        method="POST" 
-        enctype="multipart/form-data">
+        <form x-data="clientRequestForm({ preselectedCatId: '{{ $preselectedCatId ?? '' }}', oldCampus: '{{ old('campus', '') }}' })" 
+              @submit.prevent="validateManpowerForm($event)" 
+              action="{{ route('client.requests.store') }}" 
+              method="POST" 
+              enctype="multipart/form-data">
             
             <fieldset class="w-full flex flex-col lg:flex-row gap-8 items-start" {{ (isset($unratedCompletedRequest) && $unratedCompletedRequest) ? 'disabled' : '' }}>
                 @csrf
@@ -1069,16 +284,22 @@
                                     <span x-show="prepTimePreset !== 'custom'" class="text-gray-600 dark:text-gray-300 font-medium" x-text="prepRegularTime"></span>
                                     <input type="hidden" name="prep_regular_time" :value="prepRegularTime" :disabled="!isManpowerConcern">
                                 </div>
-                                <label class="inline-flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" x-model="prepOvertime" name="prep_overtime" value="1"
-                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
-                                           :disabled="!isManpowerConcern">
-                                    <span class="font-bold text-gray-700 dark:text-gray-300">Overtime:</span>
-                                    <input type="text" x-model="prepOvertimeTime" name="prep_overtime_time"
-                                           placeholder="e.g. 5:00 PM - 8:00 PM"
-                                           class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
-                                           :disabled="!isManpowerConcern || !prepOvertime">
-                                </label>
+                                <div class="flex items-center gap-2">
+                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" x-model="prepOvertime" name="prep_overtime" value="1"
+                                               class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
+                                               :disabled="!isManpowerConcern">
+                                        <span class="font-bold text-gray-700 dark:text-gray-300">Overtime:</span>
+                                    </label>
+                                    <div class="flex flex-col">
+                                        <input type="text" x-model="prepOvertimeTime" name="prep_overtime_time"
+                                               placeholder="e.g. 5:00PM-6:00PM"
+                                               :class="{'border-red-500 focus:border-red-500 ring-1 ring-red-500 bg-red-50/40 dark:bg-red-950/30': prepOvertime && prepOvertimeTime && !isValidTimeFormat(prepOvertimeTime)}"
+                                               class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-40 font-medium"
+                                               :disabled="!isManpowerConcern || !prepOvertime">
+                                        <span x-show="prepOvertime && prepOvertimeTime && !isValidTimeFormat(prepOvertimeTime)" x-cloak class="text-[10px] text-red-600 dark:text-red-400 font-semibold mt-0.5">Format: 5:00PM-6:00PM</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1133,16 +354,22 @@
                                     <span x-show="assistanceTimePreset !== 'custom'" class="text-gray-600 dark:text-gray-300 font-medium" x-text="assistanceRegularTime"></span>
                                     <input type="hidden" name="assistance_regular_time" :value="assistanceRegularTime" :disabled="!isManpowerConcern">
                                 </div>
-                                <label class="inline-flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" x-model="assistanceOvertime" name="assistance_overtime" value="1"
-                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
-                                           :disabled="!isManpowerConcern">
-                                    <span class="font-bold text-gray-700 dark:text-gray-300">Overtime:</span>
-                                    <input type="text" x-model="assistanceOvertimeTime" name="assistance_overtime_time"
-                                           placeholder="e.g. 5:00 PM - 10:00 PM"
-                                           class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
-                                           :disabled="!isManpowerConcern || !assistanceOvertime">
-                                </label>
+                                <div class="flex items-center gap-2">
+                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" x-model="assistanceOvertime" name="assistance_overtime" value="1"
+                                               class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
+                                               :disabled="!isManpowerConcern">
+                                        <span class="font-bold text-gray-700 dark:text-gray-300">Overtime:</span>
+                                    </label>
+                                    <div class="flex flex-col">
+                                        <input type="text" x-model="assistanceOvertimeTime" name="assistance_overtime_time"
+                                               placeholder="e.g. 5:00PM-10:00PM"
+                                               :class="{'border-red-500 focus:border-red-500 ring-1 ring-red-500 bg-red-50/40 dark:bg-red-950/30': assistanceOvertime && assistanceOvertimeTime && !isValidTimeFormat(assistanceOvertimeTime)}"
+                                               class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-40 font-medium"
+                                               :disabled="!isManpowerConcern || !assistanceOvertime">
+                                        <span x-show="assistanceOvertime && assistanceOvertimeTime && !isValidTimeFormat(assistanceOvertimeTime)" x-cloak class="text-[10px] text-red-600 dark:text-red-400 font-semibold mt-0.5">Format: 5:00PM-6:00PM</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1197,16 +424,22 @@
                                     <span x-show="clearingTimePreset !== 'custom'" class="text-gray-600 dark:text-gray-300 font-medium" x-text="clearingRegularTime"></span>
                                     <input type="hidden" name="clearing_regular_time" :value="clearingRegularTime" :disabled="!isManpowerConcern">
                                 </div>
-                                <label class="inline-flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" x-model="clearingOvertime" name="clearing_overtime" value="1"
-                                           class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
-                                           :disabled="!isManpowerConcern">
-                                    <span class="font-bold text-gray-700 dark:text-gray-300">Overtime:</span>
-                                    <input type="text" x-model="clearingOvertimeTime" name="clearing_overtime_time"
-                                           placeholder="e.g. 5:00 PM - 8:00 PM"
-                                           class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-36 font-medium"
-                                           :disabled="!isManpowerConcern || !clearingOvertime">
-                                </label>
+                                <div class="flex items-center gap-2">
+                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" x-model="clearingOvertime" name="clearing_overtime" value="1"
+                                               class="w-4 h-4 text-[#0033a0] rounded border-gray-300 dark:border-zinc-700 focus:ring-[#0033a0]"
+                                               :disabled="!isManpowerConcern">
+                                        <span class="font-bold text-gray-700 dark:text-gray-300">Overtime:</span>
+                                    </label>
+                                    <div class="flex flex-col">
+                                        <input type="text" x-model="clearingOvertimeTime" name="clearing_overtime_time"
+                                               placeholder="e.g. 5:00PM-8:00PM"
+                                               :class="{'border-red-500 focus:border-red-500 ring-1 ring-red-500 bg-red-50/40 dark:bg-red-950/30': clearingOvertime && clearingOvertimeTime && !isValidTimeFormat(clearingOvertimeTime)}"
+                                               class="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-900 dark:text-white w-40 font-medium"
+                                               :disabled="!isManpowerConcern || !clearingOvertime">
+                                        <span x-show="clearingOvertime && clearingOvertimeTime && !isValidTimeFormat(clearingOvertimeTime)" x-cloak class="text-[10px] text-red-600 dark:text-red-400 font-semibold mt-0.5">Format: 5:00PM-6:00PM</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1477,4 +710,760 @@
         </form>
     </main>
 </div>
+
+@push('scripts')
+<script>
+function clientRequestForm(config = {}) {
+    return {
+        submitting: false,
+        viewPreviewModal: false,
+        selectedCategoryId: config.preselectedCatId || '',
+        selectedCategoryName: '',
+        selectedCluster: config.oldCampus || '',
+        selectedCollege: '',
+        selectedOffice: '',
+        customOffice: '',
+        specificLocation: '',
+        selectedConcern: '',
+        customConcern: '',
+
+        // Manpower & Event Specific Fields
+        activityTitle: '',
+        eventDate: '',
+        prepDateFrom: '',
+        prepDateTo: '',
+        prepDetails: '',
+        prepRegular: true,
+        prepOvertime: false,
+        prepTimePreset: 'regular',
+        prepRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
+        prepOvertimeTime: '',
+
+        assistanceDateFrom: '',
+        assistanceDateTo: '',
+        assistanceDetails: '',
+        assistanceRegular: true,
+        assistanceOvertime: false,
+        assistanceTimePreset: 'regular',
+        assistanceRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
+        assistanceOvertimeTime: '',
+
+        clearingDateFrom: '',
+        clearingDateTo: '',
+        clearingDetails: '',
+        clearingRegular: true,
+        clearingOvertime: false,
+        clearingTimePreset: 'regular',
+        clearingRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
+        clearingOvertimeTime: '',
+
+        additionalNotes: '',
+
+        // Janitorial Form State
+        janitorialAreas: '',
+        janitorialType: 'Deep Cleaning & Disinfection',
+        janitorialFrequency: 'One-time',
+        janitorialSupplies: '',
+        janitorialSchedule: '',
+
+        timePresets: [
+            { value: 'morning',   label: 'Morning (8:00 AM – 12:00 PM)',        time: '8:00 - 12:00' },
+            { value: 'afternoon', label: 'Afternoon (1:00 PM – 5:00 PM)',        time: '1:00 - 5:00' },
+            { value: 'regular',   label: 'Regular Time (8:00 AM – 5:00 PM)',     time: '8:00 - 12:00 / 1:00 - 5:00' },
+            { value: 'fullday',   label: 'Full Day (8:00 AM – 5:00 PM)',         time: '8:00 - 5:00' },
+            { value: 'custom',    label: 'Custom Time…',                         time: '' },
+        ],
+
+        applyTimePreset(section) {
+            const map = { prep: 'prepTimePreset', assistance: 'assistanceTimePreset', clearing: 'clearingTimePreset' };
+            const timeMap = { prep: 'prepRegularTime', assistance: 'assistanceRegularTime', clearing: 'clearingRegularTime' };
+            const preset = this.timePresets.find(p => p.value === this[map[section]]);
+            if (preset && preset.value !== 'custom') {
+                this[timeMap[section]] = preset.time;
+            }
+        },
+
+        formatDateRange(from, to) {
+            if (!from && !to) return '';
+            if (!to || from === to) return from;
+            return from + ' to ' + to;
+        },
+
+        get prepDate() { return this.formatDateRange(this.prepDateFrom, this.prepDateTo); },
+        get assistanceDate() { return this.formatDateRange(this.assistanceDateFrom, this.assistanceDateTo); },
+        get clearingDate() { return this.formatDateRange(this.clearingDateFrom, this.clearingDateTo); },
+
+        init() {
+            this.$nextTick(() => {
+                const selectEl = this.$refs.categorySelect;
+                if (selectEl) {
+                    if (this.selectedCategoryId) {
+                        selectEl.value = this.selectedCategoryId;
+                    }
+                    if (selectEl.selectedIndex >= 0) {
+                        const selectedOpt = selectEl.options[selectEl.selectedIndex];
+                        if (selectedOpt && selectEl.value) {
+                            this.selectedCategoryName = selectedOpt.text;
+                        }
+                    }
+                }
+            });
+        },
+
+        // Attachment State
+        fileName: '',
+        fileSizeFormatted: '',
+        filePreviewUrl: '',
+        isImage: false,
+        cameraActive: false,
+        cameraStream: null,
+
+        concernsMap: {
+            'Electrical': [
+                'Power Outlet Repair / Installation',
+                'Lighting Fixture Repair / Replacement',
+                'Circuit Breaker Tripping / Power Outage',
+                'Wiring Inspection & Electrical Safety',
+                'Ceiling Fan / Exhaust Fan Repair',
+                'Other Electrical Concern'
+            ],
+            'Carpentry': [
+                'Door Lock / Handle / Hinge Repair',
+                'Window Glass & Wooden Frame Repair',
+                'Table / Desk Fabrication or Repair',
+                'Chair / Bench Repair',
+                'Ceiling / Roof Leak Inspection & Repair',
+                'Cabinet / Drawer Repair',
+                'Other Carpentry Concern'
+            ],
+            'Plumbing': [
+                'Faucet / Pipe Leak Repair',
+                'Toilet / Urinal Clog Repair',
+                'Water Pressure Issue / Pump Concern',
+                'Drainage / Sewage Clog',
+                'Water Tank / Fixture Installation',
+                'Other Plumbing Concern'
+            ],
+            'Painting': [
+                'Wall / Ceiling Repainting',
+                'Exterior Facade Repainting',
+                'Door / Window Repainting',
+                'Gate / Fence Repainting',
+                'Other Painting Concern'
+            ],
+            'Air Conditioning': [
+                'Aircon Cleaning & Preventive Maintenance',
+                'Aircon Cooling Failure / Freon Refill',
+                'Aircon Water Leakage Repair',
+                'Aircon Noise / Power Issue',
+                'Other Aircon Concern'
+            ],
+            'Landscaping': [
+                'Grass Cutting / Lawn Mowing',
+                'Tree Trimming & Branch Removal',
+                'Garden & Grounds Cleaning / Clearing',
+                'Planting & Campus Beautification Request',
+                'Weed Control & Soil Maintenance',
+                'Other Landscaping Concern'
+            ],
+            'Janitorial and Manpower': [
+                'Event & Activity Venue Setup',
+                'Heavy Equipment & Furniture Relocation',
+                'Hauling & Waste Disposal Assistance',
+                'Deep Cleaning & Disinfection Service',
+                'Waste Management & Garbage Collection',
+                'Restroom Sanitation & Supplies Check',
+                'Other manpower service',
+                'Other janitorial service'
+            ]
+        },
+
+        collegeUnits: [
+            {
+                cluster: 'Main',
+                label: '(Main Cluster) GASS & Auxiliary Services',
+                college: 'GASS & Auxiliary Services',
+                offices: [
+                    'Office of the University President',
+                    'Office of the Vice President for Academic Affairs (OVPAA)',
+                    'Office of the Vice President for Administration and Finance (OVPAF)',
+                    'Office of the Vice President for Research, Development and Extension (OVPRDE)',
+                    'Office of the Vice President for Planning and Development (OVPPD)',
+                    'General Services Office (GSO)',
+                    'University Registrar\'s Office',
+                    'Cashier\'s Office & Accounting Office',
+                    'Human Resource Development Office (HRDO)',
+                    'Supply and Property Management Office (SPMO)',
+                    'Information & Communications Technology Office (ICTO)',
+                    'University Health Services / Clinic',
+                    'University Main Library & Audio-Visual Hall',
+                    'Office of Student Affairs and Services (OSAS)',
+                    'University Student Center (USC)',
+                    'University Gymnasium & Sports Complex',
+                    'BUCFAO / Auxiliary Services Office',
+                    'Other Office / Facility'
+                ]
+            },
+            {
+                cluster: 'Cluster 1',
+                label: '(Cluster 1) BUCE (College of Education)',
+                college: 'BUCE (College of Education)',
+                offices: [
+                    'Dean\'s Office & Administrative Staff',
+                    'Elementary Dept / Integrated Lab School (ILS-Elem)',
+                    'High School Dept / Integrated Lab School (ILS-HS)',
+                    'Dept of Elementary Education (BEED)',
+                    'Dept of Secondary Education (BSED)',
+                    'Science & Mathematics Education Unit',
+                    'Educational Media & Audio-Visual Room (AVR)',
+                    'Reading Clinic & Learning Resource Center',
+                    'Guidance & Counseling Office',
+                    'Faculty Offices & Consultation Rooms',
+                    'Other Office (BUCE)'
+                ]
+            },
+            {
+                cluster: 'Cluster 1',
+                label: '(Cluster 1) BUCM (College of Medicine)',
+                college: 'BUCM (College of Medicine)',
+                offices: [
+                    'Dean\'s Office & College Secretary',
+                    'Basic Medical Sciences Department',
+                    'Clinical Skills Simulation Laboratory',
+                    'Gross Anatomy & Dissection Laboratory',
+                    'Histology & Pathology Laboratory',
+                    'Physiology & Pharmacology Laboratory',
+                    'Medical Amphitheater & Lecture Halls',
+                    'Medical Library & Learning Hub',
+                    'Faculty Consultation Room',
+                    'Other Office (BUCM)'
+                ]
+            },
+            {
+                cluster: 'Cluster 1',
+                label: '(Cluster 1) IPESR (Institute of Physical Education, Sports and Recreation)',
+                college: 'IPESR (Institute of Physical Education, Sports and Recreation)',
+                offices: [
+                    'Director\'s Office & Administration',
+                    'Physical Education Department',
+                    'Sports Development & Athletic Office',
+                    'University Gymnasium & Main Court',
+                    'Fitness & Weight Training Gym',
+                    'Dance Studio & Aerobics Hall',
+                    'Equipment & Supplies Custodian Room',
+                    'Swimming Pool Complex & Locker Rooms',
+                    'Other Office (IPESR)'
+                ]
+            },
+            {
+                cluster: 'Cluster 2',
+                label: '(Cluster 2) CS (College of Science)',
+                college: 'CS (College of Science)',
+                offices: [
+                    'Dean\'s Office & Administrative Staff',
+                    'Biology Department & Laboratories',
+                    'Chemistry Department & Laboratories',
+                    'Physics Department & Laboratories',
+                    'Computer Science & IT Department (CSIT)',
+                    'Mathematics & Statistics Department',
+                    'Science Research & Science Resource Center',
+                    'Faculty Offices & Consultation Rooms',
+                    'Other Office (CS)'
+                ]
+            },
+            {
+                cluster: 'Cluster 2',
+                label: '(Cluster 2) BUCN (College of Nursing)',
+                college: 'BUCN (College of Nursing)',
+                offices: [
+                    'Dean\'s Office & College Secretary',
+                    'Nursing Arts Laboratory (NAL)',
+                    'Maternal & Child Health Laboratory',
+                    'Medical-Surgical Skills Laboratory',
+                    'Community Health Nursing Unit',
+                    'Faculty Room & Student Consultation Area',
+                    'Other Office (BUCN)'
+                ]
+            },
+            {
+                cluster: 'Cluster 2',
+                label: '(Cluster 2) CENG (College of Engineering)',
+                college: 'CENG (College of Engineering)',
+                offices: [
+                    'Dean\'s Office & College Secretary',
+                    'Civil Engineering Department',
+                    'Electrical Engineering Department',
+                    'Mechanical Engineering Department',
+                    'Chemical Engineering Department',
+                    'Geodetic Engineering Department',
+                    'Mining Engineering Department',
+                    'Materials Testing Laboratory',
+                    'CAD & Computing Laboratory',
+                    'Engineering Machine Shop',
+                    'Other Office (CENG)'
+                ]
+            },
+            {
+                cluster: 'Cluster 3',
+                label: '(Cluster 3) CAL (College of Arts and Letters)',
+                college: 'CAL (College of Arts and Letters)',
+                offices: [
+                    'Dean\'s Office & Administrative Staff',
+                    'English & Applied Linguistics Department',
+                    'Literature & Performing Arts Department',
+                    'Humanities & Philosophy Department',
+                    'Journalism & Communication Department',
+                    'Speech & Multimedia Broadcasting Laboratory',
+                    'Amphitheater & Audio-Visual Room',
+                    'Other Office (CAL)'
+                ]
+            },
+            {
+                cluster: 'Cluster 3',
+                label: '(Cluster 3) CIT (College of Industrial Technology)',
+                college: 'CIT (College of Industrial Technology)',
+                offices: [
+                    'Dean\'s Office & Administrative Staff',
+                    'Automotive Technology Shop',
+                    'Electrical Technology Shop',
+                    'Electronics & Computer Technology Shop',
+                    'Mechanical & Fabrication Shop',
+                    'Drafting & Civil Technology Lab',
+                    'Food and Garments Technology Lab',
+                    'Other Office (CIT)'
+                ]
+            },
+            {
+                cluster: 'Cluster 3',
+                label: '(Cluster 3) CBPA (College of Business and Public Administration)',
+                college: 'CBPA (College of Business and Public Administration)',
+                offices: [
+                    'Dean\'s Office & College Secretary',
+                    'Public Administration Department',
+                    'Business Administration Department',
+                    'Student Services & Consultation Area',
+                    'Other Office (CBPA)'
+                ]
+            },
+            {
+                cluster: 'Cluster 4',
+                label: '(Cluster 4) BUIDeA (Institute of Design and Architecture)',
+                college: 'BUIDeA (Institute of Design and Architecture)',
+                offices: [
+                    'Director\'s Office & Administrative Staff',
+                    'Architecture Design Studios (1 to 4)',
+                    'Building Science & Materials Laboratory',
+                    'Digital Drafting & 3D Modeling Laboratory',
+                    'Faculty Consultation Room & Archives',
+                    'Other Office (BUIDeA)'
+                ]
+            },
+            {
+                cluster: 'Cluster 4',
+                label: '(Cluster 4) Graduate School (BUGS)',
+                college: 'Graduate School (BUGS)',
+                offices: [
+                    'Dean\'s Office & Graduate Secretary',
+                    'Doctoral Programs Unit',
+                    'Masteral Programs Unit',
+                    'Research, Statistics & Defense Room',
+                    'Graduate Student Lounge & Seminar Room',
+                    'Other Office (BUGS)'
+                ]
+            },
+            {
+                cluster: 'Cluster 4',
+                label: '(Cluster 4) East Campus Facilities (ESC)',
+                college: 'East Campus Facilities (ESC)',
+                offices: [
+                    'East Campus Admin & Property Custodian',
+                    'East Campus General Library',
+                    'East Campus Student Center & Canteen',
+                    'Multi-Purpose Hall & Audio-Visual Room',
+                    'Security & Maintenance Quarters',
+                    'Other Office (ESC)'
+                ]
+            },
+            {
+                cluster: 'Cluster 4',
+                label: '(Cluster 4) RDC (Research and Development Center)',
+                college: 'RDC (Research and Development Center)',
+                offices: [
+                    'Director\'s Office & Research Services',
+                    'Intellectual Property / ITSO Office',
+                    'Central Analytical Testing Laboratory',
+                    'Extension & Community Engagement Office',
+                    'Publications & Journal Editorial Office',
+                    'Other Office (RDC)'
+                ]
+            },
+            {
+                cluster: 'Cluster Daraga',
+                label: '(Cluster Daraga) CSSP (College of Social Sciences and Philosophy)',
+                college: 'CSSP (College of Social Sciences and Philosophy)',
+                offices: [
+                    'Dean\'s Office & College Secretary',
+                    'Department of Political Science & Public Affairs',
+                    'Department of Sociology & Anthropology',
+                    'Department of Psychology',
+                    'Department of Philosophy',
+                    'Department of Peace Studies',
+                    'Psychological Testing & Assessment Laboratory',
+                    'Social Science Research & Audio-Visual Hall',
+                    'Guidance, Career & Counseling Office',
+                    'Other Office (CSSP)'
+                ]
+            },
+            {
+                cluster: 'Cluster Daraga',
+                label: '(Cluster Daraga) CBEM (College of Business, Economics and Management)',
+                college: 'CBEM (College of Business, Economics and Management)',
+                offices: [
+                    'Dean\'s Office & College Secretary',
+                    'Department of Accountancy',
+                    'Department of Business Admin & Marketing',
+                    'Department of Economics',
+                    'Department of Entrepreneurship',
+                    'Center for Entrepreneurship & Business Incubator',
+                    'Accounting Simulation Computer Lab',
+                    'CBEM Auditorium & Multi-Purpose Center',
+                    'Student Organization & Activity Center',
+                    'Other Office (CBEM)'
+                ]
+            },
+            {
+                cluster: 'Guinobatan',
+                label: '(Guinobatan) BUCAF (College of Agriculture and Forestry)',
+                college: 'BUCAF (College of Agriculture and Forestry)',
+                offices: [
+                    'Dean\'s Office & Campus Administration',
+                    'Department of Agricultural Sciences',
+                    'Department of Animal Science & Veterinary Clinic',
+                    'Department of Forestry & Agroforestry',
+                    'Department of Agricultural and Biosystems Eng',
+                    'Crop Science & Tissue Culture Laboratory',
+                    'Soil Science & Agricultural Chemistry Lab',
+                    'Farm Machinery Shop & Demo Farm Office',
+                    'BUCAF Campus Library & Auditorium',
+                    'Other Office (BUCAF)'
+                ]
+            },
+            {
+                cluster: 'Polangui',
+                label: '(Polangui) BUPC (Polangui Campus)',
+                college: 'BUPC (Polangui Campus)',
+                offices: [
+                    'Campus Director\'s Office & Administration',
+                    'Department of Information Technology & CS',
+                    'Department of Computer Engineering',
+                    'Department of Nursing and Health Sciences',
+                    'Department of Teacher Education',
+                    'Department of Automotive & Mechanical Technology',
+                    'Computer Laboratories (1 to 4)',
+                    'Health Skills Laboratory & Clinic',
+                    'Polangui Campus Library & Student Center',
+                    'Other Office (BUPC)'
+                ]
+            },
+            {
+                cluster: 'Tabaco',
+                label: '(Tabaco) BUTC (Tabaco Campus)',
+                college: 'BUTC (Tabaco Campus)',
+                offices: [
+                    'Campus Director\'s Office & Administration',
+                    'Department of Fisheries & Marine Sciences',
+                    'Department of Business Admin & Entrepreneurship',
+                    'Department of Teacher Education',
+                    'Aquaculture Hatchery & Wet Laboratories',
+                    'Post-Harvest & Food Processing Laboratory',
+                    'Oceanography & Marine Biology Lab',
+                    'Tabaco Campus Library & Learning Hub',
+                    'Other Office (BUTC)'
+                ]
+            },
+            {
+                cluster: 'Gubat',
+                label: '(Gubat) BUGC (Gubat Campus)',
+                college: 'BUGC (Gubat Campus)',
+                offices: [
+                    'Campus Director\'s Office & Administration',
+                    'Department of Teacher Education',
+                    'Department of Business Administration',
+                    'Department of Information & Computing Sciences',
+                    'Department of Agricultural Technology',
+                    'Computer Laboratory & Multimedia Center',
+                    'Campus Library & Audio-Visual Room',
+                    'Student Services & Guidance Office',
+                    'Other Office (BUGC)'
+                ]
+            }
+        ],
+
+        onCollegeChange() {
+            const found = this.collegeUnits.find(u => u.college === this.selectedCollege);
+            this.selectedCluster = found ? found.cluster : '';
+            this.selectedOffice = '';
+            this.customOffice = '';
+        },
+
+        get selectedCampus() {
+            return this.selectedCluster;
+        },
+
+        get availableOffices() {
+            if (!this.selectedCollege) return [];
+            const found = this.collegeUnits.find(u => u.college === this.selectedCollege);
+            return found ? found.offices : [];
+        },
+
+        get availableConcerns() {
+            if (!this.selectedCategoryName) return [];
+            const catLower = this.selectedCategoryName.toLowerCase();
+            
+            if (catLower.includes('janitor') || catLower.includes('manpower')) {
+                return this.concernsMap['Janitorial and Manpower'];
+            }
+            if (catLower.includes('plumb')) {
+                return this.concernsMap['Plumbing'];
+            }
+            if (catLower.includes('paint')) {
+                return this.concernsMap['Painting'];
+            }
+            if (catLower.includes('landscape') || catLower.includes('grounds')) {
+                return this.concernsMap['Landscaping'];
+            }
+            if (catLower.includes('aircon') || catLower.includes('conditioning')) {
+                return this.concernsMap['Air Conditioning'];
+            }
+            if (catLower.includes('carpent') || catLower.includes('mason') || catLower.includes('electr')) {
+                return [
+                    ...this.concernsMap['Carpentry'],
+                    ...this.concernsMap['Electrical'],
+                    'Masonry / Concrete & Tile Repair',
+                    'Other General Repair Concern'
+                ];
+            }
+
+            const matchKey = Object.keys(this.concernsMap).find(k => catLower.includes(k.toLowerCase()));
+            return matchKey ? this.concernsMap[matchKey] : [
+                'General Repair & Maintenance Request',
+                'Equipment Repair Request',
+                'Facility Inspection Request',
+                'Other Concern'
+            ];
+        },
+
+        get isJanitorialAndManpowerCategory() {
+            const name = (this.selectedCategoryName || '').toLowerCase();
+            return name.includes('manpower') || name.includes('janitor');
+        },
+
+        get isManpowerConcern() {
+            if (!this.isJanitorialAndManpowerCategory) return false;
+            const c = (this.selectedConcern || '').toLowerCase();
+            return c.includes('event') || c.includes('relocation') || c.includes('hauling') || c.includes('manpower');
+        },
+
+        get isJanitorialConcern() {
+            if (!this.isJanitorialAndManpowerCategory) return false;
+            const c = (this.selectedConcern || '').toLowerCase();
+            return c.includes('clean') || c.includes('waste') || c.includes('restroom') || c.includes('sanitation') || c.includes('janitorial');
+        },
+
+        get isOtherCustomService() {
+            return this.selectedConcern === 'Other manpower service' || 
+                   this.selectedConcern === 'Other janitorial service' || 
+                   (this.selectedConcern && this.selectedConcern.includes('Other') && !this.isEventConcern);
+        },
+
+        get isEventConcern() {
+            return (this.selectedConcern || '') === 'Event & Activity Venue Setup' ||
+                   (this.selectedConcern || '').toLowerCase().includes('event & activity');
+        },
+
+        get finalTitle() {
+            if (this.isEventConcern && this.activityTitle) {
+                return this.activityTitle;
+            }
+            if (this.isOtherCustomService && this.customConcern) {
+                return this.customConcern;
+            }
+            return this.selectedConcern || '';
+        },
+
+        get finalLocation() {
+            if (!this.selectedCollege || !this.selectedOffice) return '';
+            const officeName = (this.selectedOffice.includes('Other') && this.customOffice)
+                ? this.customOffice.trim()
+                : this.selectedOffice;
+            const roomPart = this.specificLocation && this.specificLocation.trim() 
+                ? ` (${this.specificLocation.trim()})` 
+                : '';
+            return `${this.selectedCollege} — ${officeName}${roomPart}`;
+        },
+
+        handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            this.processFile(file);
+        },
+
+        processFile(file) {
+            this.fileName = file.name;
+            this.isImage = file.type.startsWith('image/');
+            const origSizeFormatted = this.formatBytes(file.size);
+            this.fileSizeFormatted = origSizeFormatted;
+
+            if (this.isImage) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.filePreviewUrl = e.target.result;
+                    this.compressImage(e.target.result, (compressedBlob, compressedUrl) => {
+                        this.filePreviewUrl = compressedUrl;
+                        const compSizeFormatted = this.formatBytes(compressedBlob.size);
+                        this.fileSizeFormatted = origSizeFormatted + ' → compressed to ~' + compSizeFormatted;
+
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(new File([compressedBlob], file.name, { type: 'image/jpeg' }));
+                        this.$refs.fileInput.files = dataTransfer.files;
+                    });
+                };
+                reader.readAsDataURL(file);
+            } else {
+                this.filePreviewUrl = '';
+            }
+        },
+
+        compressImage(dataUrl, callback) {
+            const img = new Image();
+            img.onload = () => {
+                const maxWidth = 1200;
+                const maxHeight = 1200;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    callback(blob, url);
+                }, 'image/jpeg', 0.75);
+            };
+            img.src = dataUrl;
+        },
+
+        removeFile() {
+            this.fileName = '';
+            this.fileSizeFormatted = '';
+            this.filePreviewUrl = '';
+            this.isImage = false;
+            if (this.$refs.fileInput) {
+                this.$refs.fileInput.value = '';
+            }
+        },
+
+        openCamera() {
+            this.cameraActive = true;
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(stream => {
+                    this.cameraStream = stream;
+                    this.$nextTick(() => {
+                        if (this.$refs.video) {
+                            this.$refs.video.srcObject = stream;
+                        }
+                    });
+                })
+                .catch(err => {
+                    alert('Camera access denied or unavailable: ' + err.message);
+                    this.cameraActive = false;
+                });
+        },
+
+        captureCameraPhoto() {
+            const video = this.$refs.video;
+            if (!video) return;
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob((blob) => {
+                const file = new File([blob], 'camera_photo_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+                this.processFile(file);
+                this.closeCamera();
+            }, 'image/jpeg', 0.75);
+        },
+
+        closeCamera() {
+            if (this.cameraStream) {
+                this.cameraStream.getTracks().forEach(track => track.stop());
+                this.cameraStream = null;
+            }
+            this.cameraActive = false;
+        },
+
+        formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        },
+
+        isValidTimeFormat(val) {
+            if (!val || typeof val !== 'string') return false;
+            const v = val.trim();
+            const timePattern = /^(?:(0?[1-9]|1[0-2]):[0-5][0-9]\s*(?:AM|PM|am|pm)\s*(?:-|–|to)\s*(0?[1-9]|1[0-2]):[0-5][0-9]\s*(?:AM|PM|am|pm)|(0?[1-9]|1[0-2]):[0-5][0-9]\s*(?:AM|PM|am|pm)\s*onwards)$/i;
+            return timePattern.test(v);
+        },
+
+        validateManpowerForm(event) {
+            if (this.prepOvertime) {
+                if (!this.prepOvertimeTime || !this.isValidTimeFormat(this.prepOvertimeTime)) {
+                    alert('Please enter a valid Preparation Overtime time (e.g. 5:00PM-6:00PM or 5:00 PM - 8:00 PM).');
+                    const el = document.querySelector('input[name="prep_overtime_time"]');
+                    if (el) el.focus();
+                    return false;
+                }
+            }
+            if (this.assistanceOvertime) {
+                if (!this.assistanceOvertimeTime || !this.isValidTimeFormat(this.assistanceOvertimeTime)) {
+                    alert('Please enter a valid Event Assistance Overtime time (e.g. 5:00PM-6:00PM or 5:00 PM - 10:00 PM).');
+                    const el = document.querySelector('input[name="assistance_overtime_time"]');
+                    if (el) el.focus();
+                    return false;
+                }
+            }
+            if (this.clearingOvertime) {
+                if (!this.clearingOvertimeTime || !this.isValidTimeFormat(this.clearingOvertimeTime)) {
+                    alert('Please enter a valid Clearing Overtime time (e.g. 5:00PM-6:00PM or 5:00 PM - 8:00 PM).');
+                    const el = document.querySelector('input[name="clearing_overtime_time"]');
+                    if (el) el.focus();
+                    return false;
+                }
+            }
+            this.submitting = true;
+            event.target.submit();
+        }
+    };
+}
+</script>
+@endpush
 @endsection

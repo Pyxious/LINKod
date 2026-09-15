@@ -85,11 +85,15 @@ class BomController extends Controller
         }
 
         if ($addedItems > 0) {
-            $newStatus = 'Awaiting Verification of Bill of Materials';
+            $prevProjectStatus = $project->current_status;
+            $wasInProgress = in_array($prevProjectStatus, ['In Progress', 'Pending Verification']);
+            $newStatus = $wasInProgress ? $prevProjectStatus : 'Awaiting Verification of Bill of Materials';
+
+            $project->update(['current_status' => $newStatus]);
 
             \App\Models\ProjectHistory::create([
                 'project_id'      => $project->project_id,
-                'previous_status' => $project->current_status,
+                'previous_status' => $prevProjectStatus,
                 'current_status'  => $newStatus,
                 'remarks'         => 'Team Leader prepared and submitted List of Materials for GSO Admin verification.',
                 'updated_at'      => now(),
@@ -99,12 +103,17 @@ class BomController extends Controller
             if ($project->request_id) {
                 $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
                 if ($serviceRequest) {
-                    $serviceRequest->update(['bom_status' => 'awaiting_admin']);
+                    $prevReqStatus = $serviceRequest->current_status;
+                    $newReqStatus = $wasInProgress ? $prevReqStatus : 'Awaiting Verification of Bill of Materials';
+                    $serviceRequest->update([
+                        'current_status' => $newReqStatus,
+                        'bom_status'     => 'awaiting_admin',
+                    ]);
 
                     \App\Models\RequestHistory::create([
                         'request_id'      => $serviceRequest->request_id,
-                        'previous_status' => $serviceRequest->current_status,
-                        'current_status'  => $newStatus,
+                        'previous_status' => $prevReqStatus,
+                        'current_status'  => $newReqStatus,
                         'remarks'         => 'Team Leader prepared and submitted List of Materials for GSO Admin verification.',
                         'updated_at'      => now(),
                         'updated_by'      => auth()->id(),

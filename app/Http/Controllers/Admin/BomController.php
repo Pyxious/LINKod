@@ -79,74 +79,96 @@ class BomController extends Controller
 
     public function store(Request $request, int $projectId)
     {
-        $validated = $request->validate([
-            'material_id'          => 'nullable',
-            'custom_material_name' => 'nullable|string|max:200',
-            'unit_of_measurement'  => 'nullable|string|max:50',
-            'qty'                  => 'required|numeric|min:0.01',
-            'unit_cost'            => 'nullable|numeric|min:0',
-        ]);
-
         $project = Project::with('request')->findOrFail($projectId);
         if (in_array($project->current_status, ['Cancelled', 'Rejected'])) {
             return redirect()->back()->with('error', 'Materials cannot be modified for cancelled or disapproved requests.');
         }
-        $staff   = auth()->user()->staff;
+        $staff = auth()->user()->staff;
 
-        $materialId = $validated['material_id'] ?? null;
-        $customName = trim($validated['custom_material_name'] ?? '');
-        $unit = trim($validated['unit_of_measurement'] ?? '') ?: 'pcs';
-        $qty = (float)$validated['qty'];
-        $unitCost = (float)($validated['unit_cost'] ?? 0);
-
-        $material = null;
-        if ($materialId && $materialId !== 'custom' && is_numeric($materialId)) {
-            $material = Materials::find($materialId);
-            if ($material && $unitCost > 0) {
-                $material->update([
-                    'unit_cost' => $unitCost,
-                    'unit_of_measurement' => $unit ?: $material->unit_of_measurement
-                ]);
-            }
-        } elseif (!empty($customName)) {
-            $material = Materials::firstOrCreate(
-                ['material_name' => $customName],
-                [
-                    'unit_of_measurement' => $unit,
-                    'unit_cost' => $unitCost,
-                ]
-            );
-            if ($unitCost > 0) {
-                $material->update(['unit_cost' => $unitCost, 'unit_of_measurement' => $unit]);
-            }
+        $items = [];
+        if ($request->has('items') && is_array($request->input('items'))) {
+            $validated = $request->validate([
+                'items'                         => 'required|array|min:1',
+                'items.*.material_id'           => 'nullable',
+                'items.*.custom_material_name'  => 'nullable|string|max:200',
+                'items.*.unit_of_measurement'   => 'nullable|string|max:50',
+                'items.*.qty'                   => 'required|numeric|min:0.01',
+                'items.*.unit_cost'             => 'nullable|numeric|min:0',
+            ]);
+            $items = $validated['items'];
+        } else {
+            $validated = $request->validate([
+                'material_id'          => 'nullable',
+                'custom_material_name' => 'nullable|string|max:200',
+                'unit_of_measurement'  => 'nullable|string|max:50',
+                'qty'                  => 'required|numeric|min:0.01',
+                'unit_cost'            => 'nullable|numeric|min:0',
+            ]);
+            $items = [$validated];
         }
 
-        if (!$material) {
-            return redirect()->back()->with('error', 'Please select or enter a valid material.');
+        $addedCount = 0;
+        foreach ($items as $item) {
+            $materialId = $item['material_id'] ?? null;
+            $customName = trim($item['custom_material_name'] ?? '');
+            $unit = trim($item['unit_of_measurement'] ?? '') ?: 'pcs';
+            $qty = (float)$item['qty'];
+            $unitCost = (float)($item['unit_cost'] ?? 0);
+
+            if ($qty <= 0) continue;
+
+            $material = null;
+            if ($materialId && $materialId !== 'custom' && is_numeric($materialId)) {
+                $material = Materials::find($materialId);
+                if ($material && $unitCost > 0) {
+                    $material->update([
+                        'unit_cost' => $unitCost,
+                        'unit_of_measurement' => $unit ?: $material->unit_of_measurement
+                    ]);
+                }
+            } elseif (!empty($customName)) {
+                $material = Materials::firstOrCreate(
+                    ['material_name' => $customName],
+                    [
+                        'unit_of_measurement' => $unit,
+                        'unit_cost' => $unitCost,
+                    ]
+                );
+                if ($unitCost > 0) {
+                    $material->update(['unit_cost' => $unitCost, 'unit_of_measurement' => $unit]);
+                }
+            }
+
+            if (!$material) continue;
+
+            BillOfMaterials::create([
+                'project_id'    => $project->project_id,
+                'material_id'   => $material->material_id,
+                'qty'           => $qty,
+                'total_cost'    => $qty * $unitCost,
+                'created_by'    => $staff?->staff_id,
+                'date_approved' => now()->toDateString(), // Admin added items are approved directly
+                'fulfilled_by'  => $staff?->staff_id,
+            ]);
+            $addedCount++;
         }
 
-        BillOfMaterials::create([
-            'project_id'    => $project->project_id,
-            'material_id'   => $material->material_id,
-            'qty'           => $qty,
-            'total_cost'    => $qty * $unitCost,
-            'created_by'    => $staff?->staff_id,
-            'date_approved' => now()->toDateString(), // Admin added is automatically approved
-            'fulfilled_by'  => $staff?->staff_id,
-        ]);
+        if ($addedCount === 0) {
+            return redirect()->back()->with('error', 'Please select or enter valid material(s).');
+        }
 
         UserLog::create([
             'user_id'    => auth()->id(),
-            'action'     => "Admin added material ({$material->material_name}) to List of Materials for project #{$project->project_id}",
+            'action'     => "Admin added {$addedCount} material item(s) to List of Materials for project #{$project->project_id}",
             'ip_address' => request()->ip(),
             'created_at' => now(),
         ]);
 
         if ($request->filled('redirect_to')) {
-            return redirect($request->input('redirect_to'))->with('success', 'Material added to List of Materials.');
+            return redirect($request->input('redirect_to'))->with('success', "{$addedCount} material item(s) added to List of Materials.");
         }
 
-        return redirect()->back()->with('success', 'Material added to List of Materials.');
+        return redirect()->back()->with('success', "{$addedCount} material item(s) added to List of Materials.");
     }
 
     public function approve(Request $request, int $projectId)
@@ -160,8 +182,8 @@ class BomController extends Controller
         ]);
 
         $project = Project::with(['client.user', 'billOfMaterials.material', 'workers.staff.user'])->findOrFail($projectId);
-        if (in_array($project->current_status, ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'])) {
-            return redirect()->back()->with('error', 'List of Materials cannot be modified once work is In Progress or closed.');
+        if (in_array($project->current_status, ['Completed', 'Cancelled', 'Rejected'])) {
+            return redirect()->back()->with('error', 'List of Materials cannot be modified for closed or cancelled requests.');
         }
         $staff   = auth()->user()->staff;
 
@@ -192,13 +214,17 @@ class BomController extends Controller
             }
         }
 
-        $newStatus = 'BOM Verified (Awaiting Client Approval)';
+        $wasInProgress = in_array($project->current_status, ['In Progress', 'Pending Verification']);
+        $newStatus = $wasInProgress ? $project->current_status : 'BOM Verified (Awaiting Client Approval)';
+        $remarks = $wasInProgress
+            ? 'GSO Admin verified and updated List of Materials.'
+            : 'GSO Admin verified the List of Materials. Awaiting final approval from client.';
 
         ProjectHistory::create([
             'project_id'      => $project->project_id,
             'previous_status' => $project->current_status,
             'current_status'  => $newStatus,
-            'remarks'         => 'GSO Admin verified the List of Materials. Awaiting final approval from client.',
+            'remarks'         => $remarks,
             'updated_at'      => now(),
             'updated_by'      => auth()->id(),
         ]);
@@ -206,18 +232,18 @@ class BomController extends Controller
         if ($project->request_id) {
             $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
             if ($serviceRequest) {
-                $serviceRequest->update(['bom_status' => 'awaiting_client']);
+                $serviceRequest->update(['bom_status' => $wasInProgress ? 'approved' : 'awaiting_client']);
 
-                    RequestHistory::create([
-                        'request_id'      => $serviceRequest->request_id,
-                        'previous_status' => $serviceRequest->current_status,
-                        'current_status'  => $newStatus,
-                        'remarks'         => 'GSO Admin verified the List of Materials. Awaiting final approval from client.',
-                        'updated_at'      => now(),
-                        'updated_by'      => auth()->id(),
-                    ]);
-                }
+                RequestHistory::create([
+                    'request_id'      => $serviceRequest->request_id,
+                    'previous_status' => $serviceRequest->current_status,
+                    'current_status'  => $newStatus,
+                    'remarks'         => $remarks,
+                    'updated_at'      => now(),
+                    'updated_by'      => auth()->id(),
+                ]);
             }
+        }
 
             UserLog::create([
                 'user_id'    => auth()->id(),
