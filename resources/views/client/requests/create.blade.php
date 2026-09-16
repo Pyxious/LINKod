@@ -140,21 +140,42 @@
 
                     <!-- 3. College/Campus Unit, Office & Specific Room Details -->
                     <div class="space-y-4">
-                        <!-- Row 1: College / Campus Unit (Full-width solo row so long names fit without truncation) -->
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                                College / Campus Unit <span class="text-red-500">*</span>
-                            </label>
-                            <select x-model="selectedCollege"
-                                    @change="onCollegeChange()"
-                                    class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] transition" 
-                                    required>
-                                <option value="" disabled selected>Select College / Campus Unit (e.g. (Cluster 1) BUCE)</option>
-                                <template x-for="unit in collegeUnits" :key="unit.college">
-                                    <option :value="unit.college" x-text="unit.label"></option>
-                                </template>
-                            </select>
-                            <input type="hidden" name="campus" :value="selectedCluster">
+                        <!-- Row 1: College / Campus Unit & Cluster (College bigger, Cluster smaller) -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- Column 1: College / Campus Unit (2/3 width) -->
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                                    College / Unit <span class="text-red-500">*</span>
+                                </label>
+                                <select x-model="selectedCollege"
+                                        @change="onCollegeChange()"
+                                        class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] transition" 
+                                        required>
+                                    <option value="" disabled selected>Select College</option>
+                                    <template x-for="unit in collegeUnits" :key="unit.college">
+                                        <option :value="unit.college" x-text="unit.college"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <!-- Column 2: Campus / Cluster (1/3 width, Auto-populated from selected college) -->
+                            <div class="md:col-span-1">
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                                    Campus / Cluster <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="text"
+                                           :value="selectedCluster || ''"
+                                           readonly
+                                           class="w-full px-4 py-3 bg-gray-100/80 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 cursor-not-allowed transition select-none">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-gray-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="campus" :value="selectedCluster">
+                            </div>
                         </div>
 
                         <!-- Row 2: Office/Dept & Specific Room share a row (2 columns) -->
@@ -187,17 +208,16 @@
                                 </div>
                             </div>
 
-                            <!-- Column 2: Specific Room / Exact Location Details -->
+                            <!-- Column 2: Specific Room / Location (Optional) -->
                             <div>
                                 <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                                    Location Needed to be Fixed <span class="text-red-500">*</span>
+                                    Building / Room No. <span class="text-xs font-normal text-gray-400 lowercase">(optional)</span>
                                 </label>
                                 <input type="text" 
                                        x-model="specificLocation" 
                                        placeholder="e.g. Room 204, 2nd Floor, Left Wing / Chemistry Lab 1 / Faculty Office Cubicle 3" 
-                                       class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] transition" 
-                                       required>
-                                <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Please enter the specific room number, floor, or landmark where work will take place.</p>
+                                       class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] transition">
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Please enter the specific room number, floor, or landmark where work will take place (optional).</p>
                             </div>
                         </div>
 
@@ -881,7 +901,7 @@ function clientRequestForm(config = {}) {
         collegeUnits: [
             {
                 cluster: 'Main',
-                label: '(Main Cluster) GASS & Auxiliary Services',
+                label: 'GASS & Auxiliary Services',
                 college: 'GASS & Auxiliary Services',
                 offices: [
                     'Office of the University President',
@@ -906,7 +926,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 1',
-                label: '(Cluster 1) BUCE (College of Education)',
+                label: 'BUCE (College of Education)',
                 college: 'BUCE (College of Education)',
                 offices: [
                     'Dean\'s Office & Administrative Staff',
@@ -924,7 +944,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 1',
-                label: '(Cluster 1) BUCM (College of Medicine)',
+                label: 'BUCM (College of Medicine)',
                 college: 'BUCM (College of Medicine)',
                 offices: [
                     'Dean\'s Office & College Secretary',
@@ -941,7 +961,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 1',
-                label: '(Cluster 1) IPESR (Institute of Physical Education, Sports and Recreation)',
+                label: 'IPESR (Institute of Physical Education, Sports and Recreation)',
                 college: 'IPESR (Institute of Physical Education, Sports and Recreation)',
                 offices: [
                     'Director\'s Office & Administration',
@@ -957,7 +977,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 2',
-                label: '(Cluster 2) CS (College of Science)',
+                label: 'CS (College of Science)',
                 college: 'CS (College of Science)',
                 offices: [
                     'Dean\'s Office & Administrative Staff',
@@ -973,7 +993,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 2',
-                label: '(Cluster 2) BUCN (College of Nursing)',
+                label: 'BUCN (College of Nursing)',
                 college: 'BUCN (College of Nursing)',
                 offices: [
                     'Dean\'s Office & College Secretary',
@@ -987,7 +1007,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 2',
-                label: '(Cluster 2) CENG (College of Engineering)',
+                label: 'CENG (College of Engineering)',
                 college: 'CENG (College of Engineering)',
                 offices: [
                     'Dean\'s Office & College Secretary',
@@ -1005,7 +1025,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 3',
-                label: '(Cluster 3) CAL (College of Arts and Letters)',
+                label: 'CAL (College of Arts and Letters)',
                 college: 'CAL (College of Arts and Letters)',
                 offices: [
                     'Dean\'s Office & Administrative Staff',
@@ -1020,7 +1040,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 3',
-                label: '(Cluster 3) CIT (College of Industrial Technology)',
+                label: 'CIT (College of Industrial Technology)',
                 college: 'CIT (College of Industrial Technology)',
                 offices: [
                     'Dean\'s Office & Administrative Staff',
@@ -1035,7 +1055,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 3',
-                label: '(Cluster 3) CBPA (College of Business and Public Administration)',
+                label: 'CBPA (College of Business and Public Administration)',
                 college: 'CBPA (College of Business and Public Administration)',
                 offices: [
                     'Dean\'s Office & College Secretary',
@@ -1047,7 +1067,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 4',
-                label: '(Cluster 4) BUIDeA (Institute of Design and Architecture)',
+                label: 'BUIDeA (Institute of Design and Architecture)',
                 college: 'BUIDeA (Institute of Design and Architecture)',
                 offices: [
                     'Director\'s Office & Administrative Staff',
@@ -1060,7 +1080,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 4',
-                label: '(Cluster 4) Graduate School (BUGS)',
+                label: 'Graduate School (BUGS)',
                 college: 'Graduate School (BUGS)',
                 offices: [
                     'Dean\'s Office & Graduate Secretary',
@@ -1073,7 +1093,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 4',
-                label: '(Cluster 4) East Campus Facilities (ESC)',
+                label: 'East Campus Facilities (ESC)',
                 college: 'East Campus Facilities (ESC)',
                 offices: [
                     'East Campus Admin & Property Custodian',
@@ -1086,7 +1106,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster 4',
-                label: '(Cluster 4) RDC (Research and Development Center)',
+                label: 'RDC (Research and Development Center)',
                 college: 'RDC (Research and Development Center)',
                 offices: [
                     'Director\'s Office & Research Services',
@@ -1099,7 +1119,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster Daraga',
-                label: '(Cluster Daraga) CSSP (College of Social Sciences and Philosophy)',
+                label: 'CSSP (College of Social Sciences and Philosophy)',
                 college: 'CSSP (College of Social Sciences and Philosophy)',
                 offices: [
                     'Dean\'s Office & College Secretary',
@@ -1116,7 +1136,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Cluster Daraga',
-                label: '(Cluster Daraga) CBEM (College of Business, Economics and Management)',
+                label: 'CBEM (College of Business, Economics and Management)',
                 college: 'CBEM (College of Business, Economics and Management)',
                 offices: [
                     'Dean\'s Office & College Secretary',
@@ -1133,7 +1153,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Guinobatan',
-                label: '(Guinobatan) BUCAF (College of Agriculture and Forestry)',
+                label: 'BUCAF (College of Agriculture and Forestry)',
                 college: 'BUCAF (College of Agriculture and Forestry)',
                 offices: [
                     'Dean\'s Office & Campus Administration',
@@ -1150,7 +1170,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Polangui',
-                label: '(Polangui) BUPC (Polangui Campus)',
+                label: 'BUPC (Polangui Campus)',
                 college: 'BUPC (Polangui Campus)',
                 offices: [
                     'Campus Director\'s Office & Administration',
@@ -1167,7 +1187,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Tabaco',
-                label: '(Tabaco) BUTC (Tabaco Campus)',
+                label: 'BUTC (Tabaco Campus)',
                 college: 'BUTC (Tabaco Campus)',
                 offices: [
                     'Campus Director\'s Office & Administration',
@@ -1183,7 +1203,7 @@ function clientRequestForm(config = {}) {
             },
             {
                 cluster: 'Gubat',
-                label: '(Gubat) BUGC (Gubat Campus)',
+                label: 'BUGC (Gubat Campus)',
                 college: 'BUGC (Gubat Campus)',
                 offices: [
                     'Campus Director\'s Office & Administration',
