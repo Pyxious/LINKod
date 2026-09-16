@@ -311,6 +311,9 @@ class RequestController extends Controller
                 'updated_by'      => auth()->id(),
             ]);
 
+            // Dispatch automated client confirmation email
+            $this->notifications->requestSubmitted($serviceRequest);
+
             return redirect()->route('client.requests.show', $serviceRequest->request_id)
                 ->with('success', 'Your service request has been submitted successfully.');
 

@@ -38,6 +38,11 @@ class ServiceRequest extends Model
         return $this->is_urgent ? 'High' : 'Routine';
     }
 
+    public function getFormattedIdAttribute(): string
+    {
+        return 'REQ-' . str_pad((string)$this->request_id, 4, '0', STR_PAD_LEFT);
+    }
+
     public function getFormattedScheduleAttribute(): string
     {
         if (!$this->scheduled_date) return '';

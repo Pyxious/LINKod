@@ -2,10 +2,19 @@
 
 namespace App\Services;
 
+use App\Mail\ClientRequestNotificationMail;
 use App\Models\Notification;
+use App\Models\ServiceRequest;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class NotificationService
 {
+    /**
+     * Cache sent email types during request lifecycle to prevent duplicates.
+     */
+    protected static array $sentEmailKeys = [];
     /**
      * Send a notification to a user.
      */
@@ -38,6 +47,56 @@ class NotificationService
     }
 
     /**
+     * Safely send an automated branded email notification to a client.
+     * Wrapped in try/catch so email/network errors never disrupt DB transactions.
+     */
+    public function sendClientEmail(int|User $user, ServiceRequest $serviceRequest, string $eventType, array $extraData = []): void
+    {
+        $cacheKey = "{$serviceRequest->request_id}_{$eventType}";
+        if (isset(self::$sentEmailKeys[$cacheKey])) {
+            return;
+        }
+
+        try {
+            $clientUser = ($user instanceof User) ? $user : User::find($user);
+            if (!$clientUser || empty($clientUser->email_account)) {
+                return;
+            }
+
+            // Ensure relations like category and project are loaded if needed
+            if (!$serviceRequest->relationLoaded('category')) {
+                $serviceRequest->load('category');
+            }
+            if (!$serviceRequest->relationLoaded('project')) {
+                $serviceRequest->load('project');
+            }
+
+            Mail::to($clientUser->email_account)->send(
+                new ClientRequestNotificationMail($clientUser, $serviceRequest, $eventType, $extraData)
+            );
+
+            self::$sentEmailKeys[$cacheKey] = true;
+        } catch (\Throwable $e) {
+            Log::warning("Client email notification failed [{$eventType}] for request #{$serviceRequest->request_id}: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Notify client that their new requisition was submitted and received.
+     */
+    public function requestSubmitted(ServiceRequest $serviceRequest): void
+    {
+        if (!$serviceRequest->relationLoaded('client.user')) {
+            $serviceRequest->load('client.user');
+        }
+
+        $clientUser = $serviceRequest->client?->user;
+        if ($clientUser) {
+            $this->sendClientEmail($clientUser, $serviceRequest, 'submitted');
+        }
+    }
+
+    /**
      * Notify a user about a request status change.
      */
     public function requestStatusChanged(int $userId, string $requestTitle, string $newStatus, ?int $requestId = null, string $role = 'client'): void
@@ -60,6 +119,22 @@ class NotificationService
             "Your request \"{$requestTitle}\" status is now: {$newStatus}.",
             $actionUrl
         );
+
+        // Client automated email notification for status progression
+        if ($role === 'client' && $requestId) {
+            $normalizedStatus = strtolower(trim($newStatus));
+            if ($normalizedStatus === 'in progress') {
+                $req = ServiceRequest::find($requestId);
+                if ($req) {
+                    $this->sendClientEmail($userId, $req, 'in_progress');
+                }
+            } elseif ($normalizedStatus === 'completed') {
+                $req = ServiceRequest::find($requestId);
+                if ($req) {
+                    $this->sendClientEmail($userId, $req, 'completed');
+                }
+            }
+        }
     }
 
     /**
@@ -166,6 +241,14 @@ class NotificationService
             "A maintenance visit schedule for \"{$requestTitle}\" has been set for {$date} ({$windowText}). Please confirm or request reschedule.",
             $actionUrl
         );
+
+        $req = ServiceRequest::find($requestId);
+        if ($req) {
+            $this->sendClientEmail($clientUserId, $req, 'schedule_proposed', [
+                'scheduled_date'   => $date,
+                'scheduled_window' => $windowText,
+            ]);
+        }
     }
 
     /**
@@ -214,6 +297,11 @@ class NotificationService
             "The List of Materials for \"{$projectTitle}\" has been verified by GSO Admin. Please review and approve.",
             $actionUrl
         );
+
+        $req = ServiceRequest::find($requestId);
+        if ($req) {
+            $this->sendClientEmail($clientUserId, $req, 'bom_ready');
+        }
     }
 
     /**
@@ -265,6 +353,11 @@ class NotificationService
             "Your maintenance request \"{$requestTitle}\" has been completed. Please take a moment to rate the service received.",
             $actionUrl
         );
+
+        $req = ServiceRequest::find($requestId);
+        if ($req) {
+            $this->sendClientEmail($clientUserId, $req, 'completed');
+        }
     }
 }
 

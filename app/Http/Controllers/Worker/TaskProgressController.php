@@ -136,6 +136,18 @@ class TaskProgressController extends Controller
                 'created_at' => now(),
             ]);
 
+            // If task moved to In Progress, notify client (triggers in-app and automated email)
+            if ($actualStatus === 'In Progress' && $project->client?->user_id) {
+                $notificationService = new \App\Services\NotificationService();
+                $notificationService->requestStatusChanged(
+                    $project->client->user_id,
+                    $project->request?->title ?? "Project #{$project->project_id}",
+                    'In Progress',
+                    $project->request_id ?? $project->project_id,
+                    'client'
+                );
+            }
+
             // If completed by worker, notify admins to verify and recalculate worker availability
             if ($validated['status'] === 'Completed') {
                 $worker->recalculateAvailability();
@@ -380,6 +392,18 @@ class TaskProgressController extends Controller
             'ip_address' => request()->ip(),
             'created_at' => now(),
         ]);
+
+        // Notify client that materials arrived and work has commenced
+        if ($project->client?->user_id) {
+            $notificationService = new \App\Services\NotificationService();
+            $notificationService->requestStatusChanged(
+                $project->client->user_id,
+                $project->request?->title ?? "Project #{$project->project_id}",
+                'In Progress',
+                $project->request_id ?? $project->project_id,
+                'client'
+            );
+        }
 
         return redirect()->route('worker.job-orders.show', $projectId)
             ->with('success', 'Materials confirmed as arrived. You may now begin work.');

@@ -596,6 +596,17 @@ class RequestController extends Controller
                             "Your visit schedule has been confirmed for {$dateFormatted} ({$windowText}). Maintenance personnel have been assigned.",
                             route('client.requests.show', $serviceRequest->request_id, false)
                         );
+
+                        // Trigger automated client email for schedule
+                        $this->notifications->sendClientEmail(
+                            $serviceRequest->client->user_id,
+                            $serviceRequest,
+                            'schedule_proposed',
+                            [
+                                'scheduled_date'   => $dateFormatted,
+                                'scheduled_window' => $windowText,
+                            ]
+                        );
                     }
 
                     $this->notifications->requestStatusChanged(
