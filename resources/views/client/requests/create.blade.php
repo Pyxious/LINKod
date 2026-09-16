@@ -89,7 +89,7 @@
                                 required>
                             <option value="" disabled selected>Select a category</option>
                             @foreach($categories as $cat)
-                                <option value="{{ $cat->category_id }}">{{ $cat->category_name }}</option>
+                                <option value="{{ $cat->category_id }}">{{ $cat->display_name ?? $cat->category_name }}</option>
                             @endforeach
                         </select>
                     </div>

@@ -14,12 +14,11 @@ class CategorySeeder extends Seeder
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
         $categories = [
-            ['category_name' => 'Carpentry/Masonry/Electrical', 'description' => 'Carpentry, masonry, and electrical works.'],
-            ['category_name' => 'Plumbing',                     'description' => 'Plumbing installation and repair services.'],
-            ['category_name' => 'Painting',                     'description' => 'Interior and exterior painting services.'],
-            ['category_name' => 'Janitorial',                   'description' => 'Cleaning, sanitation, and housekeeping services.'],
-            ['category_name' => 'Manpower',                     'description' => 'General manpower and labor assistance.'],
-            ['category_name' => 'Landscaping',                  'description' => 'Grounds maintenance, lawn care, and landscaping services.'],
+            ['category_name' => 'Carpentry/Masonry/Electrical Services', 'description' => 'Carpentry, masonry, and electrical works.'],
+            ['category_name' => 'Plumbing Services',                     'description' => 'Plumbing installation and repair services.'],
+            ['category_name' => 'Painting Services',                     'description' => 'Interior and exterior painting services.'],
+            ['category_name' => 'Janitorial and Manpower Services',       'description' => 'Cleaning, sanitation, and manpower assistance services.'],
+            ['category_name' => 'Landscaping Services',                  'description' => 'Grounds maintenance, lawn care, and landscaping services.'],
         ];
 
         DB::table('category')->insert($categories);

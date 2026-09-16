@@ -4,14 +4,22 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $serviceRequest->formatted_id ?? 'LINKod Notification' }}</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        body, table, td, p, a, h1, h2, h3, span {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+        }
         body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
         table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
         img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-        body { margin: 0; padding: 0; width: 100% !important; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        body { margin: 0; padding: 0; width: 100% !important; background-color: #f1f5f9; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
     </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f1f5f9; color: #1e293b;">
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; color: #1e293b; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
 
 @php
     $reqId = $serviceRequest->formatted_id ?? ('REQ-' . str_pad((string)$serviceRequest->request_id, 4, '0', STR_PAD_LEFT));
@@ -72,64 +80,53 @@
     }
 @endphp
 
-<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f1f5f9; padding: 24px 12px;">
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f1f5f9; padding: 24px 12px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
     <tr>
         <td align="center">
             <!-- Main Email Container -->
             <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #e2e8f0;">
                 
-                <!-- Brand Top Header -->
+                <!-- Brand Top Header (Warm Cream Shade #FFFBDB) -->
                 <tr>
-                    <td style="background: #0033a0; padding: 22px 32px; text-align: left;">
+                    <td style="background-color: #fffbdb; padding: 24px 32px; text-align: left; border-bottom: 2px solid #00379e;">
                         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
                             <tr>
-                                <td>
-                                    <!-- BU-GSO LINKod Brand Pill (Matching App Nav) -->
+                                <td style="vertical-align: middle;">
+                                    <!-- BU-GSO | LINKOD Brand directly on cream background -->
                                     <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                                         <tr>
-                                            <td style="background-color: #ffffff; padding: 6px 14px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);">
-                                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
-                                                    <tr>
-                                                        <td style="vertical-align: middle; padding-right: 8px;">
-                                                            <span style="color: #0033a0; font-size: 15px; font-weight: 900; letter-spacing: -0.3px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-                                                                BU-GSO
-                                                            </span>
-                                                        </td>
-                                                        <td style="vertical-align: middle; color: #cbd5e1; font-size: 15px; padding-right: 8px;">
-                                                            |
-                                                        </td>
-                                                        <td style="vertical-align: middle;">
-                                                            @if($logoSrc)
-                                                                <img src="{{ $logoSrc }}" alt="LINKod" height="24" style="display: block; height: 24px; width: auto; max-width: 100px; border: 0; vertical-align: middle;">
-                                                            @else
-                                                                <span style="color: #0033a0; font-size: 15px; font-weight: 900; letter-spacing: -0.3px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-                                                                    LINK<span style="color: #eab308;">od</span>
-                                                                </span>
-                                                            @endif
-                                                        </td>
-                                                    </tr>
-                                                </table>
+                                            <td style="vertical-align: middle; padding-right: 10px;">
+                                                <span style="color: #00379e; font-size: 20px; font-weight: 900; letter-spacing: -0.5px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
+                                                    BU-GSO
+                                                </span>
+                                            </td>
+                                            <td style="vertical-align: middle; color: #00379e; font-size: 22px; font-weight: 900; padding-right: 10px; line-height: 1;">
+                                                |
+                                            </td>
+                                            <td style="vertical-align: middle;">
+                                                @if($logoSrc)
+                                                    <img src="{{ $logoSrc }}" alt="LINKOD" height="28" style="display: block; height: 28px; width: auto; max-width: 130px; border: 0; vertical-align: middle;">
+                                                @else
+                                                    <span style="color: #00379e; font-size: 20px; font-weight: 900; letter-spacing: -0.5px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
+                                                        LINKOD
+                                                    </span>
+                                                @endif
                                             </td>
                                         </tr>
                                     </table>
 
-                                    <p style="margin: 8px 0 0 2px; font-size: 11.5px; color: #bfdbfe; font-weight: 500; letter-spacing: 0.3px;">
+                                    <p style="margin: 6px 0 0 1px; font-size: 11px; color: #475569; font-weight: 600; letter-spacing: 0.3px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
                                         General Services Office • Bicol University
                                     </p>
                                 </td>
-                                <td align="right" style="vertical-align: top; padding-top: 4px;">
-                                    <span style="display: inline-block; background-color: rgba(255, 255, 255, 0.18); color: #ffffff; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.4px;">
+                                <td align="right" style="vertical-align: middle;">
+                                    <span style="display: inline-block; background-color: #00379e; color: #ffffff; font-size: 11px; font-weight: 800; padding: 6px 14px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
                                         Requisition #{{ $reqId }}
                                     </span>
                                 </td>
                             </tr>
                         </table>
                     </td>
-                </tr>
-
-                <!-- Yellow/Gold Accent Divider Line -->
-                <tr>
-                    <td style="height: 4px; background-color: #fcd116; font-size: 0; line-height: 0;">&nbsp;</td>
                 </tr>
 
                 <!-- Email Body -->

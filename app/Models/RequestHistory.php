@@ -92,6 +92,20 @@ class RequestHistory extends Model
         }
 
         $remarks = $this->remarks;
+
+        // Normalize schedule approved remarks to "GSO Team scheduled to visit the area on {Date} ({Window})."
+        if (preg_match('/(?:Request approved for|Visit schedule confirmed by client for|Admin confirmed visit schedule with client via phone for|Client confirmed visit schedule for)\s+([A-Za-z]+ \d{1,2}, \d{4})\s*\(([^)]+)\)/i', $remarks, $m)) {
+            $date = $m[1];
+            $rawWin = $m[2];
+            $win = match(true) {
+                stripos($rawWin, 'morning') !== false || (stripos($rawWin, 'AM') !== false && stripos($rawWin, 'PM') === false) => 'Morning',
+                stripos($rawWin, 'afternoon') !== false || (stripos($rawWin, 'PM') !== false && stripos($rawWin, 'AM') === false) => 'Afternoon',
+                stripos($rawWin, 'whole') !== false || stripos($rawWin, 'AM-PM') !== false || stripos($rawWin, 'AM - PM') !== false => 'Whole Day',
+                default => trim($rawWin)
+            };
+            return "GSO Team scheduled to visit the area on {$date} ({$win}).";
+        }
+
         $remarks = str_ireplace('rejected', 'disapproved', $remarks);
         $remarks = str_ireplace('rejecting', 'disapproving', $remarks);
         $remarks = str_ireplace('reject', 'disapprove', $remarks);

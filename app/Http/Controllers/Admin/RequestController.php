@@ -519,10 +519,10 @@ class RequestController extends Controller
 
             $dateFormatted = $serviceRequest->scheduled_date ? \Carbon\Carbon::parse($serviceRequest->scheduled_date)->format('F d, Y') : 'Confirmed Schedule';
             $windowText = match($serviceRequest->scheduled_time_window) {
-                'AM' => 'Morning (AM)',
-                'PM' => 'Afternoon (PM)',
-                'AM-PM' => 'Whole Day (AM - PM)',
-                default => $serviceRequest->scheduled_time_window ?? 'Visit'
+                'AM' => 'Morning',
+                'PM' => 'Afternoon',
+                'AM-PM' => 'Whole Day',
+                default => $serviceRequest->scheduled_time_window ?? 'Morning'
             };
 
             if ($serviceRequest->is_manpower) {
@@ -562,7 +562,7 @@ class RequestController extends Controller
                         'request_id'      => $serviceRequest->request_id,
                         'previous_status' => $previous,
                         'current_status'  => 'Schedule Confirmed',
-                        'remarks'         => "Admin confirmed visit schedule with client via phone for {$dateFormatted} ({$windowText}). Maintenance personnel assigned.",
+                        'remarks'         => "GSO Team scheduled to visit the area on {$dateFormatted} ({$windowText}).",
                         'updated_at'      => now()->subSecond(),
                         'updated_by'      => auth()->id(),
                     ]);
@@ -574,7 +574,7 @@ class RequestController extends Controller
                     'request_id'      => $serviceRequest->request_id,
                     'previous_status' => $previous,
                     'current_status'  => 'Approved',
-                    'remarks'         => "Request approved for {$dateFormatted} ({$windowText}). Maintenance workers assigned.",
+                    'remarks'         => "GSO Team scheduled to visit the area on {$dateFormatted} ({$windowText}).",
                     'updated_at'      => now(),
                     'updated_by'      => auth()->id(),
                 ]);

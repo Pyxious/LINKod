@@ -25,6 +25,15 @@ class Category extends Model
         return $this->hasOne(Team::class, 'category_id', 'category_id');
     }
 
+    public function getDisplayNameAttribute(): string
+    {
+        $name = trim($this->category_name ?? '');
+        if ($name && !str_ends_with(strtolower($name), 'services')) {
+            return $name . ' Services';
+        }
+        return $name;
+    }
+
     public function getIconUrlAttribute(): string
     {
         $name = strtolower($this->category_name ?? '');
