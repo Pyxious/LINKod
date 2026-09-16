@@ -60,6 +60,16 @@
         'in_progress'       => 'Track Progress On Site',
         default             => 'View Requisition Details',
     };
+
+    // Official LINKod logo embedding
+    $logoFile = public_path('images/LINKOD logo.png');
+    $hasLogo = file_exists($logoFile);
+    $logoSrc = null;
+    if ($hasLogo) {
+        $logoSrc = (isset($message) && method_exists($message, 'embed'))
+            ? $message->embed($logoFile)
+            : asset('images/LINKOD logo.png');
+    }
 @endphp
 
 <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f1f5f9; padding: 24px 12px;">
@@ -70,19 +80,45 @@
                 
                 <!-- Brand Top Header -->
                 <tr>
-                    <td style="background: #0033a0; padding: 24px 32px; text-align: left;">
+                    <td style="background: #0033a0; padding: 22px 32px; text-align: left;">
                         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
                             <tr>
                                 <td>
-                                    <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase;">
-                                        LINK<span style="color: #fcd116;">od</span>
-                                    </h1>
-                                    <p style="margin: 3px 0 0 0; font-size: 11.5px; color: #bfdbfe; font-weight: 500; letter-spacing: 0.3px;">
+                                    <!-- BU-GSO LINKod Brand Pill (Matching App Nav) -->
+                                    <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                        <tr>
+                                            <td style="background-color: #ffffff; padding: 6px 14px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);">
+                                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                                    <tr>
+                                                        <td style="vertical-align: middle; padding-right: 8px;">
+                                                            <span style="color: #0033a0; font-size: 15px; font-weight: 900; letter-spacing: -0.3px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                                                                BU-GSO
+                                                            </span>
+                                                        </td>
+                                                        <td style="vertical-align: middle; color: #cbd5e1; font-size: 15px; padding-right: 8px;">
+                                                            |
+                                                        </td>
+                                                        <td style="vertical-align: middle;">
+                                                            @if($logoSrc)
+                                                                <img src="{{ $logoSrc }}" alt="LINKod" height="24" style="display: block; height: 24px; width: auto; max-width: 100px; border: 0; vertical-align: middle;">
+                                                            @else
+                                                                <span style="color: #0033a0; font-size: 15px; font-weight: 900; letter-spacing: -0.3px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                                                                    LINK<span style="color: #eab308;">od</span>
+                                                                </span>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </table>
+
+                                    <p style="margin: 8px 0 0 2px; font-size: 11.5px; color: #bfdbfe; font-weight: 500; letter-spacing: 0.3px;">
                                         General Services Office • Bicol University
                                     </p>
                                 </td>
-                                <td align="right">
-                                    <span style="display: inline-block; background-color: rgba(255, 255, 255, 0.15); color: #ffffff; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-transform: uppercase;">
+                                <td align="right" style="vertical-align: top; padding-top: 4px;">
+                                    <span style="display: inline-block; background-color: rgba(255, 255, 255, 0.18); color: #ffffff; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.4px;">
                                         Requisition #{{ $reqId }}
                                     </span>
                                 </td>
