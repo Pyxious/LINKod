@@ -562,7 +562,7 @@ class RequestController extends Controller
                         'request_id'      => $serviceRequest->request_id,
                         'previous_status' => $previous,
                         'current_status'  => 'Schedule Confirmed',
-                        'remarks'         => "GSO Team scheduled to visit the area on {$dateFormatted} ({$windowText}).",
+                        'remarks'         => "Admin confirmed visit schedule with client for {$dateFormatted} ({$windowText}). Maintenance personnel assigned.",
                         'updated_at'      => now()->subSecond(),
                         'updated_by'      => auth()->id(),
                     ]);
