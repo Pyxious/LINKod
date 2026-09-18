@@ -863,7 +863,7 @@
                         <button type="submit" 
                                 class="w-full sm:w-auto px-7 py-3 bg-[#0033a0] hover:bg-[#002480] text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-md inline-flex items-center justify-center gap-2 cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                            <span>{{ $isManpower ? 'Approve Manpower Request & Assign Workers' : 'Confirm Schedule, Approve & Assign Workers' }}</span>
+                            <span>{{ $isManpower ? 'Approve Manpower Request & Assign Workers' : 'Confirm Details' }}</span>
                         </button>
                     </div>
                 </div>

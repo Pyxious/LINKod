@@ -23,23 +23,29 @@
                     <span class="px-3 py-1 bg-[#0033a0] text-white text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-sm">
                         Requisition #{{ str_pad($request->request_id, 4, '0', STR_PAD_LEFT) }}
                     </span>
+                    @php
+                        $clientDisplayStatus = match($request->current_status) {
+                            'Awaiting Verification of Bill of Materials' => 'Approved',
+                            'Rejected' => 'Disapproved',
+                            'BOM Verified (Awaiting Client Approval)' => 'Materials Verified (Awaiting Client Approval)',
+                            default => $request->current_status
+                        };
+                    @endphp
                     <span id="requestStatusBadge" data-request-status-badge class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border whitespace-nowrap
-                        @if($request->current_status === 'Completed')
+                        @if($clientDisplayStatus === 'Completed')
                             bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800
-                        @elseif($request->current_status === 'Awaiting Verification of Bill of Materials')
-                            bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800
-                        @elseif($request->current_status === 'BOM Verified (Awaiting Client Approval)')
+                        @elseif($clientDisplayStatus === 'Materials Verified (Awaiting Client Approval)')
                             bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800
-                        @elseif($request->current_status === 'Awaiting Materials')
+                        @elseif($clientDisplayStatus === 'Awaiting Materials')
                             bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800
-                        @elseif(in_array($request->current_status, ['In Progress', 'Pending Verification']))
+                        @elseif(in_array($clientDisplayStatus, ['In Progress', 'Pending Verification']))
                             bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800
-                        @elseif(in_array($request->current_status, ['Cancelled', 'Rejected']))
+                        @elseif(in_array($clientDisplayStatus, ['Cancelled', 'Disapproved']))
                             bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800
                         @else
                             bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800
                         @endif">
-                        {{ $request->current_status === 'Rejected' ? 'Disapproved' : ($request->current_status === 'Awaiting Verification of Bill of Materials' ? 'Awaiting Verification (List of Materials)' : ($request->current_status === 'BOM Verified (Awaiting Client Approval)' ? 'Materials Verified (Awaiting Client Approval)' : ($request->current_status === 'Awaiting Materials' ? 'Awaiting Materials' : $request->current_status))) }}
+                        {{ $clientDisplayStatus }}
                     </span>
                 </div>
 
@@ -334,10 +340,10 @@
                                 </span>
                                 <div>
                                     <h3 class="text-sm font-bold text-slate-900 dark:text-white">
-                                        Maintenance Visit Schedule
+                                        Onsite Visit Schedule
                                     </h3>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        Confirmed schedule for GSO maintenance visit.
+                                        Confirmed schedule for GSO onsite visit.
                                     </p>
                                 </div>
                             </div>
@@ -635,19 +641,26 @@
 
                 <!-- List of Materials Card -->
                 <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
+                    @php
+                        $isBomVerified = !in_array($request->bom_status, ['none', 'awaiting_admin', null]) 
+                            && $request->current_status !== 'Awaiting Verification of Bill of Materials';
+                        $clientMaterials = ($request->project && $isBomVerified) 
+                            ? $request->project->billOfMaterials->whereNotNull('date_approved') 
+                            : collect();
+                    @endphp
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <svg class="w-5 h-5 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                             <span>List of Materials</span>
                         </h2>
-                        @if($request->project && $request->project->billOfMaterials->count() > 0)
+                        @if($clientMaterials->count() > 0)
                             <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 uppercase">
-                                {{ $request->project->billOfMaterials->count() }} Item(s)
+                                {{ $clientMaterials->count() }} Item(s)
                             </span>
                         @endif
                     </div>
 
-                    @if($request->project && $request->project->billOfMaterials->count() > 0)
+                    @if($clientMaterials->count() > 0)
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
                                 <thead>
@@ -659,7 +672,7 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
-                                    @foreach($request->project->billOfMaterials as $bom)
+                                    @foreach($clientMaterials as $bom)
                                         @php 
                                             $unit = $bom->material->unit_of_measurement ?? 'pcs';
                                             $isApproved = !is_null($bom->date_approved);
@@ -677,11 +690,9 @@
                                                 {{ rtrim(rtrim(number_format($bom->qty, 2), '0'), '.') }}
                                             </td>
                                             <td class="py-3 px-3 text-center">
-                                                @if($isApproved)
-                                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">Approved</span>
-                                                @else
-                                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">Pending Review</span>
-                                                @endif
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
+                                                    {{ in_array($request->bom_status, ['approved']) ? 'Approved' : 'Verified' }}
+                                                </span>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -758,18 +769,33 @@
 
             <!-- Right Column: Status Timeline Stepper -->
             <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 shadow-sm">
+                @php
+                    $clientHistories = $request->histories->reject(function ($history) {
+                        $rem = strtolower($history->remarks ?? '');
+                        $status = $history->current_status ?? '';
+                        $title = $history->action_title ?? '';
+
+                        return $title === 'List of Materials Submitted'
+                            || $status === 'Awaiting Verification of Bill of Materials'
+                            || str_contains($rem, 'for gso admin verification')
+                            || str_contains($rem, 'for admin verification')
+                            || str_contains($rem, 'submitted list of materials')
+                            || str_contains($rem, 'submitted bill of materials')
+                            || (str_contains($rem, 'prepared and submitted') && str_contains($rem, 'materials'));
+                    })->sortBy([['updated_at', 'asc'], ['history_id', 'asc']]);
+                @endphp
                 <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-100 dark:border-zinc-800">
                     <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <svg class="w-4 h-4 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <span>Status Timeline</span>
                     </h2>
                     <span class="text-[10.5px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                        {{ $request->histories->count() }} Updates
+                        {{ $clientHistories->count() }} Updates
                     </span>
                 </div>
 
                 <div id="requestTimelineFeed" class="relative pl-5 space-y-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-px before:bg-gray-200 dark:before:bg-zinc-700/80">
-                    @forelse($request->histories->sortBy([['updated_at', 'asc'], ['history_id', 'asc']]) as $history)
+                    @forelse($clientHistories as $history)
                         <div class="relative group">
                             <!-- Bullet Indicator: sleek dot -->
                             <div class="absolute -left-[19px] top-1.5 w-2.5 h-2.5 rounded-full {{ $history->bullet_color_class }} ring-4 ring-white dark:ring-[#1c1c1e] shadow-2xs"></div>
@@ -841,16 +867,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 (payload) => {
                     const newStatus = payload.new?.current_status;
                     if (newStatus) {
+                        // Do not leak internal BOM verification pending status to client
+                        if (newStatus === 'Awaiting Verification of Bill of Materials') {
+                            return;
+                        }
                         const badge = document.getElementById('requestStatusBadge');
                         if (badge) {
-                            badge.textContent = newStatus === 'Rejected' ? 'Disapproved' : newStatus;
+                            const displayStatus = newStatus === 'Rejected' ? 'Disapproved' : (newStatus === 'BOM Verified (Awaiting Client Approval)' ? 'Materials Verified (Awaiting Client Approval)' : newStatus);
+                            badge.textContent = displayStatus;
                             badge.className = 'px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full border transition-all duration-300 ';
                             if (newStatus === 'Completed') {
                                 badge.className += 'bg-emerald-100 text-emerald-700 border-emerald-300';
                             } else if (newStatus === 'In Progress' || newStatus === 'Pending Verification') {
                                 badge.className += 'bg-blue-100 text-blue-700 border-blue-300';
+                            } else if (newStatus === 'BOM Verified (Awaiting Client Approval)') {
+                                badge.className += 'bg-indigo-100 text-indigo-800 border-indigo-300';
                             } else if (newStatus === 'Cancelled' || newStatus === 'Rejected') {
-                                badge.className += 'bg-amber-100 text-amber-700 border-amber-300';
+                                badge.className += 'bg-rose-100 text-rose-700 border-rose-300';
                             } else {
                                 badge.className += 'bg-amber-100 text-amber-700 border-amber-300';
                             }
@@ -876,6 +909,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 (payload) => {
                     const history = payload.new;
                     if (history) {
+                        const rem = (history.remarks || '').toLowerCase();
+                        let actionTitle = history.current_status || 'Status Update';
+
+                        // Filter out internal List of Materials submission on client side
+                        if (
+                            actionTitle === 'Awaiting Verification of Bill of Materials' ||
+                            rem.includes('for gso admin verification') ||
+                            rem.includes('for admin verification') ||
+                            rem.includes('submitted list of materials') ||
+                            rem.includes('submitted bill of materials') ||
+                            (rem.includes('prepared and submitted') && rem.includes('materials'))
+                        ) {
+                            return;
+                        }
+
                         const timeline = document.getElementById('requestTimelineFeed');
                         const emptyMsg = document.getElementById('noHistoryText');
                         if (emptyMsg) emptyMsg.remove();
@@ -889,8 +937,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 hour12: true
                             });
 
-                            let actionTitle = history.current_status || 'Status Update';
-                            const rem = (history.remarks || '').toLowerCase();
                             if (rem.includes('proposed visit schedule') || rem.includes('proposed schedule') || actionTitle === 'Schedule Set') {
                                 actionTitle = 'Schedule Proposed';
                             } else if (rem.includes('requested rescheduling') || rem.includes('declined schedule') || rem.includes('refused schedule') || actionTitle === 'Schedule Refused') {
@@ -904,7 +950,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             } else if (rem.includes('admin verified bill of materials') || rem.includes('verified the list of materials') || actionTitle === 'BOM Verified (Awaiting Client Approval)') {
                                 actionTitle = 'List of Materials Verified';
                             } else if (rem.includes('submitted bill of materials') || rem.includes('submitted list of materials') || actionTitle === 'Awaiting Verification of Bill of Materials') {
-                                actionTitle = 'List of Materials Submitted';
+                                return; // Skip internal submission
                             } else if (actionTitle === 'Pending Verification' || actionTitle === 'Completed (Pending Review)') {
                                 actionTitle = 'Acceptance';
                             } else if (actionTitle === 'Submitted') {

@@ -294,7 +294,7 @@ class NotificationService
             $clientUserId,
             'bom_verified',
             'List of Materials Verified',
-            "The List of Materials for \"{$projectTitle}\" has been verified by GSO Admin. Please review and approve.",
+            "The List of Materials for \"{$projectTitle}\" has been verified and submitted for your review. Please review and sign off.",
             $actionUrl
         );
 

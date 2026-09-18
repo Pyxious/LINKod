@@ -356,7 +356,8 @@ class TaskProgressController extends Controller
         }
 
         $prevStatus = $project->current_status;
-        $remarks = 'Worker confirmed that all required materials have arrived. Work is ready to commence.';
+        $roleName = ($worker && $worker->isTeamLeader()) ? 'Team Leader' : 'Worker';
+        $remarks = "{$roleName} confirmed that all required materials have arrived. Work is ready to commence.";
 
         $project->update([
             'current_status' => 'In Progress',
@@ -388,7 +389,7 @@ class TaskProgressController extends Controller
 
         \App\Models\UserLog::create([
             'user_id'    => auth()->id(),
-            'action'     => "Worker confirmed materials arrived for project #{$project->project_id}. Status set to In Progress.",
+            'action'     => "{$roleName} confirmed materials arrived for project #{$project->project_id}. Status set to In Progress.",
             'ip_address' => request()->ip(),
             'created_at' => now(),
         ]);
