@@ -680,326 +680,43 @@ function adminRequestForm(config = {}) {
             ]
         },
 
+        collegeOffices: [
+            'Dean\'s Office',
+            'Administrative Office',
+            'Accounting Office',
+            'Budget Office',
+            'Supply Office',
+            'Cashier\'s Office',
+            'Registrar\'s Office',
+            'Back/Procurement Office',
+            'Motorpool Office',
+            'Library',
+            'Clinic/Health Services',
+            'Others Offices'
+        ],
+
         // Combined College & Campus Units: (Cluster) College Name
         collegeUnits: [
-            {
-                cluster: 'Main',
-                label: 'GASS & Auxiliary Services',
-                college: 'GASS & Auxiliary Services',
-                offices: [
-                    'Office of the University President',
-                    'Office of the Vice President for Academic Affairs (OVPAA)',
-                    'Office of the Vice President for Administration and Finance (OVPAF)',
-                    'Office of the Vice President for Research, Development and Extension (OVPRDE)',
-                    'Office of the Vice President for Planning and Development (OVPPD)',
-                    'General Services Office (GSO)',
-                    'University Registrar\'s Office',
-                    'Cashier\'s Office & Accounting Office',
-                    'Human Resource Development Office (HRDO)',
-                    'Supply and Property Management Office (SPMO)',
-                    'Information & Communications Technology Office (ICTO)',
-                    'University Health Services / Clinic',
-                    'University Main Library & Audio-Visual Hall',
-                    'Office of Student Affairs and Services (OSAS)',
-                    'University Student Center (USC)',
-                    'University Gymnasium & Sports Complex',
-                    'BUCFAO / Auxiliary Services Office',
-                    'Other Office / Facility'
-                ]
-            },
-            {
-                cluster: 'Cluster 1',
-                label: 'BUCE (College of Education)',
-                college: 'BUCE (College of Education)',
-                offices: [
-                    'Dean\'s Office & Administrative Staff',
-                    'Elementary Dept / Integrated Lab School (ILS-Elem)',
-                    'High School Dept / Integrated Lab School (ILS-HS)',
-                    'Dept of Elementary Education (BEED)',
-                    'Dept of Secondary Education (BSED)',
-                    'Science & Mathematics Education Unit',
-                    'Educational Media & Audio-Visual Room (AVR)',
-                    'Reading Clinic & Learning Resource Center',
-                    'Guidance & Counseling Office',
-                    'Faculty Offices & Consultation Rooms',
-                    'Other Office (BUCE)'
-                ]
-            },
-            {
-                cluster: 'Cluster 1',
-                label: 'BUCM (College of Medicine)',
-                college: 'BUCM (College of Medicine)',
-                offices: [
-                    'Dean\'s Office & College Secretary',
-                    'Basic Medical Sciences Department',
-                    'Clinical Skills Simulation Laboratory',
-                    'Gross Anatomy & Dissection Laboratory',
-                    'Histology & Pathology Laboratory',
-                    'Physiology & Pharmacology Laboratory',
-                    'Medical Amphitheater & Lecture Halls',
-                    'Medical Library & Learning Hub',
-                    'Faculty Consultation Room',
-                    'Other Office (BUCM)'
-                ]
-            },
-            {
-                cluster: 'Cluster 1',
-                label: 'IPESR (Institute of Physical Education, Sports and Recreation)',
-                college: 'IPESR (Institute of Physical Education, Sports and Recreation)',
-                offices: [
-                    'Director\'s Office & Administration',
-                    'Physical Education Department',
-                    'Sports Development & Athletic Office',
-                    'University Gymnasium & Main Court',
-                    'Fitness & Weight Training Gym',
-                    'Dance Studio & Aerobics Hall',
-                    'Equipment & Supplies Custodian Room',
-                    'Swimming Pool Complex & Locker Rooms',
-                    'Other Office (IPESR)'
-                ]
-            },
-            {
-                cluster: 'Cluster 2',
-                label: 'CS (College of Science)',
-                college: 'CS (College of Science)',
-                offices: [
-                    'Dean\'s Office & Administrative Staff',
-                    'Biology Department & Laboratories',
-                    'Chemistry Department & Laboratories',
-                    'Physics Department & Laboratories',
-                    'Computer Science & IT Department (CSIT)',
-                    'Mathematics & Statistics Department',
-                    'Science Research & Science Resource Center',
-                    'Faculty Offices & Consultation Rooms',
-                    'Other Office (CS)'
-                ]
-            },
-            {
-                cluster: 'Cluster 2',
-                label: 'BUCN (College of Nursing)',
-                college: 'BUCN (College of Nursing)',
-                offices: [
-                    'Dean\'s Office & College Secretary',
-                    'Nursing Arts Laboratory (NAL)',
-                    'Maternal & Child Health Laboratory',
-                    'Medical-Surgical Skills Laboratory',
-                    'Community Health Nursing Unit',
-                    'Faculty Room & Student Consultation Area',
-                    'Other Office (BUCN)'
-                ]
-            },
-            {
-                cluster: 'Cluster 2',
-                label: 'CENG (College of Engineering)',
-                college: 'CENG (College of Engineering)',
-                offices: [
-                    'Dean\'s Office & College Secretary',
-                    'Civil Engineering Department',
-                    'Electrical Engineering Department',
-                    'Mechanical Engineering Department',
-                    'Chemical Engineering Department',
-                    'Geodetic Engineering Department',
-                    'Mining Engineering Department',
-                    'Materials Testing Laboratory',
-                    'CAD & Computing Laboratory',
-                    'Engineering Machine Shop',
-                    'Other Office (CENG)'
-                ]
-            },
-            {
-                cluster: 'Cluster 3',
-                label: 'CAL (College of Arts and Letters)',
-                college: 'CAL (College of Arts and Letters)',
-                offices: [
-                    'Dean\'s Office & Administrative Staff',
-                    'English & Applied Linguistics Department',
-                    'Literature & Performing Arts Department',
-                    'Humanities & Philosophy Department',
-                    'Journalism & Communication Department',
-                    'Speech & Multimedia Broadcasting Laboratory',
-                    'Amphitheater & Audio-Visual Room',
-                    'Other Office (CAL)'
-                ]
-            },
-            {
-                cluster: 'Cluster 3',
-                label: 'CIT (College of Industrial Technology)',
-                college: 'CIT (College of Industrial Technology)',
-                offices: [
-                    'Dean\'s Office & Administrative Staff',
-                    'Automotive Technology Shop',
-                    'Electrical Technology Shop',
-                    'Electronics & Computer Technology Shop',
-                    'Mechanical & Fabrication Shop',
-                    'Drafting & Civil Technology Lab',
-                    'Food and Garments Technology Lab',
-                    'Other Office (CIT)'
-                ]
-            },
-            {
-                cluster: 'Cluster 3',
-                label: 'CBPA (College of Business and Public Administration)',
-                college: 'CBPA (College of Business and Public Administration)',
-                offices: [
-                    'Dean\'s Office & College Secretary',
-                    'Public Administration Department',
-                    'Business Administration Department',
-                    'Student Services & Consultation Area',
-                    'Other Office (CBPA)'
-                ]
-            },
-            {
-                cluster: 'Cluster 4',
-                label: 'BUIDeA (Institute of Design and Architecture)',
-                college: 'BUIDeA (Institute of Design and Architecture)',
-                offices: [
-                    'Director\'s Office & Administrative Staff',
-                    'Architecture Design Studios (1 to 4)',
-                    'Building Science & Materials Laboratory',
-                    'Digital Drafting & 3D Modeling Laboratory',
-                    'Faculty Consultation Room & Archives',
-                    'Other Office (BUIDeA)'
-                ]
-            },
-            {
-                cluster: 'Cluster 4',
-                label: 'Graduate School (BUGS)',
-                college: 'Graduate School (BUGS)',
-                offices: [
-                    'Dean\'s Office & Graduate Secretary',
-                    'Doctoral Programs Unit',
-                    'Masteral Programs Unit',
-                    'Research, Statistics & Defense Room',
-                    'Graduate Student Lounge & Seminar Room',
-                    'Other Office (BUGS)'
-                ]
-            },
-            {
-                cluster: 'Cluster 4',
-                label: 'East Campus Facilities (ESC)',
-                college: 'East Campus Facilities (ESC)',
-                offices: [
-                    'East Campus Admin & Property Custodian',
-                    'East Campus General Library',
-                    'East Campus Student Center & Canteen',
-                    'Multi-Purpose Hall & Audio-Visual Room',
-                    'Security & Maintenance Quarters',
-                    'Other Office (ESC)'
-                ]
-            },
-            {
-                cluster: 'Cluster 4',
-                label: 'RDC (Research and Development Center)',
-                college: 'RDC (Research and Development Center)',
-                offices: [
-                    'Director\'s Office & Research Services',
-                    'Intellectual Property / ITSO Office',
-                    'Central Analytical Testing Laboratory',
-                    'Extension & Community Engagement Office',
-                    'Publications & Journal Editorial Office',
-                    'Other Office (RDC)'
-                ]
-            },
-            {
-                cluster: 'Cluster Daraga',
-                label: 'CSSP (College of Social Sciences and Philosophy)',
-                college: 'CSSP (College of Social Sciences and Philosophy)',
-                offices: [
-                    'Dean\'s Office & College Secretary',
-                    'Department of Political Science & Public Affairs',
-                    'Department of Sociology & Anthropology',
-                    'Department of Psychology',
-                    'Department of Philosophy',
-                    'Department of Peace Studies',
-                    'Psychological Testing & Assessment Laboratory',
-                    'Social Science Research & Audio-Visual Hall',
-                    'Guidance, Career & Counseling Office',
-                    'Other Office (CSSP)'
-                ]
-            },
-            {
-                cluster: 'Cluster Daraga',
-                label: 'CBEM (College of Business, Economics and Management)',
-                college: 'CBEM (College of Business, Economics and Management)',
-                offices: [
-                    'Dean\'s Office & College Secretary',
-                    'Department of Accountancy',
-                    'Department of Business Admin & Marketing',
-                    'Department of Economics',
-                    'Department of Entrepreneurship',
-                    'Center for Entrepreneurship & Business Incubator',
-                    'Accounting Simulation Computer Lab',
-                    'CBEM Auditorium & Multi-Purpose Center',
-                    'Student Organization & Activity Center',
-                    'Other Office (CBEM)'
-                ]
-            },
-            {
-                cluster: 'Guinobatan',
-                label: 'BUCAF (College of Agriculture and Forestry)',
-                college: 'BUCAF (College of Agriculture and Forestry)',
-                offices: [
-                    'Dean\'s Office & Campus Administration',
-                    'Department of Agricultural Sciences',
-                    'Department of Animal Science & Veterinary Clinic',
-                    'Department of Forestry & Agroforestry',
-                    'Department of Agricultural and Biosystems Eng',
-                    'Crop Science & Tissue Culture Laboratory',
-                    'Soil Science & Agricultural Chemistry Lab',
-                    'Farm Machinery Shop & Demo Farm Office',
-                    'BUCAF Campus Library & Auditorium',
-                    'Other Office (BUCAF)'
-                ]
-            },
-            {
-                cluster: 'Polangui',
-                label: 'BUPC (Polangui Campus)',
-                college: 'BUPC (Polangui Campus)',
-                offices: [
-                    'Campus Director\'s Office & Administration',
-                    'Department of Information Technology & CS',
-                    'Department of Computer Engineering',
-                    'Department of Nursing and Health Sciences',
-                    'Department of Teacher Education',
-                    'Department of Automotive & Mechanical Technology',
-                    'Computer Laboratories (1 to 4)',
-                    'Health Skills Laboratory & Clinic',
-                    'Polangui Campus Library & Student Center',
-                    'Other Office (BUPC)'
-                ]
-            },
-            {
-                cluster: 'Tabaco',
-                label: 'BUTC (Tabaco Campus)',
-                college: 'BUTC (Tabaco Campus)',
-                offices: [
-                    'Campus Director\'s Office & Administration',
-                    'Department of Fisheries & Marine Sciences',
-                    'Department of Business Admin & Entrepreneurship',
-                    'Department of Teacher Education',
-                    'Aquaculture Hatchery & Wet Laboratories',
-                    'Post-Harvest & Food Processing Laboratory',
-                    'Oceanography & Marine Biology Lab',
-                    'Tabaco Campus Library & Learning Hub',
-                    'Other Office (BUTC)'
-                ]
-            },
-            {
-                cluster: 'Gubat',
-                label: 'BUGC (Gubat Campus)',
-                college: 'BUGC (Gubat Campus)',
-                offices: [
-                    'Campus Director\'s Office & Administration',
-                    'Department of Teacher Education',
-                    'Department of Business Administration',
-                    'Department of Information & Computing Sciences',
-                    'Department of Agricultural Technology',
-                    'Computer Laboratory & Multimedia Center',
-                    'Campus Library & Audio-Visual Room',
-                    'Student Services & Guidance Office',
-                    'Other Office (BUGC)'
-                ]
-            }
+            { cluster: 'Main', label: 'GASS & Auxiliary Services', college: 'GASS & Auxiliary Services' },
+            { cluster: 'Cluster 1', label: 'BUCE (College of Education)', college: 'BUCE (College of Education)' },
+            { cluster: 'Cluster 1', label: 'BUCM (College of Medicine)', college: 'BUCM (College of Medicine)' },
+            { cluster: 'Cluster 1', label: 'IPESR (Institute of Physical Education, Sports and Recreation)', college: 'IPESR (Institute of Physical Education, Sports and Recreation)' },
+            { cluster: 'Cluster 2', label: 'CS (College of Science)', college: 'CS (College of Science)' },
+            { cluster: 'Cluster 2', label: 'BUCN (College of Nursing)', college: 'BUCN (College of Nursing)' },
+            { cluster: 'Cluster 2', label: 'CENG (College of Engineering)', college: 'CENG (College of Engineering)' },
+            { cluster: 'Cluster 3', label: 'CAL (College of Arts and Letters)', college: 'CAL (College of Arts and Letters)' },
+            { cluster: 'Cluster 3', label: 'CIT (College of Industrial Technology)', college: 'CIT (College of Industrial Technology)' },
+            { cluster: 'Cluster 3', label: 'CBPA (College of Business and Public Administration)', college: 'CBPA (College of Business and Public Administration)' },
+            { cluster: 'Cluster 4', label: 'BUIDeA (Institute of Design and Architecture)', college: 'BUIDeA (Institute of Design and Architecture)' },
+            { cluster: 'Cluster 4', label: 'Graduate School (BUGS)', college: 'Graduate School (BUGS)' },
+            { cluster: 'Cluster 4', label: 'East Campus Facilities (ESC)', college: 'East Campus Facilities (ESC)' },
+            { cluster: 'Cluster 4', label: 'RDC (Research and Development Center)', college: 'RDC (Research and Development Center)' },
+            { cluster: 'Cluster Daraga', label: 'CSSP (College of Social Sciences and Philosophy)', college: 'CSSP (College of Social Sciences and Philosophy)' },
+            { cluster: 'Cluster Daraga', label: 'CBEM (College of Business, Economics and Management)', college: 'CBEM (College of Business, Economics and Management)' },
+            { cluster: 'Guinobatan', label: 'BUCAF (College of Agriculture and Forestry)', college: 'BUCAF (College of Agriculture and Forestry)' },
+            { cluster: 'Polangui', label: 'BUPC (Polangui Campus)', college: 'BUPC (Polangui Campus)' },
+            { cluster: 'Tabaco', label: 'BUTC (Tabaco Campus)', college: 'BUTC (Tabaco Campus)' },
+            { cluster: 'Gubat', label: 'BUGC (Gubat Campus)', college: 'BUGC (Gubat Campus)' }
         ],
 
         onCollegeChange() {
@@ -1015,8 +732,7 @@ function adminRequestForm(config = {}) {
 
         get availableOffices() {
             if (!this.selectedCollege) return [];
-            const found = this.collegeUnits.find(u => u.college === this.selectedCollege);
-            return found ? found.offices : [];
+            return this.collegeOffices;
         },
 
         get availableConcerns() {
