@@ -167,17 +167,19 @@ class ServiceRequest extends Model
             return $this->cachedRecurringCount = static::$recurringCountsCache[$cacheKey];
         }
 
-        $count = static::whereMonth('submitted_at', $date->month)
-            ->whereYear('submitted_at', $date->year)
-            ->where(function($q) use ($cleanDesc, $prefix) {
-                $q->whereRaw('LOWER(TRIM(description)) = ?', [$cleanDesc])
-                  ->orWhereRaw('LOWER(TRIM(title)) = ?', [$cleanDesc]);
-                if (strlen($prefix) >= 5) {
-                    $q->orWhereRaw('LOWER(description) LIKE ?', ["%{$prefix}%"])
-                      ->orWhereRaw('LOWER(title) LIKE ?', ["%{$prefix}%"]);
-                }
-            })
-            ->count();
+        $count = \Illuminate\Support\Facades\Cache::remember("req_rec_count_{$cacheKey}", 300, function () use ($date, $cleanDesc, $prefix) {
+            return static::whereMonth('submitted_at', $date->month)
+                ->whereYear('submitted_at', $date->year)
+                ->where(function($q) use ($cleanDesc, $prefix) {
+                    $q->whereRaw('LOWER(TRIM(description)) = ?', [$cleanDesc])
+                      ->orWhereRaw('LOWER(TRIM(title)) = ?', [$cleanDesc]);
+                    if (strlen($prefix) >= 5) {
+                        $q->orWhereRaw('LOWER(description) LIKE ?', ["%{$prefix}%"])
+                          ->orWhereRaw('LOWER(title) LIKE ?', ["%{$prefix}%"]);
+                    }
+                })
+                ->count();
+        });
 
         static::$recurringCountsCache[$cacheKey] = $count;
         return $this->cachedRecurringCount = $count;

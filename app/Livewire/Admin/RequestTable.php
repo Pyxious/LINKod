@@ -5,6 +5,7 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\ServiceRequest;
+use Illuminate\Support\Facades\Cache;
 
 class RequestTable extends Component
 {
@@ -302,44 +303,50 @@ class RequestTable extends Component
         $requests = $query->paginate(15);
         ServiceRequest::warmRecurringCounts($requests->getCollection());
 
-        // Dynamic KPI metrics calculated in real-time
-        $totalRequests = ServiceRequest::count();
-        $submitted = ServiceRequest::where(function($q) {
-            $q->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Submitted'))
-              ->orWhereDoesntHave('histories');
-        })->count();
-        $awaitingMaterials = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', [
-            'Awaiting Materials',
-            'Awaiting Verification of Bill of Materials',
-            'BOM Verified (Awaiting Client Approval)',
-            'On Hold',
-        ]))->count();
-        $inProgress = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', ['In Progress', 'Pending Verification']))->count();
-        
-        $completedBase = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'));
-        $completed = (clone $completedBase)->count();
-        $completedRated = (clone $completedBase)->whereHas('evaluation')->count();
-        $completedNotRated = (clone $completedBase)->whereDoesntHave('evaluation')->count();
+        // KPI metrics cached for 60 seconds to avoid repeating heavy count queries and self-joins on every render
+        $kpis = Cache::remember('admin_requests_table_kpis', 60, function () {
+            $totalRequests = ServiceRequest::count();
+            $submitted = ServiceRequest::where(function($q) {
+                $q->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Submitted'))
+                  ->orWhereDoesntHave('histories');
+            })->count();
+            $awaitingMaterials = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', [
+                'Awaiting Materials',
+                'Awaiting Verification of Bill of Materials',
+                'BOM Verified (Awaiting Client Approval)',
+                'On Hold',
+            ]))->count();
+            $inProgress = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', ['In Progress', 'Pending Verification']))->count();
+            
+            $completedBase = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'));
+            $completed = (clone $completedBase)->count();
+            $completedRated = (clone $completedBase)->whereHas('evaluation')->count();
+            $completedNotRated = (clone $completedBase)->whereDoesntHave('evaluation')->count();
 
-        $recurringCount = ServiceRequest::recurring()->count();
+            $recurringCount = ServiceRequest::recurring()->count();
 
-        return view('livewire.admin.request-table', [
-            'requests'          => $requests,
-            'totalRequests'     => $totalRequests,
-            'submitted'         => $submitted,
-            'onHold'            => $awaitingMaterials,
-            'awaitingMaterials' => $awaitingMaterials,
-            'inProgress'        => $inProgress,
-            'completed'         => $completed,
-            'completedRated'    => $completedRated,
-            'completedNotRated' => $completedNotRated,
-            'recurringCount'    => $recurringCount,
-        ]);
+            return [
+                'totalRequests'     => $totalRequests,
+                'submitted'         => $submitted,
+                'onHold'            => $awaitingMaterials,
+                'awaitingMaterials' => $awaitingMaterials,
+                'inProgress'        => $inProgress,
+                'completed'         => $completed,
+                'completedRated'    => $completedRated,
+                'completedNotRated' => $completedNotRated,
+                'recurringCount'    => $recurringCount,
+            ];
+        });
+
+        return view('livewire.admin.request-table', array_merge([
+            'requests' => $requests,
+        ], $kpis));
     }
 
     #[\Livewire\Attributes\On('refreshRequests')]
     public function refreshRequests()
     {
-        // Triggers fresh render cycle
+        // Bust KPI cache so real-time Supabase events recalculate immediately
+        Cache::forget('admin_requests_table_kpis');
     }
 }
