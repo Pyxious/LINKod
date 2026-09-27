@@ -300,7 +300,7 @@
                                 {{ $log->user->first_name ?? 'Administrator' }} {{ $log->user->last_name ?? '' }}
                             </td>
                             <td class="py-3.5 px-4 font-bold text-emerald-600 dark:text-emerald-400">
-                                Excel (.xlsx)
+                                Excel
                             </td>
                         </tr>
                     @empty

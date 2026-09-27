@@ -182,13 +182,20 @@
         </div>
         <div class="flex items-center gap-2">
             <!-- Filter by team -->
-            <select id="teamFilter" onchange="filterWorkers()" class="text-xs border border-gray-300 dark:border-zinc-700 rounded-xl px-3 py-2 focus:outline-none focus:border-[#0038A8] bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200 font-semibold cursor-pointer shadow-2xs">
-                <option value="">All Units & Teams</option>
-                <option value="unassigned">Unassigned Workers</option>
-                @foreach($teams as $t)
-                    <option value="{{ $t->team_id }}">{{ $t->team_name }}</option>
-                @endforeach
-            </select>
+            <div class="relative inline-block">
+                <select id="teamFilter" onchange="filterWorkers()" class="appearance-none text-xs border border-gray-300 dark:border-zinc-700 rounded-xl pl-3.5 pr-8 py-2 focus:outline-none focus:border-[#0038A8] bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200 font-semibold cursor-pointer shadow-2xs min-w-[170px]">
+                    <option value="">All Units & Teams</option>
+                    <option value="unassigned">Unassigned Workers</option>
+                    @foreach($teams as $t)
+                        <option value="{{ $t->team_id }}">{{ $t->team_name }}</option>
+                    @endforeach
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-gray-500 dark:text-gray-400">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </div>
+            </div>
         </div>
     </div>
     <div class="p-0 overflow-x-auto">
