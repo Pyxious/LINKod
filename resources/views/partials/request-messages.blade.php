@@ -168,37 +168,39 @@
         </div>
     @else
 
-        <form id="requestMessageForm" action="{{ $postRoute }}" method="POST" enctype="multipart/form-data" autocomplete="off" class="space-y-3">
+        <form id="requestMessageForm" action="{{ $postRoute }}" method="POST" enctype="multipart/form-data" autocomplete="off" class="relative">
             @csrf
-            <div class="relative">
-                <textarea name="message" 
-                          rows="3" 
-                          placeholder="Type a message or note for this requisition..." 
-                          autocomplete="off" 
-                          autocorrect="off" 
-                          autocapitalize="off" 
-                          spellcheck="false" 
-                          class="w-full p-3.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0038A8] transition resize-none" 
-                          onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if(this.value.trim().length > 0) { this.form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })); } }"
-                          required></textarea>
-            </div>
 
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div class="w-full sm:w-auto flex items-center gap-2">
-                    <label class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-semibold cursor-pointer transition">
-                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                        <span>Attach File/Image (Optional)</span>
-                        <input type="file" name="attachment" accept="image/*,.pdf" class="hidden" onchange="const fname = this.files[0]?.name; const span = this.parentElement.nextElementSibling; if(fname){ span.textContent = fname; span.classList.remove('hidden'); }">
-                    </label>
-                    <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 truncate max-w-[180px] hidden"></span>
-                </div>
+            <!-- Hidden File Input for optional attachment support -->
+            <input type="file" name="attachment" id="requestMessageAttachment" accept="image/*,.pdf" class="hidden">
 
-                <button type="submit" id="requestMessageSubmitBtn" class="w-full sm:w-auto ml-auto bg-[#0038A8] hover:bg-[#002B82] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs inline-flex items-center justify-center gap-2 shrink-0 disabled:opacity-60">
-                    <span id="requestMessageSubmitText">Send Message</span>
-                    <svg id="requestMessageSubmitIcon" class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+            <!-- Rounded Pill Message Input Box (Matches "Text Field - msg" Mockup) -->
+            <div class="relative flex items-center w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-full pl-5 pr-2 py-1.5 focus-within:border-[#0038A8] focus-within:ring-2 focus-within:ring-[#0038A8]/15 transition shadow-2xs">
+                <input type="text" 
+                       name="message" 
+                       id="requestMessageInput" 
+                       placeholder="Type message" 
+                       autocomplete="off" 
+                       autocorrect="off" 
+                       autocapitalize="off" 
+                       spellcheck="false" 
+                       class="w-full bg-transparent border-0 text-xs sm:text-sm text-slate-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-0 p-0 leading-normal" 
+                       oninput="window.toggleRequestMsgBtn(this.value)"
+                       onkeydown="if(event.key === 'Enter') { event.preventDefault(); if(this.value.trim().length > 0) { this.form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })); } }"
+                       required>
+
+                <!-- Blue Circular Send Button (Inside on the right, hidden when empty, visible when typing) -->
+                <button type="submit" 
+                        id="requestMessageSubmitBtn" 
+                        class="w-8 h-8 rounded-full bg-[#0038A8] hover:bg-[#002B82] text-white hidden items-center justify-center transition-all duration-200 shrink-0 ml-2 shadow-xs cursor-pointer disabled:opacity-50" 
+                        title="Send message">
+                    <svg id="requestMessageSubmitIcon" class="w-4 h-4 fill-white" viewBox="0 0 24 24">
                         <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                     </svg>
-                    <svg id="requestMessageSubmitSpinner" class="w-4 h-4 animate-spin text-white shrink-0 hidden" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <svg id="requestMessageSubmitSpinner" class="w-4 h-4 animate-spin text-white hidden" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
                 </button>
             </div>
         </form>
@@ -206,6 +208,18 @@
 </div>
 
 <script>
+window.toggleRequestMsgBtn = function(val) {
+    const btn = document.getElementById('requestMessageSubmitBtn');
+    if (!btn) return;
+    if (val && val.trim().length > 0) {
+        btn.classList.remove('hidden');
+        btn.classList.add('flex');
+    } else {
+        btn.classList.add('hidden');
+        btn.classList.remove('flex');
+    }
+};
+
 window.renderAttachmentHtml = function(attachUrl, isSelf) {
     if (!attachUrl) return '';
     const url = (attachUrl.startsWith('http') || attachUrl.startsWith('/') || attachUrl.startsWith('data:')) ? attachUrl : '/storage/' + attachUrl;
@@ -410,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (formEl) {
         formEl.addEventListener('submit', function(e) {
             e.preventDefault();
-            const textarea = formEl.querySelector('textarea[name="message"]');
+            const textarea = formEl.querySelector('input[name="message"], textarea[name="message"]');
             const fileInput = formEl.querySelector('input[name="attachment"]');
             const submitBtn = document.getElementById('requestMessageSubmitBtn');
             const submitText = document.getElementById('requestMessageSubmitText');
@@ -441,6 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData(formEl);
             if (textarea) textarea.value = '';
             if (fileInput) fileInput.value = '';
+            window.toggleRequestMsgBtn('');
             const fileNameSpan = formEl.querySelector('.truncate');
             if (fileNameSpan) { fileNameSpan.textContent = ''; fileNameSpan.classList.add('hidden'); }
 

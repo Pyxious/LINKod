@@ -77,11 +77,14 @@
                     <div class="text-[#042B74] dark:text-blue-400 text-lg font-bold">User Registration Trends</div>
                     <div class="text-xs text-[#47658F] dark:text-gray-400">New Users</div>
                 </div>
-                <select id="trendPeriodSelect" class="bg-gray-100 dark:bg-zinc-800 border-none px-3 py-1.5 rounded-md text-xs font-semibold text-gray-700 dark:text-gray-300 outline-none cursor-pointer">
-                    <option value="month" selected>This Month (by Week)</option>
-                    <option value="week">This Week (by Day)</option>
-                    <option value="year">This Year (by Month)</option>
-                </select>
+                <div class="relative inline-block">
+                    <select id="trendPeriodSelect" class="appearance-none bg-gray-100 dark:bg-zinc-800 border border-gray-200/80 dark:border-zinc-700 pl-3.5 pr-9 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-300 outline-none cursor-pointer min-w-[195px] shadow-2xs hover:bg-gray-200/60 dark:hover:bg-zinc-700/60 transition">
+                        <option value="month" selected>This Month (by Week)</option>
+                        <option value="week">This Week (by Day)</option>
+                        <option value="year">This Year (by Month)</option>
+                    </select>
+                    
+                </div>
             </div>
             <div class="relative h-[220px]">
                 <canvas id="trendBar"></canvas>
@@ -115,19 +118,29 @@
                 </div>
 
                 <!-- Role Filter Select -->
-                <select name="role" onchange="this.form.submit()" class="px-4 py-2 bg-[#0038A8] text-white rounded-xl text-xs font-semibold focus:outline-none cursor-pointer shadow-2xs">
-                    <option value="">All Roles</option>
-                    <option value="client" {{ request('role') === 'client' ? 'selected' : '' }}>Client</option>
-                    <option value="worker" {{ request('role') === 'worker' ? 'selected' : '' }}>Worker</option>
-                    <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }}>Administrator</option>
-                </select>
+                <div class="relative inline-block">
+                    <select name="role" onchange="this.form.submit()" class="appearance-none pl-4 pr-9 py-2 bg-[#0038A8] hover:bg-[#002B82] text-white rounded-xl text-xs font-semibold focus:outline-none cursor-pointer shadow-2xs min-w-[130px] transition">
+                        <option value="" class="bg-white text-slate-800 dark:bg-zinc-800 dark:text-white">All Roles</option>
+                        <option value="client" {{ request('role') === 'client' ? 'selected' : '' }} class="bg-white text-slate-800 dark:bg-zinc-800 dark:text-white">Client</option>
+                        <option value="worker" {{ request('role') === 'worker' ? 'selected' : '' }} class="bg-white text-slate-800 dark:bg-zinc-800 dark:text-white">Worker</option>
+                        <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }} class="bg-white text-slate-800 dark:bg-zinc-800 dark:text-white">Administrator</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                </div>
 
                 <!-- Sort Order Select (Recently Joined / Oldest First) -->
-                <select name="sort" onchange="this.form.submit()" class="px-4 py-2 bg-[#0038A8] text-white rounded-xl text-xs font-semibold focus:outline-none cursor-pointer shadow-2xs">
-                    <option value="recent" {{ request('sort', 'recent') === 'recent' ? 'selected' : '' }}>Recently Joined</option>
-                    <option value="oldest" {{ request('sort') === 'oldest' ? 'selected' : '' }}>Oldest First</option>
-                    <option value="name" {{ request('sort') === 'name' ? 'selected' : '' }}>Name (A-Z)</option>
-                </select>
+                <div class="relative inline-block">
+                    <select name="sort" onchange="this.form.submit()" class="appearance-none pl-4 pr-10 py-2 bg-[#0038A8] hover:bg-[#002B82] text-white rounded-xl text-xs font-semibold focus:outline-none cursor-pointer shadow-2xs min-w-[175px] transition">
+                        <option value="recent" {{ request('sort', 'recent') === 'recent' ? 'selected' : '' }} class="bg-white text-slate-800 dark:bg-zinc-800 dark:text-white">Recently Joined</option>
+                        <option value="oldest" {{ request('sort') === 'oldest' ? 'selected' : '' }} class="bg-white text-slate-800 dark:bg-zinc-800 dark:text-white">Oldest First</option>
+                        <option value="name" {{ request('sort') === 'name' ? 'selected' : '' }} class="bg-white text-slate-800 dark:bg-zinc-800 dark:text-white">Name (A-Z)</option>
+                    </select>
+                    
+                </div>
 
                 @if(request('search') || request('role') || (request('sort') && request('sort') !== 'recent'))
                     <a href="{{ route('admin.users.index') }}" class="px-3 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 rounded-xl text-xs font-semibold hover:bg-gray-200 transition">

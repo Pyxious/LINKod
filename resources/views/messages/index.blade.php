@@ -406,7 +406,7 @@
                 </div>
 
                 <!-- Footer / Input Bar (Matches Mockup Design Exactly) -->
-                <div class="p-3 sm:p-4 bg-white dark:bg-zinc-900 border-t-2 border-[#0033a0] dark:border-blue-700 shrink-0">
+                <div class="p-3 sm:p-4 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 shrink-0">
                     @if($isCancelled)
                         <div class="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 rounded-xl text-center text-xs font-semibold text-red-800 dark:text-red-300">
                             <strong>Requisition Cancelled</strong>: This request has been cancelled and messaging is closed.
@@ -416,42 +416,37 @@
                             <strong>Requisition Resolved</strong>: Messaging is locked for completed or closed requests.
                         </div>
                     @else
-                        <form id="chatMessageForm" method="POST" action="{{ $storeRoute }}" enctype="multipart/form-data" autocomplete="off" class="flex items-center gap-3">
-
+                        <form id="chatMessageForm" method="POST" action="{{ $storeRoute }}" enctype="multipart/form-data" autocomplete="off" class="relative">
                             @csrf
                             
-                            <!-- Document Attachment Icon (Far Left) -->
-                            <label class="p-2 text-[#0033a0] dark:text-blue-400 hover:opacity-80 cursor-pointer transition shrink-0 relative" title="Attach Document / Photo">
-                                <input type="file" name="attachment" accept="image/*,.pdf" class="hidden" onchange="const f = this.files[0]; if(f){ const notif = this.parentElement.querySelector('.attach-badge'); if(notif){ notif.classList.remove('hidden'); } }">
-                                <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                </svg>
-                                <span class="attach-badge hidden absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full border border-white dark:border-zinc-900"></span>
-                            </label>
+                            <!-- Hidden Attachment Input -->
+                            <input type="file" name="attachment" id="chatAttachmentInput" accept="image/*,.pdf" class="hidden">
 
-                            <!-- Yellow Cream Pill Shaped Input Box (Center) -->
-                            <div class="flex-1">
+                            <!-- Rounded Pill Message Input Box (Matches "Text Field - msg" Mockup) -->
+                            <div class="relative flex items-center w-full bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-full pl-5 pr-2 py-1.5 focus-within:border-[#0038A8] focus-within:ring-2 focus-within:ring-[#0038A8]/15 transition shadow-2xs">
                                 <input type="text" 
                                        name="message" 
-                                       placeholder="Type a Message" 
+                                       id="chatMessageInput" 
+                                       placeholder="Type message" 
                                        autocomplete="off" 
                                        autocorrect="off" 
                                        autocapitalize="off" 
                                        spellcheck="false" 
-                                       class="w-full px-5 py-3 bg-[#fffde7] dark:bg-zinc-800 border-2 border-[#0033a0] dark:border-blue-500 rounded-full text-xs font-bold text-slate-900 dark:text-white placeholder-[#0033a0]/70 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0033a0]" 
+                                       class="w-full bg-transparent border-0 text-xs sm:text-sm text-slate-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-0 p-0 leading-normal" 
+                                       oninput="window.toggleChatMsgBtn(this.value)"
                                        required>
-                            </div>
 
-                            <!-- Dark Blue Paper Plane Send Button (Far Right) -->
-                            <button type="submit" id="chatSubmitBtn" class="p-2 text-[#0033a0] dark:text-blue-400 hover:scale-110 transition shrink-0 flex items-center justify-center disabled:opacity-50" title="Send Message">
-                                <svg id="chatSubmitIcon" class="w-7 h-7 fill-current" viewBox="0 0 24 24">
-                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                                </svg>
-                                <svg id="chatSubmitSpinner" class="w-6 h-6 animate-spin text-[#0033a0] dark:text-blue-400 hidden" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            </button>
+                                <!-- Blue Circular Send Button -->
+                                <button type="submit" id="chatSubmitBtn" class="w-8 h-8 rounded-full bg-[#0038A8] hover:bg-[#002B82] text-white hidden items-center justify-center transition-all duration-200 shrink-0 ml-2 shadow-xs cursor-pointer disabled:opacity-50" title="Send message">
+                                    <svg id="chatSubmitIcon" class="w-4 h-4 fill-white" viewBox="0 0 24 24">
+                                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                    </svg>
+                                    <svg id="chatSubmitSpinner" class="w-4 h-4 animate-spin text-white hidden" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </form>
                     @endif
                 </div>
@@ -493,6 +488,18 @@
 
 @push('scripts')
 <script>
+window.toggleChatMsgBtn = function(val) {
+    const btn = document.getElementById('chatSubmitBtn');
+    if (!btn) return;
+    if (val && val.trim().length > 0) {
+        btn.classList.remove('hidden');
+        btn.classList.add('flex');
+    } else {
+        btn.classList.add('hidden');
+        btn.classList.remove('flex');
+    }
+};
+
 window.renderAttachmentHtml = function(attachUrl, isSelf) {
     if (!attachUrl) return '';
     const url = (attachUrl.startsWith('http') || attachUrl.startsWith('/') || attachUrl.startsWith('data:')) ? attachUrl : '/storage/' + attachUrl;
@@ -791,6 +798,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData(form);
             if (input) input.value = '';
             if (fileInput) fileInput.value = '';
+            window.toggleChatMsgBtn('');
             const attachBadge = form.querySelector('.attach-badge');
             if (attachBadge) attachBadge.classList.add('hidden');
 
