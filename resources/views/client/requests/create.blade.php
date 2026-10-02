@@ -509,7 +509,7 @@
                                 <button type="button" class="hover:text-gray-700 dark:hover:text-gray-200 px-1">☰</button>
                                 <button type="button" class="hover:text-gray-700 dark:hover:text-gray-200 px-1">❝</button>
                             </div>
-                            <textarea name="description" rows="5" placeholder="Provide complete specifications regarding the problem or requested maintenance work" class="w-full p-4 bg-white dark:bg-zinc-900 text-sm text-gray-900 dark:text-white focus:outline-none border-none resize-y" :disabled="isManpowerConcern" :required="!isManpowerConcern"></textarea>
+                            <textarea name="description" rows="5" placeholder="Provide complete specifications regarding the problem or requested maintenance work" class="w-full p-4 bg-white dark:bg-zinc-900 text-sm text-gray-900 dark:text-white border-0 focus:border-0 focus:ring-0 focus:outline-none resize-y" :disabled="isManpowerConcern" :required="!isManpowerConcern"></textarea>
                         </div>
                     </div>
 
@@ -690,7 +690,7 @@
                                        name="contact_number" 
                                        value="{{ old('contact_number', auth()->user()->contact_number) }}" 
                                        placeholder="09123456789" 
-                                       class="w-full px-3 py-2.5 bg-transparent text-sm text-gray-900 dark:text-white focus:outline-none" 
+                                       class="w-full px-3 py-2.5 bg-transparent text-sm text-gray-900 dark:text-white border-0 focus:border-0 focus:ring-0 focus:outline-none" 
                                        pattern="^09\d{9}$" 
                                        title="Contact number must be 11 digits starting with 09" 
                                        maxlength="11" 
