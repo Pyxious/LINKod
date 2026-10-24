@@ -12,13 +12,25 @@ class UnitController extends Controller
     public function index()
     {
         $worker = auth()->user()->staff?->worker;
-        
-        if (!$worker || !$worker->team) {
-            return redirect()->route('worker.dashboard')->with('error', 'You are not assigned to a unit.');
+
+        if (!$worker) {
+            return redirect()->route('worker.dashboard')->with('error', 'Worker profile not found.');
         }
 
-        $team = $worker->team()->with([
-            'leader.staff.user', 
+        $teams = $worker->teams()->with('category')->get();
+        if ($teams->isEmpty() && $worker->team) {
+            $teams = collect([$worker->team]);
+        }
+
+        if ($teams->isEmpty()) {
+            return redirect()->route('worker.dashboard')->with('error', 'You are not assigned to any unit.');
+        }
+
+        $selectedUnitId = request()->query('unit');
+        $team = ($selectedUnitId ? $teams->firstWhere('team_id', (int)$selectedUnitId) : null) ?? $teams->first();
+
+        $team->load([
+            'leader.staff.user',
             'workers' => function($wq) {
                 $wq->with([
                     'staff.user',
@@ -30,10 +42,9 @@ class UnitController extends Controller
                     }
                 ]);
             }
-        ])->first();
-        
+        ]);
+
         // Active Requests count for the team
-        // This is the number of projects currently assigned to any worker in the team that are not completed
         $activeRequestsCount = ProjectWorker::whereIn('worker_id', $team->workers->pluck('worker_id'))
             ->whereHas('project', function($query) {
                 $query->whereHas('latestHistory', function($q) {
@@ -44,7 +55,7 @@ class UnitController extends Controller
             ->count('project_id');
 
         $availableWorkersCount = $team->workers->where('is_available', true)->count();
-        
+
         // Current deployments (projects assigned to the team)
         $deployments = \App\Models\Project::whereHas('workers', function($query) use ($team) {
             $query->whereIn('project_worker.worker_id', $team->workers->pluck('worker_id'));
@@ -54,6 +65,6 @@ class UnitController extends Controller
         ->limit(10)
         ->get();
 
-        return view('worker.units.index', compact('team', 'activeRequestsCount', 'availableWorkersCount', 'deployments'));
+        return view('worker.units.index', compact('teams', 'team', 'activeRequestsCount', 'availableWorkersCount', 'deployments'));
     }
 }

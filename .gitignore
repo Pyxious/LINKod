@@ -28,6 +28,7 @@ Thumbs.db
 
 # Excluded project files & tests per user request
 *.md
+*.docx
 /tests
 /phpunit.xml
 test_css.php

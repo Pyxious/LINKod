@@ -20,7 +20,7 @@
     </div>
 
     <!-- KPI Metric Cards Grid -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 mb-6 font-sans">
+    <div data-realtime-container="admin-bom-kpis" class="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 mb-6 font-sans">
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm">
             <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Total Project Lists</div>
             <div class="text-[#1a3c8f] dark:text-white text-2xl sm:text-3xl font-extrabold leading-none">{{ $counts['all'] ?? 0 }}</div>
@@ -54,7 +54,7 @@
     <!-- Filter & Search Controls -->
     <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 mb-4">
         <!-- Status Tabs -->
-        <div class="flex bg-gray-100 dark:bg-zinc-800/80 p-1 rounded-lg gap-1 overflow-x-auto">
+        <div data-realtime-container="admin-bom-tabs" class="flex bg-gray-100 dark:bg-zinc-800/80 p-1 rounded-lg gap-1 overflow-x-auto">
             <a href="{{ route('admin.bom.index', ['status' => 'all', 'search' => request('search')]) }}" 
                class="flex-1 md:flex-initial text-center px-3.5 py-1.5 text-xs rounded-md transition-all whitespace-nowrap {{ ($status ?? 'all') === 'all' ? 'bg-white dark:bg-zinc-900 text-gray-900 dark:text-blue-400 shadow-xs font-semibold' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 font-medium' }}">
                 All Lists ({{ $counts['all'] ?? 0 }})
@@ -90,6 +90,7 @@
         </form>
     </div>
 
+    <div data-realtime-container="admin-bom-list">
     <!-- Mobile Cards View -->
     <div class="block md:hidden space-y-3 mb-6">
         @forelse($projects as $p)
@@ -335,6 +336,7 @@
                 {{ $projects->links() }}
             </div>
         @endif
+    </div>
     </div>
 
 </div>

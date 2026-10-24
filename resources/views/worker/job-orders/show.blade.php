@@ -29,7 +29,7 @@
 @endphp
 
 <!-- Header -->
-<div class="flex justify-between items-center mb-6">
+<div data-realtime-container="worker-job-header" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif class="flex justify-between items-center mb-6">
     <div>
         <a href="{{ route('worker.job-orders.index') }}" class="text-xs font-semibold text-gray-500 hover:text-[#0038A8] flex items-center gap-1 mb-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
@@ -69,7 +69,7 @@
     <!-- 1st, 2nd, 3rd Boxes (Left Side) -->
     <div class="flex-1 min-w-0 w-full space-y-6">
         <!-- 1st Box: Issue Description & Supporting Documents -->
-        <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">
+        <div data-realtime-container="worker-job-box1" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">
             @php
                 $isManpower = $req->is_manpower ?? false;
                 $m = $req->manpower_details ?? [];
@@ -302,11 +302,13 @@
             ]);
         @endphp
 
+        <div data-realtime-container="worker-job-box2" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif>
         @if(!in_array($project->current_status, ['Completed', 'Pending Verification']))
 
         <!-- 2nd Box: Update Task Progress & Attach Proofs -->
         <div class="bg-white dark:bg-[#1c1c1e] border-2 border-[#1a3c8f]/30 dark:border-blue-700/60 rounded-2xl shadow-sm p-5 sm:p-7"
-             x-data="workerTaskProgress({{ $project->project_id }}, '{{ $defaultNextStatus }}', {{ json_encode($project->request->title ?? 'Project #' . $project->project_id) }}, '{{ route('worker.task-progress.sync', $project->project_id) }}')">
+             x-data="workerTaskProgress({{ $project->project_id }}, '{{ $defaultNextStatus }}', {{ json_encode($project->request->title ?? 'Project #' . $project->project_id) }}, '{{ route('worker.task-progress.sync', $project->project_id) }}')"
+             :data-realtime-pause="(cameraActive || !!capturedFile || !!proofFile || saving) ? 'true' : 'false'">
 
              <div class="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100 dark:border-zinc-800">
                   <h3 class="text-[#1a3c8f] dark:text-blue-400 font-extrabold text-base sm:text-lg flex items-center gap-2 min-w-0">
@@ -875,16 +877,66 @@
                     offlineMsg: '',
                     taskFinishedOffline: false,
 
+                    compressImage(dataUrl, filename, callback) {
+                        const img = new Image();
+                        img.onload = () => {
+                            const maxDim = 1280;
+                            let width = img.width;
+                            let height = img.height;
+                            if (width > height) {
+                                if (width > maxDim) {
+                                    height = Math.round((height * maxDim) / width);
+                                    width = maxDim;
+                                }
+                            } else {
+                                if (height > maxDim) {
+                                    width = Math.round((width * maxDim) / height);
+                                    height = maxDim;
+                                }
+                            }
+                            const canvas = document.createElement('canvas');
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            canvas.toBlob((blob) => {
+                                if (blob) {
+                                    const cleanName = filename.replace(/\.[^/.]+$/, "") + ".jpg";
+                                    const compressed = new File([blob], cleanName, { type: 'image/jpeg' });
+                                    callback(compressed);
+                                } else {
+                                    callback(null);
+                                }
+                            }, 'image/jpeg', 0.80);
+                        };
+                        img.onerror = () => callback(null);
+                        img.src = dataUrl;
+                    },
+
                     handleFile(file) {
                         if (!file) return;
                         this.photoError = '';
                         this.proofFile = file.name;
                         this.proofSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
                         this.capturedFile = file;
+
                         if (file.type && file.type.startsWith('image/')) {
                             const reader = new FileReader();
                             reader.onload = (e) => {
                                 this.proofPreviewUrl = e.target.result;
+                                this.compressImage(e.target.result, file.name, (compressed) => {
+                                    if (compressed) {
+                                        this.capturedFile = compressed;
+                                        this.proofSize = (compressed.size / (1024 * 1024)).toFixed(2) + ' MB (optimized)';
+                                        try {
+                                            const dt = new DataTransfer();
+                                            dt.items.add(compressed);
+                                            if (this.$refs.workerFileInput) {
+                                                this.$refs.workerFileInput.files = dt.files;
+                                            }
+                                        } catch (err) {}
+                                    }
+                                });
                             };
                             reader.readAsDataURL(file);
                         } else {
@@ -893,6 +945,13 @@
                     },
 
                     takePhoto() {
+                        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                        if (isMobile || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                            if (this.$refs.mobileCameraInput) {
+                                this.$refs.mobileCameraInput.click();
+                                return;
+                            }
+                        }
                         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                             this.openCamera();
                         } else if (this.$refs.mobileCameraInput) {
@@ -1155,12 +1214,26 @@
                                 method: 'POST',
                                 body: formData,
                                 headers: {
-                                    'X-Requested-With': 'XMLHttpRequest'
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json'
                                 }
                             });
 
+                            const contentType = response.headers.get('content-type') || '';
+                            if (contentType.includes('application/json')) {
+                                const data = await response.json();
+                                if (response.ok && data.success !== false) {
+                                    window.location.reload();
+                                    return;
+                                }
+                                this.photoError = data.message || (data.errors ? Object.values(data.errors).flat()[0] : 'Unable to update task status.');
+                                this.saving = false;
+                                return;
+                            }
+
                             if (response.ok) {
                                 window.location.reload();
+                                return;
                             } else {
                                 throw new Error('Server returned ' + response.status);
                             }
@@ -1212,9 +1285,11 @@
                 };
             }
         </script>
+        </div>
 
         <!-- 3rd Box: Material Requisition -->
-        @if(!in_array($project->current_status, ['Pending Verification', 'Completed']))
+        <div data-realtime-container="worker-job-bom" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif>
+        @if(!in_array($project->current_status, ['Completed', 'Cancelled', 'Rejected']))
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">
 
             <h3 class="text-gray-900 dark:text-white font-bold text-lg mb-2 flex items-center gap-2">
@@ -1403,8 +1478,18 @@
                     </div>
                 @endif
 
-                {{-- Material Entry Form: Available during preparation phase to assigned crew members & TL --}}
-                @if(!in_array($project->current_status, ['BOM Verified (Awaiting Client Approval)', 'Awaiting Materials', 'In Progress', 'Completed', 'Cancelled', 'Rejected']) && $project->request?->bom_status !== 'awaiting_client' && $project->request?->bom_status !== 'approved')
+                {{-- Material Entry Form: Available to assigned crew members & TL --}}
+                @if(!in_array($project->current_status, ['Completed', 'Cancelled', 'Rejected']))
+                    @if($project->current_status === 'BOM Verified (Awaiting Client Approval)' || $project->request?->bom_status === 'awaiting_client')
+                        <div class="p-3.5 mb-3 bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 rounded-xl flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <p class="text-xs text-sky-800 dark:text-sky-300 font-medium">
+                                The initial List of Materials is pending client sign-off. You can append additional required items below if needed.
+                            </p>
+                        </div>
+                    @endif
                     <div x-data="{
                         submittingBOM: false,
                         rows: [
@@ -1545,7 +1630,13 @@
 
                         
                         <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                            @if($project->request?->isScheduleApproved())
+                            @php
+                                $canRequestMaterials = $project->request?->isScheduleApproved() 
+                                    || !empty($project->date_approved) 
+                                    || in_array($project->request?->current_status, ['Approved', 'In Progress', 'Pending', 'On Hold', 'Awaiting Materials'])
+                                    || ($project->request?->is_manpower ?? false);
+                            @endphp
+                            @if($canRequestMaterials)
                                 <button type="button" 
                                         @click="addRow()" 
                                         class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold hover:underline inline-flex items-center gap-1.5 cursor-pointer">
@@ -1560,7 +1651,7 @@
                                     <span x-text="submittingBOM ? 'Submitting...' : 'Submit Material Request'">Submit Material Request</span>
                                 </button>
                             @else
-                                <span class="text-xs text-gray-400 font-medium">Client must approve the visit schedule before materials can be requested.</span>
+                                <span class="text-xs text-gray-400 font-medium">Schedule or request approval is required before materials can be requested.</span>
                                 <button type="button" disabled class="w-full sm:w-auto bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 px-6 py-2.5 rounded-xl text-xs font-bold cursor-not-allowed inline-flex items-center justify-center gap-2 opacity-80">
                                     <span>Submit Material Request</span>
                                 </button>
@@ -1568,24 +1659,16 @@
                         </div>
                     </form>
                 </div>
-                @elseif($project->current_status === 'BOM Verified (Awaiting Client Approval)' || $project->request?->bom_status === 'awaiting_client')
-                    <div class="p-4 bg-sky-50/60 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800/60 rounded-xl flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        </div>
-                        <p class="text-xs text-sky-800 dark:text-sky-300 font-medium">
-                            The List of Materials has been submitted to the client for approval. New items cannot be added while client sign-off is pending.
-                        </p>
-                    </div>
                 @endif
             @endif
         </div>
         @endif
+        </div>
 
     </div>
 
     <!-- The 2 Boxes on the Right Side (Job Details & Client Contact) -->
-    <div class="w-full md:w-80 lg:w-96 shrink-0 space-y-6">
+    <div data-realtime-container="worker-job-sidebar" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif class="w-full md:w-80 lg:w-96 shrink-0 space-y-6">
         <!-- Job Details Card -->
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-6">
             <h3 class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-4 border-b border-gray-100 dark:border-zinc-800 pb-2">JOB DETAILS</h3>

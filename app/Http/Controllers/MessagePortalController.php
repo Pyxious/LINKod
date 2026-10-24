@@ -138,10 +138,13 @@ class MessagePortalController extends Controller
 
         // Mark viewed conversation messages as read
         if ($selectedRequest && $user) {
-            RequestMessage::where('request_id', $selectedRequest->request_id)
+            $marked = RequestMessage::where('request_id', $selectedRequest->request_id)
                 ->where('sender_id', '!=', $user->user_id)
                 ->where('is_read', false)
                 ->update(['is_read' => true]);
+            if ($marked > 0) {
+                Cache::forget('user_nav_data_' . $user->user_id);
+            }
         }
 
         // Calculate unread counts per request for the sidebar/list

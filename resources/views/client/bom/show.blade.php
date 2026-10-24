@@ -3,7 +3,7 @@
 @section('page-title', 'List of Materials')
 
 @section('content')
-<div class="w-full max-w-4xl mx-auto space-y-6 font-sans">
+<div data-realtime-container="client-bom-show" data-realtime-project-id="{{ $project->project_id }}" @if($project->request_id) data-realtime-request-id="{{ $project->request_id }}" @endif class="w-full max-w-4xl mx-auto space-y-6 font-sans">
     
     <!-- Top Header Banner -->
     <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-6 sm:px-8 py-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -42,7 +42,10 @@
         </h2>
 
         @php
-            $clientMaterials = $project->billOfMaterials->whereNotNull('date_approved');
+            $isAwaitingClientApproval = $project->request?->bom_status === 'awaiting_client'
+                || $project->request?->current_status === 'BOM Verified (Awaiting Client Approval)';
+
+            $clientMaterials = $project->billOfMaterials->filter(fn($b) => !is_null($b->date_approved));
         @endphp
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
@@ -73,9 +76,15 @@
                                 {{ rtrim(rtrim(number_format($bom->qty, 2), '0'), '.') }}
                             </td>
                             <td class="py-3 px-3 text-center">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
-                                    {{ in_array($project->request?->bom_status, ['approved']) ? 'Approved' : 'Verified' }}
-                                </span>
+                                @if($isAwaitingClientApproval)
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 uppercase">
+                                        Verified
+                                    </span>
+                                @else
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
+                                        Approved
+                                    </span>
+                                @endif
                             </td>
                         </tr>
                     @empty

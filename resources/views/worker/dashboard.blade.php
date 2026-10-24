@@ -22,7 +22,7 @@
 </div>
 
 <!-- KPI Grid -->
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 mb-6 font-sans">
+<div data-realtime-container="worker-dashboard-kpis" class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 mb-6 font-sans">
     <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm flex sm:block justify-between items-center">
         <div>
             <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-1 sm:mb-2">Pending Tasks</div>
@@ -49,7 +49,7 @@
 </div>
 
 <!-- Task List Area -->
-<div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm mb-6 font-sans overflow-hidden">
+<div data-realtime-container="worker-dashboard-assignments" class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm mb-6 font-sans overflow-hidden">
     <div class="px-5 sm:px-6 py-4 sm:py-5 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-gray-50/50 dark:bg-zinc-900/40">
         <h3 class="text-[#1a3c8f] dark:text-blue-400 font-bold text-base sm:text-lg">Your Assignments</h3>
         <a href="{{ route('worker.job-orders.index') }}" class="text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline transition">View All →</a>

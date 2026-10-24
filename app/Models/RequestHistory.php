@@ -16,6 +16,17 @@ class RequestHistory extends Model
 
     protected $casts = ['updated_at' => 'datetime'];
 
+    protected static function booted(): void
+    {
+        static::saved(function (self $history) {
+            \App\Events\RequestUpdated::broadcastUpdate((int) $history->request_id, null, 'request_history_saved');
+        });
+
+        static::deleted(function (self $history) {
+            \App\Events\RequestUpdated::broadcastUpdate((int) $history->request_id, null, 'request_history_deleted');
+        });
+    }
+
     public function request()
     {
         return $this->belongsTo(ServiceRequest::class, 'request_id', 'request_id');

@@ -6,7 +6,7 @@
 <div class="w-full flex flex-col font-sans min-h-[calc(100vh-64px)]">
     
     <!-- Hero Header Banner (Full-Width Shaded Section) -->
-    <section class="w-full bg-[#fffde7] dark:bg-[#18181b] py-8 sm:py-10 px-4 sm:px-6 lg:px-8 border-b border-gray-200/80 dark:border-zinc-800">
+    <section data-realtime-container="client-req-hero" data-realtime-request-id="{{ $request->request_id }}" @if($request->project) data-realtime-project-id="{{ $request->project->project_id }}" @endif class="w-full bg-[#fffde7] dark:bg-[#18181b] py-8 sm:py-10 px-4 sm:px-6 lg:px-8 border-b border-gray-200/80 dark:border-zinc-800">
         <div class="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
 
             <div>
@@ -286,49 +286,52 @@
     <!-- Main Content Container -->
     <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 space-y-6">
         
-        @php
-            $latestRejection = $request->histories->where('current_status', 'Rejected')->last();
-        @endphp
+        <div data-realtime-container="client-req-banners" data-realtime-request-id="{{ $request->request_id }}" @if($request->project) data-realtime-project-id="{{ $request->project->project_id }}" @endif>
+            @php
+                $latestRejection = $request->histories->where('current_status', 'Rejected')->last();
+            @endphp
 
-        @if($request->current_status === 'Rejected')
-            <!-- Rejection Notice & Recommendation Banner -->
-            <div class="bg-red-50/90 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-2xl p-6 sm:p-7 shadow-xs">
-                <div class="flex items-start gap-4">
-                    <div class="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/70 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0 border border-red-200 dark:border-red-800">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                    </div>
-                    <div class="flex-1">
-                        <h2 class="text-base font-bold text-red-900 dark:text-red-300 uppercase tracking-tight mb-1">
-                            Service Request Disapproved
-                        </h2>
-                        <p class="text-xs text-red-700 dark:text-red-400 mb-3">
-                            This requisition cannot be processed by General Services Office (GSO). Please review the administrator's feedback below:
-                        </p>
-                        
-                        <div class="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-red-200 dark:border-red-800/80 shadow-2xs">
-                            <div class="text-[10px] font-extrabold text-red-600 dark:text-red-400 uppercase tracking-wider mb-1">
-                                Admin Reason / Recommendation:
-                            </div>
-                            <p class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white leading-relaxed whitespace-pre-line">
-                                {{ $latestRejection && $latestRejection->remarks ? $latestRejection->remarks : 'No specific reason provided by the administrator.' }}
-                            </p>
+            @if($request->current_status === 'Rejected')
+                <!-- Rejection Notice & Recommendation Banner -->
+                <div class="bg-red-50/90 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-2xl p-6 sm:p-7 shadow-xs">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/70 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0 border border-red-200 dark:border-red-800">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                         </div>
+                        <div class="flex-1">
+                            <h2 class="text-base font-bold text-red-900 dark:text-red-300 uppercase tracking-tight mb-1">
+                                Service Request Disapproved
+                            </h2>
+                            <p class="text-xs text-red-700 dark:text-red-400 mb-3">
+                                This requisition cannot be processed by General Services Office (GSO). Please review the administrator's feedback below:
+                            </p>
+                            
+                            <div class="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-red-200 dark:border-red-800/80 shadow-2xs">
+                                <div class="text-[10px] font-extrabold text-red-600 dark:text-red-400 uppercase tracking-wider mb-1">
+                                    Admin Reason / Recommendation:
+                                </div>
+                                <p class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white leading-relaxed whitespace-pre-line">
+                                    {{ $latestRejection && $latestRejection->remarks ? $latestRejection->remarks : 'No specific reason provided by the administrator.' }}
+                                </p>
+                            </div>
 
-                        <div class="mt-4 flex items-center gap-3">
-                            <a href="{{ route('client.requests.create') }}" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                Submit a New Requisition
-                            </a>
+                            <div class="mt-4 flex items-center gap-3">
+                                <a href="{{ route('client.requests.create') }}" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                    Submit a New Requisition
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        @endif
+            @endif
+        </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             
             <!-- Left Column: Details & BOM -->
             <div class="lg:col-span-2 space-y-6">
+                <div data-realtime-container="client-req-left" data-realtime-request-id="{{ $request->request_id }}" @if($request->project) data-realtime-project-id="{{ $request->project->project_id }}" @endif class="space-y-6">
 
                 @if($request->scheduled_date && !in_array($request->current_status, ['Rejected', 'Cancelled']))
                     <!-- Scheduled Visit Card -->
@@ -642,11 +645,15 @@
                 <!-- List of Materials Card -->
                 <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm">
                     @php
-                        $isBomVerified = !in_array($request->bom_status, ['none', 'awaiting_admin', null]) 
-                            && $request->current_status !== 'Awaiting Verification of Bill of Materials';
-                        $clientMaterials = ($request->project && $isBomVerified) 
-                            ? $request->project->billOfMaterials->whereNotNull('date_approved') 
-                            : collect();
+                        $isAwaitingVerification = $request->bom_status === 'awaiting_admin'
+                            || $request->current_status === 'Awaiting Verification of Bill of Materials';
+                        $isAwaitingClientApproval = $request->bom_status === 'awaiting_client'
+                            || $request->current_status === 'BOM Verified (Awaiting Client Approval)';
+
+                        $clientMaterials = collect();
+                        if ($request->project) {
+                            $clientMaterials = $request->project->billOfMaterials->filter(fn($b) => !is_null($b->date_approved));
+                        }
                     @endphp
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -690,9 +697,15 @@
                                                 {{ rtrim(rtrim(number_format($bom->qty, 2), '0'), '.') }}
                                             </td>
                                             <td class="py-3 px-3 text-center">
-                                                <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
-                                                    {{ in_array($request->bom_status, ['approved']) ? 'Approved' : 'Verified' }}
-                                                </span>
+                                                @if($isAwaitingClientApproval)
+                                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 uppercase">
+                                                        Verified
+                                                    </span>
+                                                @else
+                                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
+                                                        Approved
+                                                    </span>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach
@@ -755,11 +768,16 @@
                             </div>
                         @endif
 
+                    @elseif($isAwaitingVerification && ($request->project?->billOfMaterials?->count() ?? 0) > 0)
+                        <div class="p-6 bg-amber-50/60 dark:bg-amber-950/20 rounded-xl text-center border border-amber-200 dark:border-amber-800/60">
+                            <p class="text-xs text-amber-800 dark:text-amber-300 font-semibold">A List of Materials has been prepared and is currently awaiting GSO verification.</p>
+                        </div>
                     @else
                         <div class="p-6 bg-slate-50 dark:bg-zinc-800/30 rounded-xl text-center border border-gray-100 dark:border-zinc-800">
                             <p class="text-xs text-gray-400 italic">No List of Materials required or requested yet for this job.</p>
                         </div>
                     @endif
+                </div>
                 </div>
 
                 <!-- Per-Request Messaging Channel (Under BOM, matching BOM width) -->
@@ -768,7 +786,7 @@
             </div>
 
             <!-- Right Column: Status Timeline Stepper -->
-            <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 shadow-sm">
+            <div data-realtime-container="client-req-timeline" data-realtime-request-id="{{ $request->request_id }}" @if($request->project) data-realtime-project-id="{{ $request->project->project_id }}" @endif class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 shadow-sm">
                 @php
                     $clientHistories = $request->histories->reject(function ($history) {
                         $rem = strtolower($history->remarks ?? '');
@@ -852,6 +870,23 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const requestId = "{{ $request->request_id }}";
+
+    // Reverb (Laravel Echo) listener for this request
+    if (requestId && window.Echo) {
+        try {
+            window.Echo.channel('linkod.updates')
+                .listen('.RequestUpdated', (e) => {
+                    if (String(e?.request_id || '') === String(requestId)) {
+                        if (window.LINKodTriggerRealtimeRefresh) {
+                            window.LINKodTriggerRealtimeRefresh(e);
+                        }
+                    }
+                });
+        } catch (err) {
+            console.warn('[Reverb] Channel subscription warning:', err);
+        }
+    }
+
     if (requestId && window.supabaseClient) {
         // 1. Listen for request status updates
         window.supabaseClient
@@ -896,6 +931,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             );
                         }
                     }
+
+                    if (window.LINKodTriggerRealtimeRefresh) {
+                        window.LINKodTriggerRealtimeRefresh({ request_id: Number(requestId) });
+                    }
                 }
             )
             .on(
@@ -910,7 +949,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const history = payload.new;
                     if (history) {
                         const rem = (history.remarks || '').toLowerCase();
-                        let actionTitle = history.current_status || 'Status Update';
+                        let actionTitle = history.current_status || 'Status Updated';
 
                         // Filter out internal List of Materials submission on client side
                         if (
@@ -1007,6 +1046,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             `;
                             timeline.appendChild(item);
+                        }
+
+                        if (window.LINKodTriggerRealtimeRefresh) {
+                            window.LINKodTriggerRealtimeRefresh({ request_id: Number(requestId) });
                         }
                     }
                 }

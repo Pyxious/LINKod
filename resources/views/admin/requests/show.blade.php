@@ -9,6 +9,10 @@
 
 <div class="w-full max-w-6xl mx-auto space-y-6 font-sans">
     
+    <div data-realtime-container="admin-req-header-and-alerts"
+         data-realtime-request-id="{{ $serviceRequest->request_id }}"
+         @if($serviceRequest->project) data-realtime-project-id="{{ $serviceRequest->project->project_id }}" @endif
+         class="space-y-6">
     <!-- Top Header Banner -->
     <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 shadow-sm space-y-4"
          x-data="{
@@ -163,7 +167,8 @@
     @if($serviceRequest->current_status === 'Awaiting Materials')
         {{-- Awaiting Materials Alert Card (Brand Themed) --}}
         <div class="bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-indigo-50/70 dark:from-blue-950/40 dark:via-zinc-900 dark:to-blue-950/30 border-2 border-blue-200 dark:border-blue-800/80 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-             x-data="{ showMaterialsModal: false, confirmingMaterials: false }">
+             x-data="{ showMaterialsModal: false, confirmingMaterials: false }"
+             :data-realtime-pause="(showMaterialsModal || confirmingMaterials) ? 'true' : 'false'">
             <div class="flex items-start sm:items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-[#0033a0]/10 dark:bg-blue-400/10 border border-[#0033a0]/20 dark:border-blue-400/20 flex items-center justify-center text-[#0033a0] dark:text-blue-400 shrink-0 mt-0.5 sm:mt-0 shadow-2xs">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -235,9 +240,13 @@
             </div>
         </div>
     @endif
+    </div>
 
     {{-- Request Details Card --}}
-
+    <div data-realtime-container="admin-req-main"
+         data-realtime-request-id="{{ $serviceRequest->request_id }}"
+         @if($serviceRequest->project) data-realtime-project-id="{{ $serviceRequest->project->project_id }}" @endif
+         class="space-y-6">
     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-sm"
          x-data="{ lightboxOpen: false, lightboxImg: '', lightboxTitle: '' }">
         <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 mb-4">
@@ -805,15 +814,19 @@
                         @endphp
                         @foreach($workers as $worker)
                             @php
-                                $teamName = strtolower($worker->team->team_name ?? '');
+                                $wTeams = $worker->teams->isNotEmpty() ? $worker->teams : ($worker->team ? collect([$worker->team]) : collect());
+                                $teamNamesDisplay = $wTeams->pluck('team_name')->join(', ');
                                 $categoryName = strtolower($serviceRequest->category->category_name ?? '');
                                 $isRecommended = false;
-                                if ($teamName && $categoryName) {
+                                if ($categoryName && $wTeams->isNotEmpty()) {
                                     preg_match_all('/\w+/', $categoryName, $catWords);
-                                    foreach ($catWords[0] as $word) {
-                                        if (strlen($word) > 3 && str_contains($teamName, $word)) {
-                                            $isRecommended = true;
-                                            break;
+                                    foreach ($wTeams as $wt) {
+                                        $tName = strtolower($wt->team_name ?? '');
+                                        foreach ($catWords[0] as $word) {
+                                            if (strlen($word) > 3 && str_contains($tName, $word)) {
+                                                $isRecommended = true;
+                                                break 2;
+                                            }
                                         }
                                     }
                                 }
@@ -821,15 +834,15 @@
                                 $isChecked = $isAssigned || (empty($assignedIds) && $isRecommended);
                                 $activeCount = $worker->projects->count();
                             @endphp
-                            <label class="worker-option flex items-center gap-2.5 cursor-pointer p-2.5 bg-white dark:bg-zinc-900 hover:bg-blue-50 dark:hover:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-800 {{ $isRecommended ? 'border-blue-200 dark:border-blue-800' : '' }} transition-colors min-w-0" data-team="{{ strtolower($worker->team->team_name ?? '') }}">
+                            <label class="worker-option flex items-center gap-2.5 cursor-pointer p-2.5 bg-white dark:bg-zinc-900 hover:bg-blue-50 dark:hover:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-800 {{ $isRecommended ? 'border-blue-200 dark:border-blue-800' : '' }} transition-colors min-w-0" data-team="{{ strtolower($teamNamesDisplay) }}">
                                 <input type="checkbox" name="worker_ids[]" value="{{ $worker->worker_id }}" {{ $isChecked ? 'checked' : '' }} class="worker-checkbox rounded text-[#0033a0] focus:ring-[#0033a0] w-4 h-4 shrink-0">
                                 <div class="flex-1 min-w-0 flex items-center justify-between gap-1.5">
                                     <div class="min-w-0">
                                         <div class="text-xs font-bold text-slate-900 dark:text-gray-200 truncate" title="{{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}">
                                             {{ $worker->user->first_name ?? 'Unknown' }} {{ $worker->user->last_name ?? '' }}
                                         </div>
-                                        <div class="text-[11px] text-gray-500 truncate flex items-center gap-1.5" title="{{ $worker->team->team_name ?? 'No Unit' }}">
-                                            <span>{{ $worker->team->team_name ?? 'No Unit' }}</span>
+                                        <div class="text-[11px] text-gray-500 truncate flex items-center gap-1.5" title="{{ $teamNamesDisplay ?: 'No Unit' }}">
+                                            <span>{{ $teamNamesDisplay ?: 'No Unit' }}</span>
                                             <span>•</span>
                                             @if($activeCount === 0)
                                                 <span class="text-emerald-600 dark:text-emerald-400 font-bold">Available</span>
@@ -1163,49 +1176,240 @@
         </div>
     @endif
 
-    <!-- Assigned Personnel & Maintenance Unit Card (Displayed when request is approved and has assigned workers) -->
-    @if($serviceRequest->project && $serviceRequest->project->workers->isNotEmpty())
-        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-7 shadow-2xs">
-            <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400 mb-4">
-                Assigned Maintenance Personnel &amp; Unit
-            </h2>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                @foreach($serviceRequest->project->workers as $assignedWorker)
-                    @php
-                        $workerUser = $assignedWorker->staff->user ?? null;
-                        $workerTeam = $assignedWorker->team->team_name ?? 'Maintenance Unit';
-                        $isLeader = ($assignedWorker->team && $assignedWorker->team->teamLeader && $assignedWorker->team->teamLeader->staff_id === $assignedWorker->staff_id);
-                    @endphp
-                    <div class="bg-blue-50/50 dark:bg-zinc-800/60 border border-blue-100 dark:border-zinc-700 rounded-xl p-4 flex items-center gap-3.5 shadow-2xs">
-                        <div class="w-10 h-10 rounded-full bg-[#0038A8] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
-                            {{ strtoupper(substr($workerUser->first_name ?? 'W', 0, 1)) }}
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <div class="font-bold text-gray-900 dark:text-white text-xs flex items-center gap-1.5">
-                                <span class="truncate">{{ $workerUser->first_name ?? 'Worker' }} {{ $workerUser->last_name ?? '' }}</span>
-                                @if($isLeader)
-                                    <span class="text-[10px] font-bold text-[#0038A8] dark:text-blue-300 bg-blue-100 dark:bg-blue-950/80 px-1.5 py-0.2 rounded border border-blue-200 shrink-0">
-                                        Leader
-                                    </span>
-                                @endif
-                            </div>
-                            <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-                                {{ $workerTeam }}
-                            </div>
-                        </div>
+    <!-- Assigned Personnel & Maintenance Unit Card (Displayed when request has an active project) -->
+    @if($serviceRequest->isAccepted() && $serviceRequest->project && !in_array($serviceRequest->current_status, ['Cancelled', 'Rejected']))
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-7 shadow-2xs space-y-5"
+             x-data="{ 
+                 showEditWorkersModal: false, 
+                 workerSearch: '',
+                 assignedIds: {{ Js::from($serviceRequest->project->workers->pluck('worker_id')) }}
+             }"
+             :data-realtime-pause="showEditWorkersModal ? 'true' : 'false'">
+            
+            <!-- Card Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-zinc-800">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <h2 class="text-base font-bold text-[#0033a0] dark:text-blue-400">
+                            Assigned Maintenance Personnel &amp; Unit
+                        </h2>
+                        <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-100 text-[#0038A8] dark:bg-blue-950/80 dark:text-blue-300">
+                            {{ $serviceRequest->project->workers->count() }} Assigned
+                        </span>
                     </div>
-                @endforeach
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Active maintenance crew assigned to this {{ $isManpower ? 'manpower assistance request' : 'job order' }}.
+                    </p>
+                </div>
+
+                @if(!in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected']))
+                    <button type="button" 
+                            @click="showEditWorkersModal = true" 
+                            class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-2 cursor-pointer shrink-0">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        <span>Edit / Assign Workers</span>
+                    </button>
+                @endif
+            </div>
+
+            <!-- Assigned Workers Grid -->
+            @if($serviceRequest->project->workers->isNotEmpty())
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    @foreach($serviceRequest->project->workers as $assignedWorker)
+                        @php
+                            $workerUser = $assignedWorker->staff->user ?? $assignedWorker->user ?? null;
+                            $wTeams = $assignedWorker->teams->isNotEmpty() ? $assignedWorker->teams : ($assignedWorker->team ? collect([$assignedWorker->team]) : collect());
+                            $workerTeamsDisplay = $wTeams->pluck('team_name')->join(', ') ?: 'Maintenance Unit';
+                            $isLeader = $assignedWorker->isTeamLeader();
+                        @endphp
+                        <div class="bg-blue-50/50 dark:bg-zinc-800/60 border border-blue-100 dark:border-zinc-700 rounded-xl p-4 flex items-center justify-between gap-3 shadow-2xs group hover:border-blue-300 transition">
+                            <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                                <div class="w-10 h-10 rounded-full bg-[#0038A8] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
+                                    {{ strtoupper(substr($workerUser->first_name ?? 'W', 0, 1)) }}
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="font-bold text-gray-900 dark:text-white text-xs flex items-center gap-1.5">
+                                        <span class="truncate">{{ $workerUser->first_name ?? 'Worker' }} {{ $workerUser->last_name ?? '' }}</span>
+                                        @if($isLeader)
+                                            <span class="text-[10px] font-bold text-[#0038A8] dark:text-blue-300 bg-blue-100 dark:bg-blue-950/80 px-1.5 py-0.2 rounded border border-blue-200 shrink-0">
+                                                Leader
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate" title="{{ $workerTeamsDisplay }}">
+                                        {{ $workerTeamsDisplay }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if(!in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected']))
+                                <form action="{{ route('admin.requests.workers.remove', [$serviceRequest->request_id, $assignedWorker->worker_id]) }}" 
+                                      method="POST" 
+                                      onsubmit="return confirm('Remove {{ addslashes($workerUser->first_name ?? 'this worker') }} from this assigned project?');" 
+                                      class="shrink-0">
+                                    @csrf
+                                    <button type="submit" 
+                                            class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition" 
+                                            title="Remove Worker">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="p-8 text-center bg-gray-50 dark:bg-zinc-800/30 border border-dashed border-gray-300 dark:border-zinc-700 rounded-2xl">
+                    <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-400 flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    </div>
+                    <h4 class="text-xs font-bold text-gray-800 dark:text-gray-200 mb-1">No Maintenance Workers Assigned</h4>
+                    <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-4">Click below to assign maintenance personnel to this request.</p>
+                    @if(!in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected']))
+                        <button type="button" @click="showEditWorkersModal = true" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                            <span>Assign Workers Now</span>
+                        </button>
+                    @endif
+                </div>
+            @endif
+
+            <!-- Edit Assigned Personnel Modal -->
+            <div x-show="showEditWorkersModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" @keydown.escape.window="showEditWorkersModal = false">
+                <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 text-left flex flex-col max-h-[90vh]" @click.outside="showEditWorkersModal = false">
+                    
+                    <!-- Modal Header -->
+                    <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800 shrink-0">
+                        <div class="flex items-center gap-2.5">
+                            <span class="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            </span>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                                    Manage Assigned Personnel
+                                </h3>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                    Check workers to assign or uncheck to remove them from this request.
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" @click="showEditWorkersModal = false" class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg">✕</button>
+                    </div>
+
+                    <!-- Search Worker Filter -->
+                    <div class="shrink-0">
+                        <input type="text" 
+                               x-model="workerSearch" 
+                               placeholder="Search worker by name or unit..." 
+                               class="w-full px-3.5 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                    </div>
+
+                    <!-- Worker Selection Form -->
+                    <form action="{{ route('admin.requests.workers.update', $serviceRequest->request_id) }}" method="POST" class="flex flex-col flex-1 min-h-0 space-y-4">
+                        @csrf
+                        
+                        <div class="flex-1 overflow-y-auto space-y-2 p-1 max-h-[50vh]">
+                            @php
+                                $assignedWorkerIds = $serviceRequest->project->workers->pluck('worker_id')->toArray();
+                                $categoryName = strtolower($serviceRequest->category->category_name ?? '');
+                            @endphp
+
+                            @foreach($workers as $w)
+                                @php
+                                    $wUser = $w->user ?? $w->staff?->user ?? null;
+                                    $wFullName = ($wUser->first_name ?? 'Worker') . ' ' . ($wUser->last_name ?? '');
+                                    $wUnits = $w->teams->isNotEmpty() ? $w->teams : ($w->team ? collect([$w->team]) : collect());
+                                    $wUnitsText = $wUnits->pluck('team_name')->join(', ') ?: 'No Unit';
+                                    $isAssigned = in_array($w->worker_id, $assignedWorkerIds);
+                                    $activeCount = $w->projects->count();
+                                    
+                                    $isRec = false;
+                                    if ($categoryName && $wUnits->isNotEmpty()) {
+                                        preg_match_all('/\w+/', $categoryName, $catWords);
+                                        foreach ($wUnits as $wt) {
+                                            $tName = strtolower($wt->team_name ?? '');
+                                            foreach ($catWords[0] as $word) {
+                                                if (strlen($word) > 3 && str_contains($tName, $word)) {
+                                                    $isRec = true;
+                                                    break 2;
+                                                }
+                                            }
+                                        }
+                                    }
+                                @endphp
+
+                                <label x-show="!workerSearch || '{{ strtolower($wFullName . ' ' . $wUnitsText) }}'.includes(workerSearch.toLowerCase())"
+                                       class="flex items-center justify-between p-3 rounded-xl border cursor-pointer transition select-none"
+                                       :class="assignedIds.includes({{ $w->worker_id }}) 
+                                           ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 dark:border-blue-700' 
+                                           : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/60 hover:bg-gray-50 dark:hover:bg-zinc-800'">
+                                    
+                                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                                        <input type="checkbox" 
+                                               name="worker_ids[]" 
+                                               value="{{ $w->worker_id }}" 
+                                               x-model="assignedIds" 
+                                               :value="{{ $w->worker_id }}"
+                                               class="rounded text-[#0033a0] focus:ring-[#0033a0] w-4 h-4 shrink-0">
+                                        
+                                        <div class="min-w-0 flex-1">
+                                            <div class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                                <span class="truncate">{{ $wFullName }}</span>
+                                                @if($w->isTeamLeader())
+                                                    <span class="text-[9px] font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.2 rounded border border-blue-200 shrink-0">Leader</span>
+                                                @endif
+                                                @if($isRec)
+                                                    <span class="text-[9px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.2 rounded border border-emerald-200 shrink-0">Recommended</span>
+                                                @endif
+                                            </div>
+                                            <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-2">
+                                                <span class="truncate">{{ $wUnitsText }}</span>
+                                                <span>•</span>
+                                                @if($activeCount === 0)
+                                                    <span class="text-emerald-600 dark:text-emerald-400 font-bold">Available</span>
+                                                @else
+                                                    <span class="text-amber-600 dark:text-amber-400 font-semibold">{{ $activeCount }} Active Job(s)</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-xs font-bold ml-2 shrink-0" 
+                                          :class="assignedIds.includes({{ $w->worker_id }}) ? 'text-[#0033a0] dark:text-blue-300' : 'text-gray-400'">
+                                        <span x-text="assignedIds.includes({{ $w->worker_id }}) ? 'Assigned' : 'Unassigned'"></span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <!-- Modal Footer -->
+                        <div class="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-zinc-800 shrink-0">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                <span class="font-bold text-slate-800 dark:text-white" x-text="assignedIds.length"></span> worker(s) selected
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" @click="showEditWorkersModal = false" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl hover:bg-gray-200 transition">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="px-5 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    <span>Save Changes</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     @endif
 
 
 
-    @if($serviceRequest->project && !in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected']))
+    @if($serviceRequest->isAccepted() && $serviceRequest->project && !in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected']))
         <!-- Admin Operational Override Card -->
         <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-blue-200 dark:border-zinc-800 p-6 shadow-sm space-y-4"
              x-data="{ showStartModal: false, showCompleteModal: false }"
+             :data-realtime-pause="(showStartModal || showCompleteModal) ? 'true' : 'false'"
              @close-start-modal.window="showStartModal = false"
              @close-complete-modal.window="showCompleteModal = false">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-zinc-800">
@@ -1642,14 +1846,21 @@
             </div>
         </div>
     @endif
+    </div>
 
+    <div data-realtime-container="admin-req-bom"
+         data-realtime-request-id="{{ $serviceRequest->request_id }}"
+         @if($serviceRequest->project) data-realtime-project-id="{{ $serviceRequest->project->project_id }}" @endif>
     <!-- List of Materials Section Card -->
     @if($serviceRequest->project || !in_array($serviceRequest->current_status, ['Cancelled', 'Rejected']))
         @php
             $boms = $serviceRequest->project?->billOfMaterials ?? collect();
             $pendingBomCount = $boms->whereNull('date_approved')->count();
             $hasBomItems = $boms->count() > 0;
-            $isBomEditable = !in_array($serviceRequest->current_status, ['Cancelled', 'Rejected']);
+            $isRequestAccepted = $serviceRequest->isAccepted();
+            $isBomEditable = $isRequestAccepted && !in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected']);
+            $hasWorkerRequestedBom = $boms->contains(fn($b) => ($b->createdBy?->user?->role ?? '') === 'worker');
+            $approveBomBtnText = $hasWorkerRequestedBom ? 'Verify & Forward to Client' : 'Approve List of Materials';
         @endphp
         <div id="bom-section" 
              class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-7 shadow-sm"
@@ -1699,7 +1910,8 @@
                  hasPendingItems() {
                      return this.items.some(i => !i.is_approved);
                  }
-             }">
+             }"
+             :data-realtime-pause="(showAddMaterial || showClientApproveModal || showBomMaterialsModal || submittingBOM || submittingClientApprove || submittingBomMaterials) ? 'true' : 'false'">
             
             <!-- List of Materials Header -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-5">
@@ -1709,9 +1921,15 @@
                             List of Materials
                         </h2>
                         <template x-if="items.length === 0">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 uppercase">
-                                Ready to Add
-                            </span>
+                            @if($isRequestAccepted)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 uppercase">
+                                    Ready to Add
+                                </span>
+                            @else
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400 uppercase">
+                                    Awaiting Request Approval
+                                </span>
+                            @endif
                         </template>
                         <template x-if="items.length > 0 && hasPendingItems()">
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">
@@ -1767,6 +1985,8 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                         <span>Add First Material Item</span>
                     </button>
+                @elseif(!$isRequestAccepted && !in_array($serviceRequest->current_status, ['Cancelled', 'Rejected']))
+                    <p class="text-xs text-amber-700 dark:text-amber-400 max-w-md mx-auto font-semibold">Accept and approve this service request first before adding a List of Materials.</p>
                 @else
                     <p class="text-xs text-gray-400 max-w-md mx-auto">No materials were requested for this requisition.</p>
                 @endif
@@ -1865,7 +2085,7 @@
                                         :disabled="submittingBOM" 
                                         class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                    <span x-text="submittingBOM ? 'Verifying...' : 'Verify & Forward to Client'">Verify & Forward to Client</span>
+                                    <span x-text="submittingBOM ? 'Processing...' : '{{ $approveBomBtnText }}'">{{ $approveBomBtnText }}</span>
                                 </button>
                             </template>
 
@@ -2125,7 +2345,12 @@
             @endif
         </div>
     @endif
+    </div>
 
+    <div data-realtime-container="admin-req-timeline-and-verification"
+         data-realtime-request-id="{{ $serviceRequest->request_id }}"
+         @if($serviceRequest->project) data-realtime-project-id="{{ $serviceRequest->project->project_id }}" @endif
+         class="space-y-6">
     @if($serviceRequest->project && $serviceRequest->project->current_status === 'Pending Verification')
         @php
             $beforeHistory = $serviceRequest->project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->where('proof_attachment', '!=', '0')->last();
@@ -2585,7 +2810,8 @@
 
     <!-- Status Timeline & History Card -->
     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 shadow-sm space-y-4"
-         x-data="{ editTimeline: false }">
+         x-data="{ editTimeline: false }"
+         :data-realtime-pause="editTimeline ? 'true' : 'false'">
         <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800 gap-3 flex-wrap">
             <div class="flex items-center gap-2.5 min-w-0">
                 <span class="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-400 shrink-0">
@@ -2673,6 +2899,7 @@
             @endforelse
         </div>
     </div>
+    </div>
 
     <!-- Per-Request Messaging Channel -->
     @include('partials.request-messages', ['serviceRequest' => $serviceRequest])
@@ -2734,16 +2961,66 @@ function adminOverrideHandler(modalType) {
         cameraError: '',
         facingMode: 'environment',
 
+        compressImage(dataUrl, filename, callback) {
+            const img = new Image();
+            img.onload = () => {
+                const maxDim = 1280;
+                let width = img.width;
+                let height = img.height;
+                if (width > height) {
+                    if (width > maxDim) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    }
+                } else {
+                    if (height > maxDim) {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const cleanName = filename.replace(/\.[^/.]+$/, "") + ".jpg";
+                        const compressed = new File([blob], cleanName, { type: 'image/jpeg' });
+                        callback(compressed);
+                    } else {
+                        callback(null);
+                    }
+                }, 'image/jpeg', 0.80);
+            };
+            img.onerror = () => callback(null);
+            img.src = dataUrl;
+        },
+
         handleFile(file) {
             if (!file) return;
             this.photoError = '';
             this.proofFile = file.name;
             this.proofSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
             this.capturedFile = file;
+
             if (file.type && file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     this.proofPreviewUrl = e.target.result;
+                    this.compressImage(e.target.result, file.name, (compressed) => {
+                        if (compressed) {
+                            this.capturedFile = compressed;
+                            this.proofSize = (compressed.size / (1024 * 1024)).toFixed(2) + ' MB (optimized)';
+                            try {
+                                const dt = new DataTransfer();
+                                dt.items.add(compressed);
+                                if (this.$refs.fileInput) {
+                                    this.$refs.fileInput.files = dt.files;
+                                }
+                            } catch (err) {}
+                        }
+                    });
                 };
                 reader.readAsDataURL(file);
             } else {
@@ -2752,6 +3029,13 @@ function adminOverrideHandler(modalType) {
         },
 
         async openCamera() {
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            if (isMobile || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                if (this.$refs.mobileCameraInput) {
+                    this.$refs.mobileCameraInput.click();
+                    return;
+                }
+            }
             this.cameraActive = true;
             this.cameraError = '';
             await this.$nextTick();

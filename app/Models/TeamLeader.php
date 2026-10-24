@@ -21,4 +21,9 @@ class TeamLeader extends Model
     {
         return $this->hasOne(Team::class, 'team_leader', 'leader_id');
     }
+
+    public function teams()
+    {
+        return $this->hasMany(Team::class, 'team_leader', 'leader_id');
+    }
 }

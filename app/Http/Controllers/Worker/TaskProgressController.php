@@ -30,14 +30,20 @@ class TaskProgressController extends Controller
             );
 
             if (!$project->request || !$project->request->isScheduleApproved()) {
-                return redirect()->back()->with('error', 'Task cannot be updated until the client has approved the scheduled date.');
+                $errMsg = 'Task cannot be updated until the client has approved the scheduled date.';
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $errMsg], 422);
+                }
+                return redirect()->back()->with('error', $errMsg);
             }
 
             $previousStatus = $project->current_status;
 
-            // Workers can update from: Pending, On Hold, Awaiting Materials, or BOM stages
+            // Workers can update from: Pending, Approved, Schedule Confirmed, On Hold, Awaiting Materials, or BOM stages
             $allowedPreviousStatuses = [
                 'Pending', 
+                'Approved',
+                'Schedule Confirmed',
                 'On Hold', 
                 'Awaiting Materials', 
                 'Awaiting Verification of Bill of Materials', 
@@ -46,17 +52,29 @@ class TaskProgressController extends Controller
             ];
             if (!in_array($previousStatus, $allowedPreviousStatuses)) {
                 $cleanStatus = str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $previousStatus);
-                return redirect()->back()->with('error', "Task cannot be updated from status: {$cleanStatus}.");
+                $errMsg = "Task cannot be updated from status: {$cleanStatus}.";
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $errMsg], 422);
+                }
+                return redirect()->back()->with('error', $errMsg);
             }
 
             // Require before-work photo when moving to In Progress
             if ($validated['status'] === 'In Progress' && !$request->hasFile('proof')) {
-                return redirect()->back()->with('error', 'A Before-Work photo is required before setting task to In Progress.');
+                $errMsg = 'A Before-Work photo is required before setting task to In Progress.';
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $errMsg], 422);
+                }
+                return redirect()->back()->with('error', $errMsg);
             }
 
             // Require completion photo
             if ($validated['status'] === 'Completed' && !$request->hasFile('proof')) {
-                return redirect()->back()->with('error', 'An After-Work / proof of completion photo is required.');
+                $errMsg = 'An After-Work / proof of completion photo is required.';
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $errMsg], 422);
+                }
+                return redirect()->back()->with('error', $errMsg);
             }
 
             $disk = config('filesystems.default', 'public');
@@ -67,7 +85,11 @@ class TaskProgressController extends Controller
             if ($request->hasFile('proof')) {
                 $proofPath = $request->file('proof')->store('proofs', $disk);
                 if (!$proofPath) {
-                    return redirect()->back()->with('error', 'Failed to save proof photo to storage. Please try again.');
+                    $errMsg = 'Failed to save proof photo to storage. Please try again.';
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => $errMsg], 500);
+                    }
+                    return redirect()->back()->with('error', $errMsg);
                 }
             }
 
@@ -76,6 +98,10 @@ class TaskProgressController extends Controller
             // Guard against duplicate rapid clicks (unless worker is uploading a missing before-work photo for an In Progress task)
             $hasExistingBeforePhoto = $project->histories->where('current_status', 'In Progress')->whereNotNull('proof_attachment')->where('proof_attachment', '!=', '0')->isNotEmpty();
             if ($previousStatus === $actualStatus && !($actualStatus === 'In Progress' && !$hasExistingBeforePhoto && $proofPath)) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    session()->flash('info', "Task status is already {$actualStatus}.");
+                    return response()->json(['success' => true, 'message' => "Task status is already {$actualStatus}."]);
+                }
                 return redirect()->route('worker.job-orders.show', $projectId)
                     ->with('info', "Task status is already {$actualStatus}.");
             }
@@ -161,10 +187,27 @@ class TaskProgressController extends Controller
                 }
             }
 
+            $successMessage = "Task status updated to \"{$validated['status']}\".";
+            if ($request->ajax() || $request->wantsJson()) {
+                session()->flash('success', $successMessage);
+                return response()->json([
+                    'success'  => true,
+                    'message'  => $successMessage,
+                    'status'   => $actualStatus,
+                    'redirect' => route('worker.job-orders.show', $projectId),
+                ]);
+            }
+
             return redirect()->route('worker.job-orders.show', $projectId)
-                ->with('success', "Task status updated to \"{$validated['status']}\".");
+                ->with('success', $successMessage);
 
         } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error updating task status: ' . $e->getMessage(),
+                ], 422);
+            }
             return redirect()->back()
                 ->with('error', 'Error updating task status: ' . $e->getMessage());
         }
@@ -196,9 +239,11 @@ class TaskProgressController extends Controller
 
             $previousStatus = $project->current_status;
 
-            // Workers can update from: Pending, On Hold, Awaiting Materials, or BOM stages
+            // Workers can update from: Pending, Approved, Schedule Confirmed, On Hold, Awaiting Materials, or BOM stages
             $allowedPreviousStatuses = [
                 'Pending', 
+                'Approved',
+                'Schedule Confirmed',
                 'On Hold', 
                 'Awaiting Materials', 
                 'Awaiting Verification of Bill of Materials', 
@@ -351,7 +396,7 @@ class TaskProgressController extends Controller
             403
         );
 
-        if ($project->current_status !== 'Awaiting Materials') {
+        if ($project->current_status !== 'Awaiting Materials' && $project->request?->current_status !== 'Awaiting Materials') {
             return redirect()->back()->with('error', 'Materials can only be confirmed when the project is in "Awaiting Materials" status.');
         }
 

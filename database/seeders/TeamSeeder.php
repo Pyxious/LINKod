@@ -120,12 +120,13 @@ class TeamSeeder extends Seeder
 
             $team->update(['team_leader' => $teamLeaderObj->leader_id]);
 
-            Worker::create([
+            $lWorker = Worker::create([
                 'staff_id' => $leaderStaff->staff_id,
                 'team_id' => $team->team_id,
                 'date_hired' => now()->subMonths(12)->toDateString(),
                 'is_available' => true,
             ]);
+            $lWorker->teams()->attach($team->team_id);
 
             // 3. Create Team Workers
             foreach ($data['workers'] as $wData) {
@@ -146,12 +147,13 @@ class TeamSeeder extends Seeder
                     'date_hired' => now()->subMonths(6)->toDateString(),
                 ]);
 
-                Worker::create([
+                $workerRecord = Worker::create([
                     'staff_id' => $wStaff->staff_id,
                     'team_id' => $team->team_id,
                     'date_hired' => now()->subMonths(6)->toDateString(),
                     'is_available' => true,
                 ]);
+                $workerRecord->teams()->attach($team->team_id);
             }
         }
 

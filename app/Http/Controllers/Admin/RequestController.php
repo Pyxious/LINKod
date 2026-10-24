@@ -305,21 +305,27 @@ class RequestController extends Controller
     public function show(int $id)
     {
         $serviceRequest = ServiceRequest::with(
-            'client.user', 'category', 'histories.updatedBy', 'evaluation', 'project.histories', 'project.billOfMaterials.material'
+            'client.user', 'category', 'histories.updatedBy', 'evaluation', 'project.histories', 'project.billOfMaterials.material', 'project.billOfMaterials.createdBy.user',
+            'project.workers.staff.user', 'project.workers.teams.leader', 'project.workers.team.leader'
         )->findOrFail($id);
 
         // Mark viewed conversation messages as read
         if (auth()->check()) {
-            \App\Models\RequestMessage::where('request_id', $serviceRequest->request_id)
+            $updated = \App\Models\RequestMessage::where('request_id', $serviceRequest->request_id)
                 ->where('sender_id', '!=', auth()->id())
                 ->where('is_read', false)
                 ->update(['is_read' => true]);
+            if ($updated > 0) {
+                Cache::forget('admin_unread_messages_count_' . auth()->id());
+            }
         }
 
         $workers = \App\Models\Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))
             ->with([
-                'user', 
-                'team',
+                'user',
+                'staff.user',
+                'teams.leader',
+                'team.leader',
                 'projects' => function($q) {
                     $q->with('request.category', 'latestHistory')
                       ->whereHas('latestHistory', function($lh) {
@@ -329,15 +335,18 @@ class RequestController extends Controller
             ])
             ->get()
             ->sortBy(function($worker) use ($serviceRequest) {
-                $teamName = strtolower($worker->team->team_name ?? '');
                 $categoryName = strtolower($serviceRequest->category->category_name ?? '');
                 $isRecommended = false;
-                if ($teamName && $categoryName) {
+                $wTeams = $worker->teams->isNotEmpty() ? $worker->teams : ($worker->team ? collect([$worker->team]) : collect());
+                if ($categoryName && $wTeams->isNotEmpty()) {
                     preg_match_all('/\w+/', $categoryName, $catWords);
-                    foreach ($catWords[0] as $word) {
-                        if (strlen($word) > 3 && str_contains($teamName, $word)) {
-                            $isRecommended = true;
-                            break;
+                    foreach ($wTeams as $wt) {
+                        $tName = strtolower($wt->team_name ?? '');
+                        foreach ($catWords[0] as $word) {
+                            if (strlen($word) > 3 && str_contains($tName, $word)) {
+                                $isRecommended = true;
+                                break 2;
+                            }
                         }
                     }
                 }
@@ -423,7 +432,9 @@ class RequestController extends Controller
                 $updateData['scheduled_time_window'] = $request->input('scheduled_time_window', $serviceRequest->scheduled_time_window ?? 'AM-PM');
                 $updateData['schedule_status'] = 'approved';
                 $updateData['schedule_decline_reason'] = null;
-            } elseif ($serviceRequest->scheduled_date && $serviceRequest->schedule_status !== 'approved') {
+            } else {
+                $updateData['scheduled_date'] = $serviceRequest->scheduled_date ? $serviceRequest->scheduled_date->format('Y-m-d') : now()->toDateString();
+                $updateData['scheduled_time_window'] = $request->input('scheduled_time_window', $serviceRequest->scheduled_time_window ?? 'AM-PM');
                 $updateData['schedule_status'] = 'approved';
                 $updateData['schedule_decline_reason'] = null;
             }
@@ -468,7 +479,7 @@ class RequestController extends Controller
                     });
 
                     if ($matchingTeam) {
-                        $teamWorkers = \App\Models\Worker::where('team_id', $matchingTeam->team_id)
+                        $teamWorkers = $matchingTeam->workers()
                             ->with(['projects' => function($q) {
                                 $q->whereHas('latestHistory', fn($lh) => $lh->whereNotIn('current_status', ['Completed', 'Cancelled']));
                             }])
@@ -517,6 +528,15 @@ class RequestController extends Controller
                 'updated_by'      => auth()->id(),
             ]);
 
+            // If project has materials attached, mark them approved and update request bom_status
+            if ($project->billOfMaterials()->exists()) {
+                $project->billOfMaterials()->whereNull('date_approved')->update([
+                    'date_approved' => now()->toDateString(),
+                    'fulfilled_by'  => $staff?->staff_id,
+                ]);
+                $serviceRequest->update(['bom_status' => 'approved']);
+            }
+
             $dateFormatted = $serviceRequest->scheduled_date ? \Carbon\Carbon::parse($serviceRequest->scheduled_date)->format('F d, Y') : 'Confirmed Schedule';
             $windowText = match($serviceRequest->scheduled_time_window) {
                 'AM' => 'Morning',
@@ -525,7 +545,9 @@ class RequestController extends Controller
                 default => $serviceRequest->scheduled_time_window ?? 'Morning'
             };
 
-            if ($serviceRequest->is_manpower) {
+            $isManpowerReq = $serviceRequest->is_manpower;
+
+            if ($isManpowerReq) {
                 RequestHistory::create([
                     'request_id'      => $serviceRequest->request_id,
                     'previous_status' => $previous,
@@ -1034,30 +1056,17 @@ class RequestController extends Controller
     public function storeBom(Request $request, int $id)
     {
         try {
-            $serviceRequest = ServiceRequest::findOrFail($id);
+            $serviceRequest = ServiceRequest::with('project')->findOrFail($id);
 
-            if (in_array($serviceRequest->current_status, ['Cancelled', 'Rejected'])) {
-                return redirect()->back()->with('error', 'Materials cannot be modified for a cancelled or disapproved request.');
-            }
-            $user  = auth()->user();
-            $staff = $user?->staff;
-            if (!$staff && $user) {
-                $staff = \App\Models\Staff::firstOrCreate([
-                    'user_id' => $user->user_id,
-                ], [
-                    'role'       => $user->role,
-                    'date_hired' => now()->toDateString(),
-                ]);
+            if (in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected'])) {
+                return redirect()->back()->with('error', 'Materials cannot be modified for a completed, cancelled, or disapproved request.');
             }
 
-            $project = Project::firstOrCreate([
-                'request_id' => $serviceRequest->request_id,
-            ], [
-                'client_id'   => $serviceRequest->client_id,
-                'approved_by' => $staff?->staff_id,
-            ]);
+            if (!$serviceRequest->isAccepted() || !$serviceRequest->project) {
+                return redirect()->back()->with('error', 'Materials cannot be added until the service request has been accepted and approved.');
+            }
 
-            return app(\App\Http\Controllers\Admin\BomController::class)->store($request, $project->project_id);
+            return app(\App\Http\Controllers\Admin\BomController::class)->store($request, $serviceRequest->project->project_id);
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error adding material to List of Materials: ' . $e->getMessage());
         }
@@ -1068,8 +1077,8 @@ class RequestController extends Controller
         try {
             $serviceRequest = ServiceRequest::with('project.billOfMaterials', 'project.workers.staff.user')->findOrFail($id);
 
-            if (!$serviceRequest->project) {
-                return redirect()->back()->with('error', 'No active project found for this request.');
+            if (!$serviceRequest->isAccepted() || !$serviceRequest->project) {
+                return redirect()->back()->with('error', 'No active accepted project found for this request.');
             }
 
             // Mark all BOM items as approved
@@ -1078,6 +1087,8 @@ class RequestController extends Controller
                 'fulfilled_by'  => auth()->user()?->staff?->staff_id,
             ]);
 
+            $prevReqStatus = $serviceRequest->current_status;
+            $prevProjStatus = $serviceRequest->project->current_status;
             $targetStatus = 'Awaiting Materials';
             $remarks = 'Admin approved the List of Materials on behalf of the client. Awaiting materials procurement/delivery before work commences.';
 
@@ -1088,7 +1099,7 @@ class RequestController extends Controller
 
             RequestHistory::create([
                 'request_id'      => $serviceRequest->request_id,
-                'previous_status' => $serviceRequest->current_status,
+                'previous_status' => $prevReqStatus,
                 'current_status'  => $targetStatus,
                 'remarks'         => $remarks,
                 'updated_at'      => now(),
@@ -1102,7 +1113,7 @@ class RequestController extends Controller
 
                 \App\Models\ProjectHistory::create([
                     'project_id'      => $serviceRequest->project->project_id,
-                    'previous_status' => $serviceRequest->project->current_status,
+                    'previous_status' => $prevProjStatus,
                     'current_status'  => $targetStatus,
                     'remarks'         => $remarks,
                     'updated_at'      => now(),
@@ -1149,7 +1160,7 @@ class RequestController extends Controller
         try {
             $serviceRequest = ServiceRequest::with('project.workers.staff.user')->findOrFail($id);
 
-            if ($serviceRequest->current_status !== 'Awaiting Materials') {
+            if ($serviceRequest->current_status !== 'Awaiting Materials' && $serviceRequest->project?->current_status !== 'Awaiting Materials') {
                 return redirect()->back()->with('error', 'Materials can only be confirmed when the request is in "Awaiting Materials" status.');
             }
 
@@ -1308,6 +1319,129 @@ class RequestController extends Controller
             return redirect()->back()->with('success', 'Timeline date & time updated successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error updating timeline date/time: ' . $e->getMessage());
+        }
+    }
+
+    public function updateAssignedWorkers(Request $request, int $id)
+    {
+        try {
+            $serviceRequest = ServiceRequest::with('project.workers')->findOrFail($id);
+
+            if (!$serviceRequest->project) {
+                return redirect()->back()->with('error', 'No active project found for this request.');
+            }
+
+            if (in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected'])) {
+                return redirect()->back()->with('error', 'Assigned workers cannot be modified for closed or cancelled requests.');
+            }
+
+            $validated = $request->validate([
+                'worker_ids'   => 'nullable|array',
+                'worker_ids.*' => 'exists:worker,worker_id',
+            ]);
+
+            $newWorkerIds = collect($validated['worker_ids'] ?? [])->map(fn($wId) => (int)$wId)->values()->all();
+            $currentWorkerIds = $serviceRequest->project->workers->pluck('worker_id')->map(fn($wId) => (int)$wId)->values()->all();
+
+            $addedWorkerIds = array_diff($newWorkerIds, $currentWorkerIds);
+            $removedWorkerIds = array_diff($currentWorkerIds, $newWorkerIds);
+
+            // Sync new worker assignments with date_assigned
+            $syncData = [];
+            foreach ($newWorkerIds as $wId) {
+                $syncData[$wId] = ['date_assigned' => now()->toDateString()];
+            }
+            $serviceRequest->project->workers()->sync($syncData);
+
+            // Handle newly added workers
+            foreach ($addedWorkerIds as $wId) {
+                $worker = \App\Models\Worker::find($wId);
+                if ($worker) {
+                    $worker->update(['is_available' => false]);
+                    $workerUserId = $worker->staff?->user_id ?? $worker->user?->user_id;
+                    if ($workerUserId) {
+                        $this->notifications->workerAssigned(
+                            $workerUserId,
+                            $serviceRequest->title,
+                            $serviceRequest->project->project_id
+                        );
+                    }
+                }
+            }
+
+            // Handle removed workers: recalculate availability
+            foreach ($removedWorkerIds as $wId) {
+                $worker = \App\Models\Worker::find($wId);
+                if ($worker) {
+                    $worker->recalculateAvailability();
+                }
+            }
+
+            $addedCount = count($addedWorkerIds);
+            $removedCount = count($removedWorkerIds);
+
+            \App\Models\UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Admin updated assigned personnel for request #{$serviceRequest->request_id}: Added {$addedCount}, Removed {$removedCount}",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            \App\Models\ProjectHistory::create([
+                'project_id'      => $serviceRequest->project->project_id,
+                'previous_status' => $serviceRequest->project->current_status,
+                'current_status'  => $serviceRequest->project->current_status,
+                'remarks'         => "Admin updated assigned personnel (Added: {$addedCount}, Removed: {$removedCount}).",
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            return redirect()->route('admin.requests.show', $serviceRequest->request_id)
+                ->with('success', 'Assigned maintenance personnel updated successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error updating assigned workers: ' . $e->getMessage());
+        }
+    }
+
+    public function removeWorker(int $id, int $workerId)
+    {
+        try {
+            $serviceRequest = ServiceRequest::with('project.workers')->findOrFail($id);
+
+            if (!$serviceRequest->project) {
+                return redirect()->back()->with('error', 'No active project found for this request.');
+            }
+
+            if (in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected'])) {
+                return redirect()->back()->with('error', 'Assigned workers cannot be modified for closed or cancelled requests.');
+            }
+
+            $worker = \App\Models\Worker::with('staff.user')->findOrFail($workerId);
+            $workerName = ($worker->staff?->user?->first_name ?? 'Worker') . ' ' . ($worker->staff?->user?->last_name ?? '');
+
+            $serviceRequest->project->workers()->detach($workerId);
+            $worker->recalculateAvailability();
+
+            \App\Models\UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => "Admin removed {$workerName} from request #{$serviceRequest->request_id}",
+                'ip_address' => request()->ip(),
+                'created_at' => now(),
+            ]);
+
+            \App\Models\ProjectHistory::create([
+                'project_id'      => $serviceRequest->project->project_id,
+                'previous_status' => $serviceRequest->project->current_status,
+                'current_status'  => $serviceRequest->project->current_status,
+                'remarks'         => "Admin unassigned {$workerName} from this project.",
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
+
+            return redirect()->route('admin.requests.show', $serviceRequest->request_id)
+                ->with('success', "Worker {$workerName} removed from assigned personnel.");
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error removing assigned worker: ' . $e->getMessage());
         }
     }
 }

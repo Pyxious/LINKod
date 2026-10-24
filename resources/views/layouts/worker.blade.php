@@ -54,34 +54,42 @@
     @php
         $workerUser = auth()->user();
         if ($workerUser) {
-            $navNotifications      = $workerUser->notifications()->latest('sent_at')->take(20)->get();
-            $navUnreadCount        = $navNotifications->where('is_read', false)->count();
-            $navRequestUnreadCount = $navNotifications->where('type', '!=', 'new_message')->where('is_read', false)->count();
-            $navMessageUnreadCount = $navNotifications->where('type', 'new_message')->where('is_read', false)->count();
+            $navData = \Illuminate\Support\Facades\Cache::remember('user_nav_data_' . $workerUser->user_id, 45, function () use ($workerUser) {
+                $notifs = $workerUser->notifications()->latest('sent_at')->take(20)->get();
+                $workerObj = $workerUser->staff?->worker;
+                $workerId = $workerObj?->worker_id;
+                $teamId = $workerObj?->team_id;
+
+                $unreadMsgs = \App\Models\RequestMessage::where('is_read', false)
+                    ->where('sender_id', '!=', $workerUser->user_id)
+                    ->whereHas('serviceRequest', function($q) use ($workerId, $teamId, $workerUser) {
+                        $q->whereHas('project.workers', function($pw) use ($workerId, $teamId) {
+                            $pw->where(function($wq) use ($workerId, $teamId) {
+                                if ($workerId) $wq->where('worker.worker_id', $workerId);
+                                if ($teamId) $wq->orWhere('worker.team_id', $teamId);
+                            });
+                        })->orWhereHas('messages', function($mq) use ($workerUser) {
+                            $mq->where('sender_id', $workerUser->user_id);
+                        });
+                    })
+                    ->count();
+
+                return [
+                    'navNotifications'          => $notifs,
+                    'navUnreadCount'            => $notifs->where('is_read', false)->count(),
+                    'navRequestUnreadCount'     => $notifs->where('type', '!=', 'new_message')->where('is_read', false)->count(),
+                    'navMessageUnreadCount'     => $notifs->where('type', 'new_message')->where('is_read', false)->count(),
+                    'workerUnreadMessagesCount' => $unreadMsgs,
+                ];
+            });
+            extract($navData);
         } else {
             $navNotifications = collect();
             $navUnreadCount = 0;
             $navRequestUnreadCount = 0;
             $navMessageUnreadCount = 0;
+            $workerUnreadMessagesCount = 0;
         }
-
-        $workerObj = $workerUser?->staff?->worker;
-        $workerId = $workerObj?->worker_id;
-        $teamId = $workerObj?->team_id;
-
-        $workerUnreadMessagesCount = $workerUser ? \App\Models\RequestMessage::where('is_read', false)
-            ->where('sender_id', '!=', $workerUser->user_id)
-            ->whereHas('serviceRequest', function($q) use ($workerId, $teamId, $workerUser) {
-                $q->whereHas('project.workers', function($pw) use ($workerId, $teamId) {
-                    $pw->where(function($wq) use ($workerId, $teamId) {
-                        if ($workerId) $wq->where('worker.worker_id', $workerId);
-                        if ($teamId) $wq->orWhere('worker.team_id', $teamId);
-                    });
-                })->orWhereHas('messages', function($mq) use ($workerUser) {
-                    $mq->where('sender_id', $workerUser->user_id);
-                });
-            })
-            ->count() : 0;
     @endphp
 
     <!-- Mobile Top Header Bar (visible only on mobile screens < md) -->

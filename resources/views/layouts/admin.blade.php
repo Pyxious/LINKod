@@ -35,11 +35,17 @@
     
     @php
         if (auth()->check()) {
-            $navNotifications = auth()->user()->notifications()->latest('sent_at')->take(20)->get();
-            $navUnreadCount = $navNotifications->where('is_read', false)->count();
-            $navRequestUnreadCount = $navNotifications->where('type', '!=', 'new_message')->where('is_read', false)->count();
-            $navMessageUnreadCount = $navNotifications->where('type', 'new_message')->where('is_read', false)->count();
-            $adminUnreadMessagesCount = \App\Models\RequestMessage::where('is_read', false)->where('sender_id', '!=', auth()->id())->count();
+            $navData = \Illuminate\Support\Facades\Cache::remember('user_nav_data_' . auth()->id(), 45, function () {
+                $notifs = auth()->user()->notifications()->latest('sent_at')->take(20)->get();
+                return [
+                    'navNotifications'         => $notifs,
+                    'navUnreadCount'           => $notifs->where('is_read', false)->count(),
+                    'navRequestUnreadCount'    => $notifs->where('type', '!=', 'new_message')->where('is_read', false)->count(),
+                    'navMessageUnreadCount'    => $notifs->where('type', 'new_message')->where('is_read', false)->count(),
+                    'adminUnreadMessagesCount' => \App\Models\RequestMessage::where('is_read', false)->where('sender_id', '!=', auth()->id())->count(),
+                ];
+            });
+            extract($navData);
         } else {
             $navNotifications = collect();
             $navUnreadCount = 0;

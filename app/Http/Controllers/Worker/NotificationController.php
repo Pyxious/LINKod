@@ -28,6 +28,7 @@ class NotificationController extends Controller
 
         // Mark all as read
         $user->notifications()->where('is_read', false)->update(['is_read' => true]);
+        \Illuminate\Support\Facades\Cache::forget('user_nav_data_' . $user->user_id);
 
         return view('worker.notifications.index', compact('notifications', 'totalCount', 'requestCount', 'messageCount', 'type'));
     }
@@ -37,6 +38,7 @@ class NotificationController extends Controller
     {
         $notification = auth()->user()->notifications()->findOrFail($id);
         $notification->update(['is_read' => true]);
+        \Illuminate\Support\Facades\Cache::forget('user_nav_data_' . auth()->id());
 
         if ($notification->action_url) {
             try {
@@ -52,6 +54,7 @@ class NotificationController extends Controller
     public function markAllRead()
     {
         auth()->user()->notifications()->where('is_read', false)->update(['is_read' => true]);
+        \Illuminate\Support\Facades\Cache::forget('user_nav_data_' . auth()->id());
         return redirect()->back()->with('success', 'All notifications marked as read.');
     }
 }

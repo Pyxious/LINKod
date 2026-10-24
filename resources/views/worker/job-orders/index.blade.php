@@ -74,6 +74,7 @@
     }
 @endphp
 
+<div data-realtime-container="worker-job-orders-list">
 <!-- Separate Box for Currently In Progress Task(s) -->
 @if($showInProgressBox)
     <div class="mb-6 space-y-3 font-sans">
@@ -427,6 +428,7 @@
             </tbody>
         </table>
     </div>
+</div>
 </div>
 
 @endsection

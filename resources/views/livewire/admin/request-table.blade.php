@@ -562,46 +562,59 @@
             {{ $requests->links() }}
         </div>
     </div>
-</div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    window.addEventListener('rating-reminded', function(e) {
-        const detail = e.detail;
-        if (window.LINKodRealtime && window.LINKodRealtime.showNotificationToast) {
-            window.LINKodRealtime.showNotificationToast(
-                detail.success ? 'Reminder Sent' : 'Notice',
-                detail.message || 'Rating reminder has been delivered to client.'
-            );
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('rating-reminded', function(e) {
+            const detail = e.detail;
+            if (window.LINKodRealtime && window.LINKodRealtime.showNotificationToast) {
+                window.LINKodRealtime.showNotificationToast(
+                    detail.success ? 'Reminder Sent' : 'Notice',
+                    detail.message || 'Rating reminder has been delivered to client.'
+                );
+            }
+        });
+
+        if (window.Echo) {
+            try {
+                window.Echo.channel('linkod.updates')
+                    .listen('.RequestUpdated', (e) => {
+                        if (window.Livewire) {
+                            Livewire.dispatch('refreshRequests');
+                        }
+                    });
+            } catch (err) {
+                console.warn('[Reverb] Admin request table subscription warning:', err);
+            }
+        }
+
+        if (window.supabaseClient) {
+            window.supabaseClient
+                .channel('admin-realtime-request-table')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'request' },
+                    (payload) => {
+                        console.log('[Supabase Realtime] Request table change:', payload);
+                        if (window.Livewire) {
+                            Livewire.dispatch('refreshRequests');
+                        }
+                        if (payload.eventType === 'INSERT' && window.LINKodRealtime) {
+                            window.LINKodRealtime.showNotificationToast('New Request Submitted', payload.new?.title || 'A new service requisition has been submitted.', '/admin/requests/' + payload.new?.request_id);
+                        }
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'request_history' },
+                    (payload) => {
+                        if (window.Livewire) {
+                            Livewire.dispatch('refreshRequests');
+                        }
+                    }
+                )
+                .subscribe();
         }
     });
-
-    if (window.supabaseClient) {
-        window.supabaseClient
-            .channel('admin-realtime-request-table')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'request' },
-                (payload) => {
-                    console.log('[Supabase Realtime] Request table change:', payload);
-                    if (window.Livewire) {
-                        Livewire.dispatch('refreshRequests');
-                    }
-                    if (payload.eventType === 'INSERT' && window.LINKodRealtime) {
-                        window.LINKodRealtime.showNotificationToast('New Request Submitted', payload.new?.title || 'A new service requisition has been submitted.', '/admin/requests/' + payload.new?.request_id);
-                    }
-                }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'request_history' },
-                (payload) => {
-                    if (window.Livewire) {
-                        Livewire.dispatch('refreshRequests');
-                    }
-                }
-            )
-            .subscribe();
-    }
-});
-</script>
+    </script>
+</div>

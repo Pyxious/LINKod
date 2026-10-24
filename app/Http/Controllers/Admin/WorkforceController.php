@@ -13,6 +13,7 @@ use App\Models\ProjectWorker;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class WorkforceController extends Controller
 {
@@ -23,6 +24,7 @@ class WorkforceController extends Controller
         $workers = Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))
             ->with([
                 'staff.user',
+                'teams',
                 'team',
                 'projects' => function($q) {
                     $q->with('request.category', 'latestHistory')
@@ -47,27 +49,35 @@ class WorkforceController extends Controller
         $allTeamLeaders = TeamLeader::with('staff.user')->get()->keyBy('leader_id');
 
         foreach ($teams as $team) {
-            $teamWorkers = $workers->where('team_id', $team->team_id);
-            $team->team_members   = $teamWorkers->values();
-            $team->skilled_workers = $teamWorkers->count();
-            $team->available      = $teamWorkers->filter(fn($w) => $w->projects->isEmpty())->count();
-            $team->active_tasks   = $teamWorkers->sum(fn($w) => $w->projects->count());
+            $teamWorkers = $workers->filter(fn($w) => $w->belongsToTeam($team->team_id))->values();
 
-            // Resolve leader from pre-loaded collection (no extra DB query)
+            // Resolve leader from pre-loaded collection
             $leader = null;
             $leaderWorkerObj = null;
             if ($team->team_leader) {
                 $teamLeaderObj = $allTeamLeaders->get($team->team_leader);
                 if ($teamLeaderObj) {
-                    $leaderWorker = $workers->firstWhere('staff_id', $teamLeaderObj->staff_id);
+                    $leaderWorker = $teamWorkers->firstWhere('staff_id', $teamLeaderObj->staff_id);
                     if ($leaderWorker) {
                         $leaderWorkerObj = $leaderWorker;
                         $leader = $leaderWorker->staff->user->first_name . ' ' . $leaderWorker->staff->user->last_name;
+                    } else {
+                        // Worker is not in this team anymore: clear stale leader
+                        Team::where('team_id', $team->team_id)->update(['team_leader' => null]);
+                        $team->team_leader = null;
                     }
+                } else {
+                    Team::where('team_id', $team->team_id)->update(['team_leader' => null]);
+                    $team->team_leader = null;
                 }
             }
             $team->leader_name  = $leader ?? 'Not Assigned';
             $team->leader_worker = $leaderWorkerObj;
+
+            $team->team_members   = $teamWorkers;
+            $team->skilled_workers = $teamWorkers->count();
+            $team->available      = $teamWorkers->filter(fn($w) => $w->projects->isEmpty())->count();
+            $team->active_tasks   = $teamWorkers->sum(fn($w) => $w->projects->count());
 
             $name = strtolower($team->team_name);
             if (str_contains($name, 'carpentry') || str_contains($name, 'masonry') || str_contains($name, 'electrical')) $team->icon = '⚡';
@@ -123,9 +133,16 @@ class WorkforceController extends Controller
 
         // If leader worker was selected, assign them to this new team
         if (!empty($validated['leader_id'])) {
-            Worker::where('worker_id', $validated['leader_id'])->update(['team_id' => $team->team_id]);
+            $lWorker = Worker::find($validated['leader_id']);
+            if ($lWorker) {
+                $lWorker->teams()->syncWithoutDetaching([$team->team_id]);
+                if (!$lWorker->team_id) {
+                    $lWorker->update(['team_id' => $team->team_id]);
+                }
+            }
             $team->update(['member_count' => 1]);
         }
+        Cache::forget('team_leader_staff_map');
 
         // 4. Audit Log
         \App\Models\UserLog::create([
@@ -154,11 +171,14 @@ class WorkforceController extends Controller
             if ($cat) $cat->delete();
         }
 
-        // 2. Unassign workers in this team
+        // 2. Unassign workers from team_worker pivot and worker table
+        DB::table('team_worker')->where('team_id', $team->team_id)->delete();
         Worker::where('team_id', $team->team_id)->update(['team_id' => null]);
 
-        // 3. Soft-delete Team
+        // 3. Clear leader & Soft-delete Team
+        $team->update(['team_leader' => null]);
         $team->delete();
+        Cache::forget('team_leader_staff_map');
 
         // 4. Audit Log
         \App\Models\UserLog::create([
@@ -224,10 +244,11 @@ class WorkforceController extends Controller
 
     public function makeTeamLeader(Request $request, $workerId)
     {
-        $worker = Worker::findOrFail($workerId);
+        $worker = Worker::with('teams')->findOrFail($workerId);
+        $teamId = $request->input('team_id') ?: $worker->team_id ?: $worker->teams->first()?->team_id;
 
-        if (!$worker->team_id) {
-            return back()->with('error', 'Worker must belong to a team first.');
+        if (!$teamId || !$worker->belongsToTeam((int)$teamId)) {
+            return back()->with('error', 'Worker must belong to this unit first.');
         }
 
         // Find or create TeamLeader record for this worker's staff_id
@@ -235,9 +256,10 @@ class WorkforceController extends Controller
             'staff_id' => $worker->staff_id,
         ]);
 
-        // Assign to the worker's team
-        $team = Team::findOrFail($worker->team_id);
+        // Assign to the specified unit
+        $team = Team::findOrFail($teamId);
         $team->update(['team_leader' => $teamLeader->leader_id]);
+        Cache::forget('team_leader_staff_map');
 
         \App\Models\UserLog::create([
             'user_id'    => auth()->id(),
@@ -253,41 +275,75 @@ class WorkforceController extends Controller
     public function assignTeam(Request $request, int $workerId)
     {
         $validated = $request->validate([
-            'team_id' => 'nullable|exists:team,team_id',
+            'team_ids'   => 'nullable|array',
+            'team_ids.*' => 'exists:team,team_id',
+            'team_id'    => 'nullable',
         ]);
 
-        $worker  = Worker::findOrFail($workerId);
-        $oldTeamId = $worker->team_id;
-        $newTeamId = $validated['team_id'] ?: null;
+        $worker = Worker::with('teams', 'staff.teamLeader')->findOrFail($workerId);
 
-        $worker->update(['team_id' => $newTeamId]);
-
-        // Recalculate member_count for affected teams
-        if ($oldTeamId) {
-            Team::find($oldTeamId)?->update([
-                'member_count' => Worker::where('team_id', $oldTeamId)->count(),
-            ]);
-        }
-        if ($newTeamId && $newTeamId !== $oldTeamId) {
-            Team::find($newTeamId)?->update([
-                'member_count' => Worker::where('team_id', $newTeamId)->count(),
-            ]);
+        // Get old team IDs
+        $oldTeamIds = $worker->teams->pluck('team_id')->toArray();
+        if (empty($oldTeamIds) && $worker->team_id) {
+            $oldTeamIds = [$worker->team_id];
         }
 
-        $teamName = $newTeamId ? (Team::find($newTeamId)?->team_name ?? "Team #{$newTeamId}") : 'no team';
+        // Determine new team IDs (supports multi-unit array or single team_id)
+        if ($request->has('team_ids')) {
+            $newTeamIds = array_values(array_unique(array_filter(array_map('intval', (array)($request->input('team_ids') ?? [])))));
+        } elseif ($request->has('team_id')) {
+            $rawId = $request->input('team_id');
+            $newTeamIds = (!empty($rawId) && is_numeric($rawId)) ? [(int)$rawId] : [];
+        } else {
+            $newTeamIds = [];
+        }
+
+        // Teams the worker is being removed from
+        $removedTeamIds = array_diff($oldTeamIds, $newTeamIds);
+
+        // Leader unassignment: If worker is removed from a unit, they are NOT the leader anymore!
+        if (!empty($removedTeamIds)) {
+            $workerLeaderId = $worker->staff?->teamLeader?->leader_id;
+            foreach ($removedTeamIds as $removedTeamId) {
+                $removedTeam = Team::find($removedTeamId);
+                if ($removedTeam) {
+                    if ($workerLeaderId && (int)$removedTeam->team_leader === (int)$workerLeaderId) {
+                        $removedTeam->update(['team_leader' => null]);
+                    }
+                }
+            }
+            Cache::forget('team_leader_staff_map');
+        }
+
+        // Sync pivot table
+        $worker->teams()->sync($newTeamIds);
+
+        // Keep primary team_id synced for backward compatibility
+        $primaryTeamId = $newTeamIds[0] ?? null;
+        $worker->update(['team_id' => $primaryTeamId]);
+
+        // Recalculate member_count for all affected teams
+        $affectedTeamIds = array_unique(array_merge($oldTeamIds, $newTeamIds));
+        foreach ($affectedTeamIds as $affectedId) {
+            $count = DB::table('team_worker')->where('team_id', $affectedId)->count();
+            Team::where('team_id', $affectedId)->update(['member_count' => $count]);
+        }
+
+        $assignedTeams = Team::whereIn('team_id', $newTeamIds)->pluck('team_name')->toArray();
+        $teamSummary = !empty($assignedTeams) ? implode(', ', $assignedTeams) : 'unassigned';
 
         \App\Models\UserLog::create([
             'user_id'    => auth()->id(),
-            'action'     => $newTeamId
-                ? "Admin assigned worker #{$workerId} to {$teamName}"
-                : "Admin removed worker #{$workerId} from their team",
+            'action'     => !empty($newTeamIds)
+                ? "Admin updated worker #{$workerId} units to: {$teamSummary}"
+                : "Admin removed worker #{$workerId} from all units",
             'ip_address' => request()->ip(),
             'created_at' => now(),
         ]);
 
-        $message = $newTeamId
-            ? "Worker successfully assigned to {$teamName}."
-            : 'Worker has been removed from their team.';
+        $message = !empty($newTeamIds)
+            ? "Worker successfully assigned to: {$teamSummary}."
+            : 'Worker has been removed from all units and leader roles cleared.';
 
         return redirect()->route('admin.workforce.index')
             ->with('success', $message);

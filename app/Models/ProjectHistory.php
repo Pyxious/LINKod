@@ -16,6 +16,17 @@ class ProjectHistory extends Model
 
     protected $casts = ['updated_at' => 'datetime'];
 
+    protected static function booted(): void
+    {
+        static::saved(function (self $history) {
+            \App\Events\RequestUpdated::broadcastUpdate(null, (int) $history->project_id, 'project_history_saved');
+        });
+
+        static::deleted(function (self $history) {
+            \App\Events\RequestUpdated::broadcastUpdate(null, (int) $history->project_id, 'project_history_deleted');
+        });
+    }
+
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id', 'project_id');

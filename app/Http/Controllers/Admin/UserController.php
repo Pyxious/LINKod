@@ -169,6 +169,10 @@ class UserController extends Controller
         // If user was previously a worker and role is changed to non-worker, remove worker record
         if ($oldRole === 'worker' && $newRole !== 'worker') {
             if ($user->staff?->worker) {
+                if ($user->staff->teamLeader) {
+                    \App\Models\Team::where('team_leader', $user->staff->teamLeader->leader_id)->update(['team_leader' => null]);
+                    $user->staff->teamLeader->delete();
+                }
                 $user->staff->worker->delete();
             }
         }

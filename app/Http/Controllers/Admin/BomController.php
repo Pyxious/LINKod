@@ -64,6 +64,7 @@ class BomController extends Controller
     {
         $project = Project::with([
             'billOfMaterials.material',
+            'billOfMaterials.createdBy.user',
             'request.category',
             'request.client.user',
             'workers.user',
@@ -80,10 +81,21 @@ class BomController extends Controller
     public function store(Request $request, int $projectId)
     {
         $project = Project::with('request')->findOrFail($projectId);
-        if (in_array($project->current_status, ['Cancelled', 'Rejected'])) {
-            return redirect()->back()->with('error', 'Materials cannot be modified for cancelled or disapproved requests.');
+        if (in_array($project->current_status, ['Completed', 'Cancelled', 'Rejected'])) {
+            return redirect()->back()->with('error', 'Materials cannot be modified for completed, cancelled, or disapproved requests.');
+        }
+        if ($project->request && !$project->request->isAccepted()) {
+            return redirect()->back()->with('error', 'Materials cannot be added until the service request has been accepted and approved.');
         }
         $staff = auth()->user()->staff;
+        if (!$staff && auth()->user()) {
+            $staff = \App\Models\Staff::firstOrCreate([
+                'user_id' => auth()->id(),
+            ], [
+                'role'       => auth()->user()->role,
+                'date_hired' => now()->toDateString(),
+            ]);
+        }
 
         $items = [];
         if ($request->has('items') && is_array($request->input('items'))) {
@@ -147,7 +159,7 @@ class BomController extends Controller
                 'qty'           => $qty,
                 'total_cost'    => $qty * $unitCost,
                 'created_by'    => $staff?->staff_id,
-                'date_approved' => null, // Requires Admin verification before forwarding to client
+                'date_approved' => null,
                 'fulfilled_by'  => null,
             ]);
             $addedCount++;
@@ -157,8 +169,13 @@ class BomController extends Controller
             return redirect()->back()->with('error', 'Please select or enter valid material(s).');
         }
 
+        $serviceRequest = $project->request_id ? \App\Models\ServiceRequest::with('category')->find($project->request_id) : null;
         $prevProjectStatus = $project->current_status;
-        $newStatus = 'Awaiting Verification of Bill of Materials';
+        $prevReqStatus = $serviceRequest?->current_status ?? $prevProjectStatus;
+
+        $newStatus = in_array($prevProjectStatus, ['In Progress', 'Completed'])
+            ? $prevProjectStatus
+            : 'Awaiting Verification of Bill of Materials';
 
         $project->update(['current_status' => $newStatus]);
 
@@ -166,29 +183,25 @@ class BomController extends Controller
             'project_id'      => $project->project_id,
             'previous_status' => $prevProjectStatus,
             'current_status'  => $newStatus,
-            'remarks'         => "Admin added {$addedCount} material item(s) to List of Materials. Awaiting verification.",
+            'remarks'         => "Admin added {$addedCount} material item(s) to List of Materials. Awaiting approval.",
             'updated_at'      => now(),
             'updated_by'      => auth()->id(),
         ]);
 
-        if ($project->request_id) {
-            $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
-            if ($serviceRequest) {
-                $prevReqStatus = $serviceRequest->current_status;
-                $serviceRequest->update([
-                    'current_status' => $newStatus,
-                    'bom_status'     => 'awaiting_admin',
-                ]);
+        if ($serviceRequest) {
+            $serviceRequest->update([
+                'current_status' => $newStatus,
+                'bom_status'     => 'awaiting_admin',
+            ]);
 
-                RequestHistory::create([
-                    'request_id'      => $serviceRequest->request_id,
-                    'previous_status' => $prevReqStatus,
-                    'current_status'  => $newStatus,
-                    'remarks'         => "Admin added {$addedCount} material item(s) to List of Materials. Awaiting verification.",
-                    'updated_at'      => now(),
-                    'updated_by'      => auth()->id(),
-                ]);
-            }
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $prevReqStatus,
+                'current_status'  => $newStatus,
+                'remarks'         => "Admin added {$addedCount} material item(s) to List of Materials. Awaiting approval.",
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
         }
 
         UserLog::create([
@@ -198,11 +211,13 @@ class BomController extends Controller
             'created_at' => now(),
         ]);
 
+        $successMsg = "{$addedCount} material item(s) added to List of Materials. Click Approve to finalize the List of Materials.";
+
         if ($request->filled('redirect_to')) {
-            return redirect($request->input('redirect_to'))->with('success', "{$addedCount} material item(s) added to List of Materials. Please verify items to forward to client.");
+            return redirect($request->input('redirect_to'))->with('success', $successMsg);
         }
 
-        return redirect()->back()->with('success', "{$addedCount} material item(s) added to List of Materials. Please verify items to forward to client.");
+        return redirect()->back()->with('success', $successMsg);
     }
 
     public function approve(Request $request, int $projectId)
@@ -215,11 +230,22 @@ class BomController extends Controller
             'items.*.unit_of_measurement' => 'nullable|string|max:50',
         ]);
 
-        $project = Project::with(['client.user', 'billOfMaterials.material', 'workers.staff.user'])->findOrFail($projectId);
+        $project = Project::with(['request', 'client.user', 'billOfMaterials.material', 'workers.staff.user'])->findOrFail($projectId);
         if (in_array($project->current_status, ['Completed', 'Cancelled', 'Rejected'])) {
             return redirect()->back()->with('error', 'List of Materials cannot be modified for closed or cancelled requests.');
         }
-        $staff   = auth()->user()->staff;
+        if ($project->request && !$project->request->isAccepted()) {
+            return redirect()->back()->with('error', 'List of Materials cannot be approved until the service request has been accepted.');
+        }
+        $staff = auth()->user()->staff;
+        if (!$staff && auth()->user()) {
+            $staff = \App\Models\Staff::firstOrCreate([
+                'user_id' => auth()->id(),
+            ], [
+                'role'       => auth()->user()->role,
+                'date_hired' => now()->toDateString(),
+            ]);
+        }
 
         foreach ($validated['items'] as $item) {
             $bom = BillOfMaterials::with('material')
@@ -248,9 +274,22 @@ class BomController extends Controller
             }
         }
 
+        $serviceRequest = $project->request_id ? \App\Models\ServiceRequest::with('category')->find($project->request_id) : null;
+
+        // Check whether any BOM items were requested by a worker/team leader vs added directly by Admin
+        $hasWorkerCreatedItems = $project->billOfMaterials()
+            ->whereHas('createdBy.user', fn($q) => $q->where('role', 'worker'))
+            ->exists();
+        $isAdminDirectApprove = !$hasWorkerCreatedItems;
+
         $prevStatus = $project->current_status;
-        $newStatus = 'BOM Verified (Awaiting Client Approval)';
-        $remarks = 'GSO Admin verified the List of Materials. Awaiting final approval from client.';
+        $newStatus = $isAdminDirectApprove
+            ? (in_array($prevStatus, ['In Progress', 'Completed']) ? $prevStatus : 'Approved')
+            : 'BOM Verified (Awaiting Client Approval)';
+        $newBomStatus = $isAdminDirectApprove ? 'approved' : 'awaiting_client';
+        $remarks = $isAdminDirectApprove
+            ? 'GSO Admin verified and approved the List of Materials.'
+            : 'GSO Admin verified the List of Materials. Awaiting final approval from client.';
 
         $project->update(['current_status' => $newStatus]);
 
@@ -263,24 +302,21 @@ class BomController extends Controller
             'updated_by'      => auth()->id(),
         ]);
 
-        if ($project->request_id) {
-            $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
-            if ($serviceRequest) {
-                $prevReqStatus = $serviceRequest->current_status;
-                $serviceRequest->update([
-                    'current_status' => $newStatus,
-                    'bom_status'     => 'awaiting_client',
-                ]);
+        if ($serviceRequest) {
+            $prevReqStatus = $serviceRequest->current_status;
+            $serviceRequest->update([
+                'current_status' => $newStatus,
+                'bom_status'     => $newBomStatus,
+            ]);
 
-                RequestHistory::create([
-                    'request_id'      => $serviceRequest->request_id,
-                    'previous_status' => $prevReqStatus,
-                    'current_status'  => $newStatus,
-                    'remarks'         => $remarks,
-                    'updated_at'      => now(),
-                    'updated_by'      => auth()->id(),
-                ]);
-            }
+            RequestHistory::create([
+                'request_id'      => $serviceRequest->request_id,
+                'previous_status' => $prevReqStatus,
+                'current_status'  => $newStatus,
+                'remarks'         => $remarks,
+                'updated_at'      => now(),
+                'updated_by'      => auth()->id(),
+            ]);
         }
 
         UserLog::create([
@@ -292,8 +328,8 @@ class BomController extends Controller
 
         $projectTitle = $project->request?->title ?? "Project #{$project->project_id}";
 
-        // Notify client that List of Materials is verified and awaits client confirmation
-        if ($project->client?->user_id) {
+        // Notify client when worker-requested BOM is verified and awaits client confirmation
+        if (!$isAdminDirectApprove && $project->client?->user_id) {
             $this->notifications->bomVerifiedAwaitingClient(
                 $project->client->user_id,
                 $projectTitle,
@@ -301,7 +337,7 @@ class BomController extends Controller
             );
         }
 
-        // Notify assigned workers that List of Materials has been verified by admin
+        // Notify assigned workers that List of Materials has been verified/approved by admin
         if ($project->workers) {
             foreach ($project->workers as $pw) {
                 $workerUserId = $pw->staff?->user_id ?? $pw->user?->user_id;
@@ -309,26 +345,35 @@ class BomController extends Controller
                     $this->notifications->send(
                         $workerUserId,
                         'bom_verified',
-                        'List of Materials Verified by Admin',
-                        "The requested materials for \"{$projectTitle}\" have been verified. Awaiting client approval.",
+                        $isAdminDirectApprove ? 'List of Materials Approved by Admin' : 'List of Materials Verified by Admin',
+                        $isAdminDirectApprove
+                            ? "The List of Materials for \"{$projectTitle}\" has been approved by Admin. You may now start work."
+                            : "The requested materials for \"{$projectTitle}\" have been verified. Awaiting client approval.",
                         route('worker.job-orders.show', $project->project_id, false)
                     );
                 }
             }
         }
 
+        $successMessage = $isAdminDirectApprove
+            ? 'List of Materials approved successfully.'
+            : 'List of Materials verified successfully. Forwarded to client for approval.';
+
         if ($request->filled('redirect_to')) {
-            return redirect($request->input('redirect_to'))->with('success', 'List of Materials verified successfully. Forwarded to client for approval.');
+            return redirect($request->input('redirect_to'))->with('success', $successMessage);
         }
 
-        return redirect()->back()->with('success', 'List of Materials verified successfully. Forwarded to client for approval.');
+        return redirect()->back()->with('success', $successMessage);
     }
 
     public function destroyItem(int $projectId, int $bomId)
     {
-        $project = Project::findOrFail($projectId);
-        if (in_array($project->current_status, ['Cancelled', 'Rejected'])) {
-            return redirect()->back()->with('error', 'Materials cannot be modified for cancelled or disapproved requests.');
+        $project = Project::with('request')->findOrFail($projectId);
+        if (in_array($project->current_status, ['Completed', 'Cancelled', 'Rejected'])) {
+            return redirect()->back()->with('error', 'Materials cannot be modified for completed, cancelled, or disapproved requests.');
+        }
+        if ($project->request && !$project->request->isAccepted()) {
+            return redirect()->back()->with('error', 'Materials cannot be modified until the service request has been accepted.');
         }
 
         $bom = BillOfMaterials::where('project_id', $projectId)->where('bom_id', $bomId)->firstOrFail();

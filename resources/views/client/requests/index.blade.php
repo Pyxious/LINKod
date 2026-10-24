@@ -25,7 +25,7 @@
     <main class="max-w-6xl w-full mx-auto px-6 md:px-8 py-8 flex-1">
         
         <!-- Summary Cards Grid (2 per row on mobile, 4 cols on desktop) -->
-        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 md:gap-5 mb-8">
+        <div data-realtime-container="client-requests-kpis" class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 md:gap-5 mb-8">
             <!-- Total Requests -->
             <div class="bg-white dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-zinc-800 p-4 sm:p-6 shadow-2xs">
                 <span class="text-[#254378] dark:text-blue-300 text-xs sm:text-sm font-semibold block mb-1.5 sm:mb-2">Total Requests</span>
@@ -114,7 +114,7 @@
             </div>
 
             <!-- Request Cards Feed (Matches Mobile Mockup Feed) -->
-            <div id="requestsCardsContainer" data-client-id="{{ auth()->user()->client?->client_id }}" class="space-y-3 sm:space-y-4">
+            <div id="requestsCardsContainer" data-realtime-container="client-requests-list" data-client-id="{{ auth()->user()->client?->client_id }}" class="space-y-3 sm:space-y-4">
                 @forelse($requests as $r)
                     @php
                         $catName = strtolower($r->category->category_name ?? '');
@@ -192,14 +192,14 @@
                         <p class="text-gray-400 text-xs mt-1">There are no service requests matching your selected filter or search term.</p>
                     </div>
                 @endforelse
-            </div>
 
-            <!-- Pagination -->
-            @if($requests->hasPages())
-                <div class="pt-6">
-                    {{ $requests->links() }}
-                </div>
-            @endif
+                <!-- Pagination -->
+                @if($requests->hasPages())
+                    <div class="pt-6">
+                        {{ $requests->links() }}
+                    </div>
+                @endif
+            </div>
 
         </div>
 
@@ -210,6 +210,19 @@
 document.addEventListener('DOMContentLoaded', function() {
     const container = document.getElementById('requestsCardsContainer');
     const clientId = container ? container.getAttribute('data-client-id') : null;
+
+    if (window.Echo && clientId) {
+        try {
+            window.Echo.channel('linkod.updates')
+                .listen('.RequestUpdated', (e) => {
+                    if (window.LINKodTriggerRealtimeRefresh) {
+                        window.LINKodTriggerRealtimeRefresh(e);
+                    }
+                });
+        } catch (err) {
+            console.warn('[Reverb] Channel subscription warning:', err);
+        }
+    }
 
     if (window.supabaseClient && clientId) {
         window.supabaseClient
@@ -283,6 +296,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             `Requisition #${req.request_id}: "${req.title}"`,
                             `/client/requests/${req.request_id}`
                         );
+                    }
+
+                    if (window.LINKodTriggerRealtimeRefresh) {
+                        window.LINKodTriggerRealtimeRefresh({ request_id: Number(req.request_id) });
                     }
                 }
             )

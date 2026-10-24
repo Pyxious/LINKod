@@ -35,12 +35,16 @@ class NotificationService
             'is_read'    => false,
         ]);
 
-        try {
-            if (config('broadcasting.default') && !in_array(config('broadcasting.default'), ['null', 'log'])) {
-                event(new \App\Events\NotificationSent($notification));
-            }
-        } catch (\Throwable $e) {
-            \Log::warning('Broadcast notification skipped: ' . $e->getMessage());
+        \Illuminate\Support\Facades\Cache::forget("user_nav_data_{$userId}");
+
+        if (\App\Events\RequestUpdated::isBroadcastingEnabled()) {
+            app()->terminating(function () use ($notification) {
+                try {
+                    event(new \App\Events\NotificationSent($notification));
+                } catch (\Throwable $e) {
+                    \Log::warning('Broadcast notification skipped: ' . $e->getMessage());
+                }
+            });
         }
 
         return $notification;
@@ -48,7 +52,7 @@ class NotificationService
 
     /**
      * Safely send an automated branded email notification to a client.
-     * Wrapped in try/catch so email/network errors never disrupt DB transactions.
+     * Deferred until after the HTTP response is sent so slow SMTP never delays redirects.
      */
     public function sendClientEmail(int|User $user, ServiceRequest $serviceRequest, string $eventType, array $extraData = []): void
     {
@@ -56,29 +60,30 @@ class NotificationService
         if (isset(self::$sentEmailKeys[$cacheKey])) {
             return;
         }
+        self::$sentEmailKeys[$cacheKey] = true;
 
-        try {
-            $clientUser = ($user instanceof User) ? $user : User::find($user);
-            if (!$clientUser || empty($clientUser->email_account)) {
-                return;
+        app()->terminating(function () use ($user, $serviceRequest, $eventType, $extraData) {
+            try {
+                $clientUser = ($user instanceof User) ? $user : User::find($user);
+                if (!$clientUser || empty($clientUser->email_account)) {
+                    return;
+                }
+
+                // Ensure relations like category and project are loaded if needed
+                if (!$serviceRequest->relationLoaded('category')) {
+                    $serviceRequest->load('category');
+                }
+                if (!$serviceRequest->relationLoaded('project')) {
+                    $serviceRequest->load('project');
+                }
+
+                Mail::to($clientUser->email_account)->send(
+                    new ClientRequestNotificationMail($clientUser, $serviceRequest, $eventType, $extraData)
+                );
+            } catch (\Throwable $e) {
+                Log::warning("Client email notification failed [{$eventType}] for request #{$serviceRequest->request_id}: " . $e->getMessage());
             }
-
-            // Ensure relations like category and project are loaded if needed
-            if (!$serviceRequest->relationLoaded('category')) {
-                $serviceRequest->load('category');
-            }
-            if (!$serviceRequest->relationLoaded('project')) {
-                $serviceRequest->load('project');
-            }
-
-            Mail::to($clientUser->email_account)->send(
-                new ClientRequestNotificationMail($clientUser, $serviceRequest, $eventType, $extraData)
-            );
-
-            self::$sentEmailKeys[$cacheKey] = true;
-        } catch (\Throwable $e) {
-            Log::warning("Client email notification failed [{$eventType}] for request #{$serviceRequest->request_id}: " . $e->getMessage());
-        }
+        });
     }
 
     /**

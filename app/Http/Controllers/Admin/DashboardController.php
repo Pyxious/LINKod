@@ -23,13 +23,19 @@ class DashboardController extends Controller
             $availableWorkers = Worker::whereHas('staff.user', fn($q) => $q->where('role', 'worker'))->where('is_available', true)->count();
             $availablePct     = $totalWorkers > 0 ? round(($availableWorkers / $totalWorkers) * 100) : 0;
 
-            // Task status breakdown from project_history
+            // Task status breakdown from project_history (single grouped query instead of 6 separate subqueries)
+            $projectStatusCounts = \App\Models\ProjectHistory::whereIn('phistory_id', function ($sub) {
+                $sub->selectRaw('MAX(phistory_id)')->from('project_history')->groupBy('project_id');
+            })
+            ->whereHas('project')
+            ->selectRaw('current_status, COUNT(*) as total')
+            ->groupBy('current_status')
+            ->pluck('total', 'current_status');
+
             $statuses = ['Pending', 'Awaiting Materials', 'In Progress', 'Pending Verification', 'Completed', 'Cancelled'];
             $taskStatus = [];
             foreach ($statuses as $status) {
-                $taskStatus[$status] = Project::whereHas('latestHistory', fn($q) =>
-                    $q->where('current_status', $status)
-                )->count();
+                $taskStatus[$status] = (int) ($projectStatusCounts[$status] ?? 0);
             }
 
             $activeTasks    = $taskStatus['In Progress'] ?? 0;
@@ -42,13 +48,21 @@ class DashboardController extends Controller
                 $q->where('current_status', 'Completed')->whereMonth('updated_at', now()->month)
             )->count();
 
-            // Client request progress counts
+            // Client request progress counts (single grouped query instead of 5 separate subqueries)
+            $reqStatusCounts = \App\Models\RequestHistory::whereIn('history_id', function ($sub) {
+                $sub->selectRaw('MAX(history_id)')->from('request_history')->groupBy('request_id');
+            })
+            ->whereHas('request')
+            ->selectRaw('current_status, COUNT(*) as total')
+            ->groupBy('current_status')
+            ->pluck('total', 'current_status');
+
             $requestProgress = [
-                'Submitted'         => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Submitted'))->count(),
-                'Approved'          => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Approved'))->count(),
-                'Awaiting Materials' => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Awaiting Materials'))->count(),
-                'In Progress'       => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'In Progress'))->count(),
-                'Completed'         => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count(),
+                'Submitted'          => (int) ($reqStatusCounts['Submitted'] ?? 0),
+                'Approved'           => (int) ($reqStatusCounts['Approved'] ?? 0),
+                'Awaiting Materials' => (int) ($reqStatusCounts['Awaiting Materials'] ?? 0),
+                'In Progress'        => (int) ($reqStatusCounts['In Progress'] ?? 0),
+                'Completed'          => (int) ($reqStatusCounts['Completed'] ?? 0),
             ];
 
             return compact(
@@ -144,6 +158,7 @@ class DashboardController extends Controller
 
         // Mark all as read
         $user->notifications()->where('is_read', false)->update(['is_read' => true]);
+        Cache::forget("user_nav_data_{$user->user_id}");
 
         return view('admin.notifications.index', compact('notifications', 'totalCount', 'requestCount', 'messageCount', 'type'));
     }
@@ -153,6 +168,7 @@ class DashboardController extends Controller
     {
         $notification = auth()->user()->notifications()->findOrFail($id);
         $notification->update(['is_read' => true]);
+        Cache::forget('user_nav_data_' . auth()->id());
 
         $url = $notification->action_url;
 
@@ -187,6 +203,7 @@ class DashboardController extends Controller
     public function markAllRead()
     {
         auth()->user()->notifications()->where('is_read', false)->update(['is_read' => true]);
+        Cache::forget('user_nav_data_' . auth()->id());
         return redirect()->back()->with('success', 'All notifications marked as read.');
     }
 }
