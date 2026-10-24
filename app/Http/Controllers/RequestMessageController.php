@@ -166,6 +166,7 @@ class RequestMessageController extends Controller
 
         if ($updated > 0) {
             \Illuminate\Support\Facades\Cache::forget('user_nav_data_' . $user->user_id);
+            \Illuminate\Support\Facades\Cache::forget('user_unread_msgs_' . $user->user_id);
         }
 
         return response()->json([

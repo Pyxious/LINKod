@@ -36,6 +36,7 @@ class NotificationService
         ]);
 
         \Illuminate\Support\Facades\Cache::forget("user_nav_data_{$userId}");
+        \Illuminate\Support\Facades\Cache::forget("user_unread_msgs_{$userId}");
 
         if (\App\Events\RequestUpdated::isBroadcastingEnabled()) {
             app()->terminating(function () use ($notification) {

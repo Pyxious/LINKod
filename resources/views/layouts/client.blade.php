@@ -152,25 +152,19 @@
         @php
             $clientUser = auth()->user();
             if ($clientUser) {
-                $navData = \Illuminate\Support\Facades\Cache::remember('user_nav_data_' . $clientUser->user_id, 45, function () use ($clientUser) {
+                $navNotifications      = $clientUser->notifications()->latest('sent_at')->take(20)->get();
+                $navUnreadCount        = $navNotifications->where('is_read', false)->count();
+                $navRequestUnreadCount = $navNotifications->where('type', '!=', 'new_message')->where('is_read', false)->count();
+                $navMessageUnreadCount = $navNotifications->where('type', 'new_message')->where('is_read', false)->count();
+                $clientUnreadMessagesCount = (int) \Illuminate\Support\Facades\Cache::remember('user_unread_msgs_' . $clientUser->user_id, 45, function () use ($clientUser) {
                     $clientId = $clientUser->client?->client_id;
-                    $notifs = $clientUser->notifications()->latest('sent_at')->take(20)->get();
-                    $unreadMsgs = \App\Models\RequestMessage::where('is_read', false)
+                    return \App\Models\RequestMessage::where('is_read', false)
                         ->where('sender_id', '!=', $clientUser->user_id)
                         ->whereHas('serviceRequest', function($q) use ($clientId) {
                             if ($clientId) $q->where('client_id', $clientId);
                         })
                         ->count();
-
-                    return [
-                        'navNotifications'          => $notifs,
-                        'navUnreadCount'            => $notifs->where('is_read', false)->count(),
-                        'navRequestUnreadCount'     => $notifs->where('type', '!=', 'new_message')->where('is_read', false)->count(),
-                        'navMessageUnreadCount'     => $notifs->where('type', 'new_message')->where('is_read', false)->count(),
-                        'clientUnreadMessagesCount' => $unreadMsgs,
-                    ];
                 });
-                extract($navData);
             } else {
                 $navNotifications = collect();
                 $navUnreadCount = 0;
