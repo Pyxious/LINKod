@@ -1860,7 +1860,7 @@
             $isRequestAccepted = $serviceRequest->isAccepted();
             $isBomEditable = $isRequestAccepted && !in_array($serviceRequest->current_status, ['Completed', 'Cancelled', 'Rejected']);
             $hasWorkerRequestedBom = $boms->contains(fn($b) => ($b->createdBy?->user?->role ?? '') === 'worker');
-            $approveBomBtnText = $hasWorkerRequestedBom ? 'Verify & Forward to Client' : 'Approve List of Materials';
+            $approveBomBtnText = 'Verify & Forward to Client';
         @endphp
         <div id="bom-section" 
              class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-7 shadow-sm"
@@ -2104,7 +2104,7 @@
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                             <span>Approve on Client's Behalf</span>
                                         </button>
-                                    @elseif($serviceRequest->current_status === 'Awaiting Materials')
+                                    @elseif($serviceRequest->current_status === 'Awaiting Materials' || $serviceRequest->project?->current_status === 'Awaiting Materials')
                                         <button type="button"
                                                 @click="showBomMaterialsModal = true"
                                                 class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center gap-1.5 cursor-pointer">

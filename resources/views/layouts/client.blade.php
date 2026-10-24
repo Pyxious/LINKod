@@ -496,6 +496,11 @@
                     ->whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))
                     ->whereDoesntHave('evaluation')
                     ->first();
+
+                // Allow viewing the specific completed request page that needs to be rated
+                if ($unratedCompletedRequest && request()->routeIs('client.requests.show') && (int) request()->route('id') === (int) $unratedCompletedRequest->request_id) {
+                    $unratedCompletedRequest = null;
+                }
             }
         @endphp
 
@@ -529,12 +534,17 @@
                         </p>
                     </div>
 
-                    <!-- Action Button -->
-                    <div class="pt-2">
+                    <!-- Action Buttons -->
+                    <div class="pt-2 flex flex-col sm:flex-row items-center gap-3">
+                        <a href="{{ route('client.requests.show', $unratedCompletedRequest->request_id) }}" 
+                           class="w-full sm:w-auto sm:flex-1 py-3.5 px-5 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 font-bold text-xs uppercase tracking-wider rounded-2xl transition border border-gray-200 dark:border-zinc-700 inline-flex items-center justify-center gap-2 cursor-pointer">
+                            <svg class="w-4 h-4 text-[#0033a0] dark:text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            <span>View Request Details</span>
+                        </a>
                         <a href="{{ route('client.evaluations.create', $unratedCompletedRequest->request_id) }}" 
-                           class="w-full py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm uppercase tracking-wider rounded-2xl transition shadow-lg inline-flex items-center justify-center gap-2 cursor-pointer">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
-                            <span>Rate Completed Service Now</span>
+                           class="w-full sm:w-auto sm:flex-1 py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition shadow-lg inline-flex items-center justify-center gap-2 cursor-pointer">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                            <span>Rate Service Now</span>
                         </a>
                     </div>
                 </div>

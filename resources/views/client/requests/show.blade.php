@@ -788,19 +788,7 @@
             <!-- Right Column: Status Timeline Stepper -->
             <div data-realtime-container="client-req-timeline" data-realtime-request-id="{{ $request->request_id }}" @if($request->project) data-realtime-project-id="{{ $request->project->project_id }}" @endif class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 shadow-sm">
                 @php
-                    $clientHistories = $request->histories->reject(function ($history) {
-                        $rem = strtolower($history->remarks ?? '');
-                        $status = $history->current_status ?? '';
-                        $title = $history->action_title ?? '';
-
-                        return $title === 'List of Materials Submitted'
-                            || $status === 'Awaiting Verification of Bill of Materials'
-                            || str_contains($rem, 'for gso admin verification')
-                            || str_contains($rem, 'for admin verification')
-                            || str_contains($rem, 'submitted list of materials')
-                            || str_contains($rem, 'submitted bill of materials')
-                            || (str_contains($rem, 'prepared and submitted') && str_contains($rem, 'materials'));
-                    })->sortBy([['updated_at', 'asc'], ['history_id', 'asc']]);
+                    $clientHistories = $request->histories->sortBy([['updated_at', 'asc'], ['history_id', 'asc']]);
                 @endphp
                 <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-100 dark:border-zinc-800">
                     <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -869,6 +857,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    try { sessionStorage.removeItem('linkod_client_req_draft'); } catch (e) {}
     const requestId = "{{ $request->request_id }}";
 
     // Reverb (Laravel Echo) listener for this request
@@ -950,18 +939,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (history) {
                         const rem = (history.remarks || '').toLowerCase();
                         let actionTitle = history.current_status || 'Status Updated';
-
-                        // Filter out internal List of Materials submission on client side
-                        if (
-                            actionTitle === 'Awaiting Verification of Bill of Materials' ||
-                            rem.includes('for gso admin verification') ||
-                            rem.includes('for admin verification') ||
-                            rem.includes('submitted list of materials') ||
-                            rem.includes('submitted bill of materials') ||
-                            (rem.includes('prepared and submitted') && rem.includes('materials'))
-                        ) {
-                            return;
-                        }
 
                         const timeline = document.getElementById('requestTimelineFeed');
                         const emptyMsg = document.getElementById('noHistoryText');
