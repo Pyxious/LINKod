@@ -183,7 +183,7 @@ class BomController extends Controller
             'project_id'      => $project->project_id,
             'previous_status' => $prevProjectStatus,
             'current_status'  => $newStatus,
-            'remarks'         => "Admin added {$addedCount} material item(s) to List of Materials. Awaiting approval.",
+            'remarks'         => 'Admin prepared and submitted List of Materials for verification.',
             'updated_at'      => now(),
             'updated_by'      => auth()->id(),
         ]);
@@ -198,7 +198,7 @@ class BomController extends Controller
                 'request_id'      => $serviceRequest->request_id,
                 'previous_status' => $prevReqStatus,
                 'current_status'  => $newStatus,
-                'remarks'         => "Admin added {$addedCount} material item(s) to List of Materials. Awaiting approval.",
+                'remarks'         => 'Admin prepared and submitted List of Materials for verification.',
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
@@ -211,7 +211,7 @@ class BomController extends Controller
             'created_at' => now(),
         ]);
 
-        $successMsg = "{$addedCount} material item(s) added to List of Materials. Click Approve to finalize the List of Materials.";
+        $successMsg = "{$addedCount} material item(s) added to List of Materials. Click Verify & Forward to Client to proceed.";
 
         if ($request->filled('redirect_to')) {
             return redirect($request->input('redirect_to'))->with('success', $successMsg);
@@ -276,20 +276,11 @@ class BomController extends Controller
 
         $serviceRequest = $project->request_id ? \App\Models\ServiceRequest::with('category')->find($project->request_id) : null;
 
-        // Check whether any BOM items were requested by a worker/team leader vs added directly by Admin
-        $hasWorkerCreatedItems = $project->billOfMaterials()
-            ->whereHas('createdBy.user', fn($q) => $q->where('role', 'worker'))
-            ->exists();
-        $isAdminDirectApprove = !$hasWorkerCreatedItems;
-
+        // Every List of Materials verification forwards to client for approval (or Admin/TL can approve on client's behalf)
         $prevStatus = $project->current_status;
-        $newStatus = $isAdminDirectApprove
-            ? (in_array($prevStatus, ['In Progress', 'Completed']) ? $prevStatus : 'Approved')
-            : 'BOM Verified (Awaiting Client Approval)';
-        $newBomStatus = $isAdminDirectApprove ? 'approved' : 'awaiting_client';
-        $remarks = $isAdminDirectApprove
-            ? 'GSO Admin verified and approved the List of Materials.'
-            : 'GSO Admin verified the List of Materials. Awaiting final approval from client.';
+        $newStatus = 'BOM Verified (Awaiting Client Approval)';
+        $newBomStatus = 'awaiting_client';
+        $remarks = 'GSO Admin verified the List of Materials. Awaiting final approval from client.';
 
         $project->update(['current_status' => $newStatus]);
 
@@ -328,8 +319,8 @@ class BomController extends Controller
 
         $projectTitle = $project->request?->title ?? "Project #{$project->project_id}";
 
-        // Notify client when worker-requested BOM is verified and awaits client confirmation
-        if (!$isAdminDirectApprove && $project->client?->user_id) {
+        // Notify client that List of Materials is verified and awaits client confirmation
+        if ($project->client?->user_id) {
             $this->notifications->bomVerifiedAwaitingClient(
                 $project->client->user_id,
                 $projectTitle,
@@ -337,7 +328,7 @@ class BomController extends Controller
             );
         }
 
-        // Notify assigned workers that List of Materials has been verified/approved by admin
+        // Notify assigned workers that List of Materials has been verified by admin
         if ($project->workers) {
             foreach ($project->workers as $pw) {
                 $workerUserId = $pw->staff?->user_id ?? $pw->user?->user_id;
@@ -345,19 +336,15 @@ class BomController extends Controller
                     $this->notifications->send(
                         $workerUserId,
                         'bom_verified',
-                        $isAdminDirectApprove ? 'List of Materials Approved by Admin' : 'List of Materials Verified by Admin',
-                        $isAdminDirectApprove
-                            ? "The List of Materials for \"{$projectTitle}\" has been approved by Admin. You may now start work."
-                            : "The requested materials for \"{$projectTitle}\" have been verified. Awaiting client approval.",
+                        'List of Materials Verified by Admin',
+                        "The requested materials for \"{$projectTitle}\" have been verified. Awaiting client approval.",
                         route('worker.job-orders.show', $project->project_id, false)
                     );
                 }
             }
         }
 
-        $successMessage = $isAdminDirectApprove
-            ? 'List of Materials approved successfully.'
-            : 'List of Materials verified successfully. Forwarded to client for approval.';
+        $successMessage = 'List of Materials verified successfully. Forwarded to client for approval (or you may approve on client\'s behalf).';
 
         if ($request->filled('redirect_to')) {
             return redirect($request->input('redirect_to'))->with('success', $successMessage);

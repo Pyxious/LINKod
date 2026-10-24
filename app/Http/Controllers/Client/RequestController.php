@@ -156,7 +156,7 @@ class RequestController extends Controller
                 'location'       => 'required|string|max:255',
                 'complexity'     => 'required|in:low,medium,high',
                 'urgency'        => 'required|in:low,medium,high',
-                'attachment'     => ['nullable', 'file', new \App\Rules\SecureFileUpload(['pdf', 'jpg', 'jpeg', 'png'], 5120)],
+                'attachment'     => ['nullable', 'file', new \App\Rules\SecureFileUpload(['pdf', 'jpg', 'jpeg', 'png', 'webp'], 10240)],
                 'contact_number' => 'required|string|regex:/^09\d{9}$/',
             ]);
 

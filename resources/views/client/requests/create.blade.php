@@ -44,14 +44,22 @@
                         </p>
                     </div>
                 </div>
-                <a href="{{ route('client.evaluations.create', $unratedCompletedRequest->request_id) }}" class="shrink-0 px-5 py-2.5 bg-[#0038A8] hover:bg-[#002B82] text-white rounded-xl text-xs md:text-sm font-bold shadow-md transition flex items-center gap-2">
-                    <svg class="w-4 h-4 text-yellow-300 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
-                    Rate Request Now
-                </a>
+                <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                    <a href="{{ route('client.requests.show', $unratedCompletedRequest->request_id) }}" class="px-4 py-2.5 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 border border-amber-300 dark:border-zinc-700 rounded-xl text-xs md:text-sm font-bold shadow-xs transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-[#0038A8] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        View Request
+                    </a>
+                    <a href="{{ route('client.evaluations.create', $unratedCompletedRequest->request_id) }}" class="px-5 py-2.5 bg-[#0038A8] hover:bg-[#002B82] text-white rounded-xl text-xs md:text-sm font-bold shadow-md transition flex items-center gap-2">
+                        <svg class="w-4 h-4 text-yellow-300 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                        Rate Request Now
+                    </a>
+                </div>
             </div>
         @endif
 
-        <form x-data="clientRequestForm({ preselectedCatId: '{{ $preselectedCatId ?? '' }}', oldCampus: '{{ old('campus', '') }}' })" 
+        <form x-data="clientRequestForm({ preselectedCatId: '{{ old('category_id', $preselectedCatId ?? '') }}', oldCampus: '{{ old('campus', '') }}', oldInput: {{ Js::from(session()->getOldInput()) }} })" 
+              @input.debounce.250ms="saveDraft()"
+              @change="saveDraft()"
               @submit.prevent="validateManpowerForm($event)" 
               action="{{ route('client.requests.store') }}" 
               method="POST" 
@@ -79,12 +87,14 @@
                         </label>
                         <select name="category_id" 
                                 x-ref="categorySelect"
+                                x-model="selectedCategoryId"
                                 @change="
                                     const selectedOpt = $event.target.options[$event.target.selectedIndex];
-                                    selectedCategoryName = selectedOpt ? selectedOpt.text : '';
+                                    selectedCategoryName = selectedOpt ? selectedOpt.text.trim() : '';
                                     selectedConcern = '';
                                     customConcern = '';
                                     activityTitle = '';
+                                    saveDraft();
                                 " 
                                 class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] transition" 
                                 required>
@@ -101,13 +111,14 @@
                             Title of Concern <span class="text-red-500">*</span>
                         </label>
                         
-                        <select x-model="selectedConcern"
+                        <select name="selected_concern"
+                                x-model="selectedConcern"
                                 :disabled="!selectedCategoryName"
                                 class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] disabled:bg-gray-100 dark:disabled:bg-zinc-800/40 disabled:text-gray-400 disabled:cursor-not-allowed transition" 
                                 required>
                             <option value="" disabled selected x-text="selectedCategoryName ? 'Select a concern for ' + selectedCategoryName : 'Please select a Service Category first'"></option>
                             <template x-for="concern in availableConcerns" :key="concern">
-                                <option :value="concern" x-text="concern"></option>
+                                <option :value="concern" x-text="concern" :selected="concern === selectedConcern"></option>
                             </template>
                         </select>
 
@@ -129,6 +140,7 @@
                         <!-- Custom Concern Input if 'Other' is selected and not an event -->
                         <div x-show="isOtherCustomService" x-cloak class="mt-3">
                             <input type="text" 
+                                   name="custom_concern"
                                    x-model="customConcern" 
                                    :placeholder="selectedConcern === 'Other manpower service' ? 'Specify manpower service' : (selectedConcern === 'Other janitorial service' ? 'Specify janitorial or cleaning service' : 'Specify concern or title')" 
                                    class="w-full px-4 py-2.5 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0]"
@@ -148,13 +160,14 @@
                                 <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
                                     College / Unit <span class="text-red-500">*</span>
                                 </label>
-                                <select x-model="selectedCollege"
-                                        @change="onCollegeChange()"
+                                <select name="selected_college"
+                                        x-model="selectedCollege"
+                                        @change="onCollegeChange(); saveDraft();"
                                         class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] transition" 
                                         required>
                                     <option value="" disabled selected>Select College</option>
                                     <template x-for="unit in collegeUnits" :key="unit.college">
-                                        <option :value="unit.college" x-text="unit.college"></option>
+                                        <option :value="unit.college" x-text="unit.college" :selected="unit.college === selectedCollege"></option>
                                     </template>
                                 </select>
                             </div>
@@ -186,13 +199,14 @@
                                 <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
                                     Office / Department <span class="text-red-500">*</span>
                                 </label>
-                                <select x-model="selectedOffice"
+                                <select name="selected_office"
+                                        x-model="selectedOffice"
                                         :disabled="!selectedCollege"
                                         class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] disabled:bg-gray-100 dark:disabled:bg-zinc-800/40 disabled:text-gray-400 disabled:cursor-not-allowed transition" 
                                         required>
                                     <option value="" disabled selected x-text="selectedCollege ? 'Select Office / Department' : 'Select College / Unit first'"></option>
                                     <template x-for="office in availableOffices" :key="office">
-                                        <option :value="office" x-text="office"></option>
+                                        <option :value="office" x-text="office" :selected="office === selectedOffice"></option>
                                     </template>
                                 </select>
 
@@ -202,6 +216,7 @@
                                         Specify Office / Facility Name <span class="text-red-500">*</span>
                                     </label>
                                     <input type="text" 
+                                           name="custom_office"
                                            x-model="customOffice" 
                                            placeholder="Specify office, department, or unit name" 
                                            class="w-full px-4 py-2.5 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0]"
@@ -215,6 +230,7 @@
                                     Building / Room No. <span class="text-xs font-normal text-gray-400 lowercase">(optional)</span>
                                 </label>
                                 <input type="text" 
+                                       name="specific_location"
                                        x-model="specificLocation" 
                                        placeholder="e.g. Room 204, 2nd Floor, Left Wing / Chemistry Lab 1 / Faculty Office Cubicle 3" 
                                        class="w-full px-4 py-3 bg-gray-50/70 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] transition">
@@ -510,7 +526,7 @@
                                 <button type="button" class="hover:text-gray-700 dark:hover:text-gray-200 px-1">☰</button>
                                 <button type="button" class="hover:text-gray-700 dark:hover:text-gray-200 px-1">❝</button>
                             </div>
-                            <textarea name="description" rows="5" placeholder="Provide complete specifications regarding the problem or requested maintenance work" class="w-full p-4 bg-white dark:bg-zinc-900 text-sm text-gray-900 dark:text-white border-0 focus:border-0 focus:ring-0 focus:outline-none resize-y" :disabled="isManpowerConcern" :required="!isManpowerConcern"></textarea>
+                            <textarea x-model="description" name="description" rows="5" placeholder="Provide complete specifications regarding the problem or requested maintenance work" class="w-full p-4 bg-white dark:bg-zinc-900 text-sm text-gray-900 dark:text-white border-0 focus:border-0 focus:ring-0 focus:outline-none resize-y" :disabled="isManpowerConcern" :required="!isManpowerConcern">{{ old('description') }}</textarea>
                         </div>
                     </div>
 
@@ -743,50 +759,52 @@
 @push('scripts')
 <script>
 function clientRequestForm(config = {}) {
+    const old = config.oldInput || {};
     return {
         submitting: false,
         viewPreviewModal: false,
-        selectedCategoryId: config.preselectedCatId || '',
+        selectedCategoryId: old.category_id || config.preselectedCatId || '',
         selectedCategoryName: '',
-        selectedCluster: config.oldCampus || '',
-        selectedCollege: '',
-        selectedOffice: '',
-        customOffice: '',
-        specificLocation: '',
-        selectedConcern: '',
-        customConcern: '',
+        selectedCluster: old.campus || config.oldCampus || '',
+        selectedCollege: old.selected_college || '',
+        selectedOffice: old.selected_office || '',
+        customOffice: old.custom_office || '',
+        specificLocation: old.specific_location || '',
+        selectedConcern: old.selected_concern || '',
+        customConcern: old.custom_concern || '',
+        description: old.description || '',
 
         // Manpower & Event Specific Fields
-        activityTitle: '',
-        eventDate: '',
-        prepDateFrom: '',
-        prepDateTo: '',
-        prepDetails: '',
-        prepRegular: true,
-        prepOvertime: false,
+        activityTitle: old.activity_title || '',
+        eventDate: old.event_date || '',
+        prepDateFrom: old.prep_date_from || '',
+        prepDateTo: old.prep_date_to || '',
+        prepDetails: old.prep_details || '',
+        prepRegular: old.prep_regular !== undefined ? Boolean(old.prep_regular) : true,
+        prepOvertime: Boolean(old.prep_overtime),
         prepTimePreset: 'regular',
-        prepRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
-        prepOvertimeTime: '',
+        prepRegularTime: old.prep_regular_time || '8:00 - 12:00 / 1:00 - 5:00',
+        prepOvertimeTime: old.prep_overtime_time || '',
 
-        assistanceDateFrom: '',
-        assistanceDateTo: '',
-        assistanceDetails: '',
-        assistanceRegular: true,
-        assistanceOvertime: false,
+        assistanceDateFrom: old.assistance_date_from || '',
+        assistanceDateTo: old.assistance_date_to || '',
+        assistanceDetails: old.assistance_details || '',
+        assistanceRegular: old.assistance_regular !== undefined ? Boolean(old.assistance_regular) : true,
+        assistanceOvertime: Boolean(old.assistance_overtime),
         assistanceTimePreset: 'regular',
-        assistanceRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
-        assistanceOvertimeTime: '',
+        assistanceRegularTime: old.assistance_regular_time || '8:00 - 12:00 / 1:00 - 5:00',
+        assistanceOvertimeTime: old.assistance_overtime_time || '',
 
-        clearingDateFrom: '',
-        clearingDateTo: '',
-        clearingDetails: '',
-        clearingRegular: true,
-        clearingOvertime: false,
+        clearingDateFrom: old.clearing_date_from || '',
+        clearingDateTo: old.clearing_date_to || '',
+        clearingDetails: old.clearing_details || '',
+        clearingRegular: old.clearing_regular !== undefined ? Boolean(old.clearing_regular) : true,
+        clearingOvertime: Boolean(old.clearing_overtime),
         clearingTimePreset: 'regular',
-        clearingRegularTime: '8:00 - 12:00 / 1:00 - 5:00',
-        clearingOvertimeTime: '',
+        clearingRegularTime: old.clearing_regular_time || '8:00 - 12:00 / 1:00 - 5:00',
+        clearingOvertimeTime: old.clearing_overtime_time || '',
 
-        additionalNotes: '',
+        additionalNotes: old.additional_notes || '',
 
         // Janitorial Form State
         janitorialAreas: '',
@@ -810,6 +828,7 @@ function clientRequestForm(config = {}) {
             if (preset && preset.value !== 'custom') {
                 this[timeMap[section]] = preset.time;
             }
+            this.saveDraft();
         },
 
         formatDateRange(from, to) {
@@ -822,7 +841,38 @@ function clientRequestForm(config = {}) {
         get assistanceDate() { return this.formatDateRange(this.assistanceDateFrom, this.assistanceDateTo); },
         get clearingDate() { return this.formatDateRange(this.clearingDateFrom, this.clearingDateTo); },
 
+        draftKeys: [
+            'selectedCategoryId', 'selectedCategoryName', 'selectedCluster', 'selectedCollege',
+            'selectedOffice', 'customOffice', 'specificLocation', 'selectedConcern', 'customConcern',
+            'description', 'activityTitle', 'eventDate', 'prepDateFrom', 'prepDateTo', 'prepDetails',
+            'prepRegular', 'prepOvertime', 'prepTimePreset', 'prepRegularTime', 'prepOvertimeTime',
+            'assistanceDateFrom', 'assistanceDateTo', 'assistanceDetails', 'assistanceRegular',
+            'assistanceOvertime', 'assistanceTimePreset', 'assistanceRegularTime', 'assistanceOvertimeTime',
+            'clearingDateFrom', 'clearingDateTo', 'clearingDetails', 'clearingRegular', 'clearingOvertime',
+            'clearingTimePreset', 'clearingRegularTime', 'clearingOvertimeTime', 'additionalNotes'
+        ],
+
+        saveDraft() {
+            try {
+                const draft = {};
+                this.draftKeys.forEach(k => { draft[k] = this[k]; });
+                sessionStorage.setItem('linkod_client_req_draft', JSON.stringify(draft));
+            } catch (e) {}
+        },
+
         init() {
+            try {
+                const raw = sessionStorage.getItem('linkod_client_req_draft');
+                if (raw) {
+                    const draft = JSON.parse(raw);
+                    this.draftKeys.forEach(k => {
+                        if ((this[k] === '' || this[k] === undefined) && draft[k] !== undefined && draft[k] !== '') {
+                            this[k] = draft[k];
+                        }
+                    });
+                }
+            } catch (e) {}
+
             this.$nextTick(() => {
                 const selectEl = this.$refs.categorySelect;
                 if (selectEl) {
@@ -1029,6 +1079,24 @@ function clientRequestForm(config = {}) {
         },
 
         processFile(file) {
+            const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            if (!allowedExts.includes(ext)) {
+                alert('Unsupported file format (.' + ext + '). Please upload a JPG, PNG, WEBP image or PDF document.');
+                this.removeFile();
+                return;
+            }
+            if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+                alert('Unsupported file type. Please upload an image (JPG, PNG, WEBP) or PDF document.');
+                this.removeFile();
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024 && !file.type.startsWith('image/')) {
+                alert('PDF file exceeds the 10MB limit. Please choose a smaller document.');
+                this.removeFile();
+                return;
+            }
+
             this.fileName = file.name;
             this.isImage = file.type.startsWith('image/');
             const origSizeFormatted = this.formatBytes(file.size);
@@ -1043,8 +1111,9 @@ function clientRequestForm(config = {}) {
                         const compSizeFormatted = this.formatBytes(compressedBlob.size);
                         this.fileSizeFormatted = origSizeFormatted + ' → compressed to ~' + compSizeFormatted;
 
+                        const safeName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
                         const dataTransfer = new DataTransfer();
-                        dataTransfer.items.add(new File([compressedBlob], file.name, { type: 'image/jpeg' }));
+                        dataTransfer.items.add(new File([compressedBlob], safeName, { type: 'image/jpeg' }));
                         this.$refs.fileInput.files = dataTransfer.files;
                     });
                 };
@@ -1186,6 +1255,7 @@ function clientRequestForm(config = {}) {
                     return false;
                 }
             }
+            this.saveDraft();
             this.submitting = true;
             event.target.submit();
         }
