@@ -26,41 +26,7 @@ class RequestController extends Controller
 
     public function index(Request $request)
     {
-        $query = ServiceRequest::with('client.user', 'category', 'latestHistory')
-            ->orderByRaw("CASE WHEN LOWER(priority) = 'high' THEN 1 ELSE 2 END ASC")
-            ->orderBy('submitted_at', 'asc')
-            ->orderBy('request_id', 'asc');
-
-        if ($request->filled('status')) {
-            $query->whereHas('latestHistory', fn($q) =>
-                $q->where('current_status', $request->status));
-        }
-
-        if ($request->filled('priority')) {
-            $query->where('priority', $request->priority);
-        }
-
-        $requests = $query->paginate(15);
-
-        // Fetch KPI Metrics — cached 300s (5 min) since counts don't need to be live
-        $kpi = Cache::remember('admin_requests_kpi', 300, function () {
-            return [
-                'totalRequests' => ServiceRequest::count(),
-                'submitted'     => ServiceRequest::where(function($q) {
-                    $q->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Submitted'))
-                      ->orWhereDoesntHave('histories');
-                })->count(),
-                'onHold'        => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'On Hold'))->count(),
-                'inProgress'    => ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', ['In Progress', 'Pending Verification']))->count(),
-                'completed'     => ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))->count(),
-            ];
-        });
-
-        extract($kpi);
-
-        return view('admin.requests.index', compact(
-            'requests', 'totalRequests', 'submitted', 'onHold', 'inProgress', 'completed'
-        ));
+        return view('admin.requests.index');
     }
 
     public function create(Request $request)
@@ -539,10 +505,10 @@ class RequestController extends Controller
 
             $dateFormatted = $serviceRequest->scheduled_date ? \Carbon\Carbon::parse($serviceRequest->scheduled_date)->format('F d, Y') : 'Confirmed Schedule';
             $windowText = match($serviceRequest->scheduled_time_window) {
-                'AM' => 'Morning (AM)',
-                'PM' => 'Afternoon (PM)',
-                'AM-PM' => 'Whole Day (AM - PM)',
-                default => $serviceRequest->scheduled_time_window ?? 'Visit'
+                'AM' => 'Morning',
+                'PM' => 'Afternoon',
+                'AM-PM' => 'Whole Day',
+                default => $serviceRequest->scheduled_time_window ?? 'Morning'
             };
 
             $isManpowerReq = $serviceRequest->is_manpower;
@@ -584,7 +550,7 @@ class RequestController extends Controller
                         'request_id'      => $serviceRequest->request_id,
                         'previous_status' => $previous,
                         'current_status'  => 'Schedule Confirmed',
-                        'remarks'         => "Admin confirmed visit schedule with client via phone for {$dateFormatted} ({$windowText}). Maintenance personnel assigned.",
+                        'remarks'         => "Admin confirmed visit schedule with client for {$dateFormatted} ({$windowText}). Maintenance personnel assigned.",
                         'updated_at'      => now()->subSecond(),
                         'updated_by'      => auth()->id(),
                     ]);
@@ -596,7 +562,7 @@ class RequestController extends Controller
                     'request_id'      => $serviceRequest->request_id,
                     'previous_status' => $previous,
                     'current_status'  => 'Approved',
-                    'remarks'         => "Request approved for {$dateFormatted} ({$windowText}). Maintenance workers assigned.",
+                    'remarks'         => "GSO Team scheduled to visit the area on {$dateFormatted} ({$windowText}).",
                     'updated_at'      => now(),
                     'updated_by'      => auth()->id(),
                 ]);
@@ -617,6 +583,17 @@ class RequestController extends Controller
                             'Visit Schedule Confirmed',
                             "Your visit schedule has been confirmed for {$dateFormatted} ({$windowText}). Maintenance personnel have been assigned.",
                             route('client.requests.show', $serviceRequest->request_id, false)
+                        );
+
+                        // Trigger automated client email for schedule
+                        $this->notifications->sendClientEmail(
+                            $serviceRequest->client->user_id,
+                            $serviceRequest,
+                            'schedule_proposed',
+                            [
+                                'scheduled_date'   => $dateFormatted,
+                                'scheduled_window' => $windowText,
+                            ]
                         );
                     }
 

@@ -116,7 +116,7 @@
                         <option value="" disabled selected>Select a Service Category</option>
                         @foreach($categories as $cat)
                             <option value="{{ $cat->category_id }}" {{ (isset($preselectedCatId) && $preselectedCatId == $cat->category_id) ? 'selected' : '' }}>
-                                {{ $cat->category_name }}
+                                {{ $cat->display_name ?? $cat->category_name }}
                             </option>
                         @endforeach
                     </select>

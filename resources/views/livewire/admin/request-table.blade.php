@@ -86,7 +86,7 @@
         </div>
 
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <select wire:model.live="status" class="px-3 py-2 rounded-xl border border-[#1a3c8f]/30 dark:border-zinc-700 text-[#1a3c8f] dark:text-blue-400 bg-white dark:bg-zinc-900 text-xs font-bold outline-none cursor-pointer shadow-2xs">
+            <select wire:model.live="status" class="pl-3.5 pr-10 py-2 rounded-xl border border-[#1a3c8f]/30 dark:border-zinc-700 text-[#1a3c8f] dark:text-blue-400 bg-white dark:bg-zinc-900 text-xs font-bold outline-none cursor-pointer shadow-2xs">
                 <option value="">Active Requests</option>
                 <option value="Pending">Pending / Approved</option>
                 <option value="Awaiting Materials">Awaiting Materials</option>

@@ -144,6 +144,7 @@ class MessagePortalController extends Controller
                 ->update(['is_read' => true]);
             if ($marked > 0) {
                 Cache::forget('user_nav_data_' . $user->user_id);
+                Cache::forget('user_unread_msgs_' . $user->user_id);
             }
         }
 

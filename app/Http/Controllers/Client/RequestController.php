@@ -311,6 +311,9 @@ class RequestController extends Controller
                 'updated_by'      => auth()->id(),
             ]);
 
+            // Dispatch automated client confirmation email
+            $this->notifications->requestSubmitted($serviceRequest);
+
             return redirect()->route('client.requests.show', $serviceRequest->request_id)
                 ->with('success', 'Your service request has been submitted successfully.');
 
@@ -416,10 +419,10 @@ class RequestController extends Controller
 
             $formattedDate = $serviceRequest->scheduled_date?->format('F d, Y') ?? 'Selected Date';
             $window = match($serviceRequest->scheduled_time_window) {
-                'AM' => 'Morning (AM)',
-                'PM' => 'Afternoon (PM)',
-                'AM-PM' => 'Whole Day (AM - PM)',
-                default => $serviceRequest->scheduled_time_window ?? 'Whole Day'
+                'AM' => 'Morning',
+                'PM' => 'Afternoon',
+                'AM-PM' => 'Whole Day',
+                default => $serviceRequest->scheduled_time_window ?? 'Morning'
             };
 
             $project = $serviceRequest->project;
@@ -453,7 +456,7 @@ class RequestController extends Controller
                     'request_id'      => $serviceRequest->request_id,
                     'previous_status' => $serviceRequest->current_status,
                     'current_status'  => 'Approved',
-                    'remarks'         => "Visit schedule confirmed by client for {$formattedDate} ({$window}). Project launched and maintenance workers assigned.",
+                    'remarks'         => "GSO Team scheduled to visit the area on {$formattedDate} ({$window}).",
                     'updated_at'      => now(),
                     'updated_by'      => auth()->id(),
                 ]);
@@ -471,7 +474,7 @@ class RequestController extends Controller
                     'request_id'      => $serviceRequest->request_id,
                     'previous_status' => $serviceRequest->current_status,
                     'current_status'  => 'Schedule Confirmed',
-                    'remarks'         => "Client confirmed visit schedule for {$formattedDate} ({$window}).",
+                    'remarks'         => "GSO Team scheduled to visit the area on {$formattedDate} ({$window}).",
                     'updated_at'      => now(),
                     'updated_by'      => auth()->id(),
                 ]);

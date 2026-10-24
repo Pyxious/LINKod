@@ -129,7 +129,7 @@
                         };
                         $displayStatus = match(strtolower($r->current_status ?? '')) {
                             'rejected' => 'Disapproved',
-                            'awaiting verification of bill of materials', 'awaiting verification of list of materials' => 'Awaiting Verification',
+                            'awaiting verification of bill of materials', 'awaiting verification of list of materials' => 'Approved',
                             'bom verified (awaiting client approval)', 'list of materials verified (awaiting client approval)' => 'Materials Verified',
                             'awaiting materials', 'waiting for materials' => 'Awaiting Materials',
                             default => ucfirst($r->current_status ?? 'Pending')

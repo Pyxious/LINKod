@@ -85,4 +85,12 @@ class User extends Authenticatable
         $parts = array_filter([$this->first_name, $this->middle_name, $this->last_name], fn($p) => !empty(trim((string)$p)));
         return trim(implode(' ', $parts));
     }
+
+    /**
+     * Route notifications for the mail channel.
+     */
+    public function routeNotificationForMail(): ?string
+    {
+        return $this->email_account;
+    }
 }

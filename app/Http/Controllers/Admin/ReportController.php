@@ -31,14 +31,17 @@ class ReportController extends Controller
                 'totalProjects'       => Project::count(),
                 'avgRating'           => Evaluation::avg('rating'),
                 'availableWorkers'    => Worker::where('is_available', true)->count(),
-                'requestsByPriority'  => ServiceRequest::selectRaw('priority, count(*) as total')->groupBy('priority')->pluck('total', 'priority'),
+                'requestsByPriority'  => ServiceRequest::selectRaw('priority, count(*) as total')->groupBy('priority')->pluck('total', 'priority')->all(),
                 'requestsByCategory'  => ServiceRequest::join('category', 'request.category_id', '=', 'category.category_id')
                     ->selectRaw('category.category_name, count(*) as total')
                     ->groupBy('category.category_name')
-                    ->pluck('total', 'category_name'),
+                    ->pluck('total', 'category_name')
+                    ->all(),
             ];
         });
         extract($summaryStats);
+        $requestsByPriority = collect($requestsByPriority ?? []);
+        $requestsByCategory = collect($requestsByCategory ?? []);
 
         $categories = Category::all();
         $workers    = Worker::with(['staff.user', 'team.category'])->get()->map(function($w) {
@@ -168,14 +171,14 @@ class ReportController extends Controller
             ->paginate(10);
 
         // Cache team leaders for signatories (600s)
-        $teamLeaders = Cache::remember('admin_reports_team_leaders', 600, function () {
+        $teamLeaders = collect(Cache::remember('admin_reports_team_leaders_v2', 600, function () {
             return \App\Models\Team::with('leader.staff.user', 'category')->get()->mapWithKeys(function($t) {
                 $u = $t->leader?->staff?->user;
                 $name = $u ? strtoupper(trim($u->first_name . ' ' . $u->last_name)) : 'TEAM LEADER';
                 $secName = $t->category?->category_name ?? $t->team_name;
                 return [$t->category_id => ['leader_name' => $name, 'section_name' => $secName]];
-            });
-        });
+            })->all();
+        }));
 
         [$defaultStart, $defaultEnd, $defaultYear, $defaultPeriodText] = $this->resolveDateRange(request());
         $summarySections = $this->getSectionData($defaultStart, $defaultEnd);

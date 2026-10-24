@@ -39,7 +39,7 @@
         <input type="hidden" name="direction" value="{{ $direction ?? 'asc' }}">
 
         <!-- Status Filter Dropdown -->
-        <select name="status" onchange="this.form.submit()" class="px-3.5 py-2 rounded-xl border border-[#0038A8]/30 dark:border-zinc-700 text-[#0038A8] dark:text-blue-400 bg-white dark:bg-zinc-900 text-xs font-bold outline-none cursor-pointer shadow-2xs w-full sm:w-auto">
+        <select name="status" onchange="this.form.submit()" class="pl-3.5 pr-10 py-2 rounded-xl border border-[#0038A8]/30 dark:border-zinc-700 text-[#0038A8] dark:text-blue-400 bg-white dark:bg-zinc-900 text-xs font-bold outline-none cursor-pointer shadow-2xs w-full sm:w-auto sm:min-w-[170px]">
             <option value="" {{ empty($statusFilter) || $statusFilter === 'active' ? 'selected' : '' }}>Active Tasks Only</option>
             <option value="Completed" {{ $statusFilter === 'Completed' ? 'selected' : '' }}>Completed Tasks</option>
             <option value="In Progress" {{ $statusFilter === 'In Progress' ? 'selected' : '' }}>In Progress</option>

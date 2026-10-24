@@ -125,8 +125,8 @@
             </div>
         </div>
 
-        <!-- Evaluation Form (Themed Light Blue Container Box) -->
-        <form action="{{ route('client.evaluations.store', $serviceRequest->request_id) }}" method="POST" class="bg-[#eef5fc] dark:bg-[#181a20] rounded-2xl border-2 border-[#c2daf2] dark:border-zinc-800 p-6 sm:p-7 shadow-sm space-y-6">
+        <!-- Evaluation Form (Neutral Grey Container Box) -->
+        <form action="{{ route('client.evaluations.store', $serviceRequest->request_id) }}" method="POST" class="bg-gray-100 dark:bg-[#181a20] rounded-2xl border-2 border-gray-300 dark:border-zinc-800 p-6 sm:p-7 shadow-sm space-y-6">
             @csrf
 
             <!-- Functions & Emote Rating Scales Table -->
@@ -139,11 +139,11 @@
                     <span class="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Please select a score for each function</span>
                 </div>
                 
-                <div class="overflow-x-auto rounded-xl border border-blue-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-900 shadow-xs">
+                <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-900 shadow-xs">
                     <table class="w-full text-left border-collapse table-fixed min-w-[620px]">
                         <thead>
                             <!-- Clean White Bar with perfectly aligned Emotes -->
-                            <tr class="bg-white dark:bg-zinc-800 text-slate-900 dark:text-white text-xs font-extrabold uppercase tracking-wider border-b-2 border-blue-200/80 dark:border-zinc-700">
+                            <tr class="bg-gray-50/80 dark:bg-zinc-800 text-slate-900 dark:text-white text-xs font-extrabold uppercase tracking-wider border-b border-gray-200 dark:border-zinc-700">
                                 <th class="py-3.5 px-5 text-left align-middle w-auto text-slate-900 dark:text-white font-black tracking-wide">
                                     FUNCTIONS
                                 </th>
@@ -171,7 +171,7 @@
                                 @endforeach
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-blue-100 dark:divide-zinc-800 text-xs sm:text-sm bg-white dark:bg-zinc-900">
+                        <tbody class="divide-y divide-gray-200 dark:divide-zinc-800 text-xs sm:text-sm bg-white dark:bg-zinc-900">
                             @php
                                 $functions = [
                                     'quality' => [
@@ -198,7 +198,7 @@
                             @endphp
 
                             @foreach($functions as $key => $fn)
-                                <tr class="hover:bg-blue-50/40 dark:hover:bg-zinc-800/40 transition">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition">
                                     <!-- Clean Section Title & Description (No leading icon) -->
                                     <td class="py-4 px-5 text-left align-middle">
                                         <div class="flex items-center gap-1">
@@ -215,7 +215,7 @@
                                     <!-- Radio Option Columns aligned precisely under each emote -->
                                     @for($score = 5; $score >= 1; $score--)
                                         <td class="py-4 px-1 text-center align-middle w-20 sm:w-28">
-                                            <label class="cursor-pointer inline-flex items-center justify-center p-2 rounded-xl hover:bg-blue-50 dark:hover:bg-zinc-800 transition">
+                                            <label class="cursor-pointer inline-flex items-center justify-center p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition">
                                                 <input type="radio" 
                                                        name="ratings[{{ $key }}]" 
                                                        value="{{ $score }}" 
@@ -233,7 +233,7 @@
             </div>
 
             <!-- Suggestions / Recommendations Text Area (Feedback) -->
-            <div class="bg-white dark:bg-zinc-900 rounded-xl p-4 sm:p-5 border border-blue-200/80 dark:border-zinc-700/80 shadow-2xs">
+            <div class="bg-white dark:bg-zinc-900 rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-zinc-700/80 shadow-2xs">
                 <label class="flex items-center gap-2 text-xs font-bold text-[#0033a0] dark:text-blue-400 uppercase tracking-wider mb-2">
                     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
@@ -243,14 +243,14 @@
                 <textarea name="feedback_text" 
                           rows="4" 
                           placeholder="Express your Praise, Recommendations, or Criticisms here to help BU-GSO continuously improve..." 
-                          class="w-full px-4 py-3 bg-[#f8fafc] dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0] dark:focus:border-blue-500 focus:ring-1 focus:ring-[#0033a0] dark:focus:ring-blue-500 transition"></textarea>
+                          class="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-gray-200 focus:outline-none focus:border-[#0033a0] dark:focus:border-blue-500 focus:ring-1 focus:ring-[#0033a0] dark:focus:ring-blue-500 transition"></textarea>
             </div>
 
             <!-- Rater Name Visibility Preference (Optional Name) -->
             @php
                 $clientUserName = auth()->user()->full_name ?? '';
             @endphp
-            <div class="p-4 bg-white dark:bg-zinc-900 rounded-xl border border-blue-200/80 dark:border-zinc-700/80 flex items-start sm:items-center justify-between gap-4 shadow-2xs">
+            <div class="p-4 bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-700/80 flex items-start sm:items-center justify-between gap-4 shadow-2xs">
                 <div class="flex items-center gap-3">
                     <input type="checkbox" 
                            id="show_name" 
@@ -275,7 +275,7 @@
             </div>
 
             <!-- Bottom Sign-off & Submit Button -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-blue-200/80 dark:border-zinc-800">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-200 dark:border-zinc-800">
                 <div class="text-sm font-black text-[#ea580c] dark:text-orange-400 italic flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     <span>We are happy to serve!</span>
