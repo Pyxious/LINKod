@@ -29,7 +29,7 @@
 @endphp
 
 <!-- Header -->
-<div class="flex justify-between items-center mb-6">
+<div data-realtime-container="worker-job-header" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif class="flex justify-between items-center mb-6">
     <div>
         <a href="{{ route('worker.job-orders.index') }}" class="text-xs font-semibold text-gray-500 hover:text-[#0038A8] flex items-center gap-1 mb-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
@@ -69,7 +69,7 @@
     <!-- 1st, 2nd, 3rd Boxes (Left Side) -->
     <div class="flex-1 min-w-0 w-full space-y-6">
         <!-- 1st Box: Issue Description & Supporting Documents -->
-        <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">
+        <div data-realtime-container="worker-job-box1" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">
             @php
                 $isManpower = $req->is_manpower ?? false;
                 $m = $req->manpower_details ?? [];
@@ -302,11 +302,13 @@
             ]);
         @endphp
 
+        <div data-realtime-container="worker-job-box2" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif>
         @if(!in_array($project->current_status, ['Completed', 'Pending Verification']))
 
         <!-- 2nd Box: Update Task Progress & Attach Proofs -->
         <div class="bg-white dark:bg-[#1c1c1e] border-2 border-[#1a3c8f]/30 dark:border-blue-700/60 rounded-2xl shadow-sm p-5 sm:p-7"
-             x-data="workerTaskProgress({{ $project->project_id }}, '{{ $defaultNextStatus }}', {{ json_encode($project->request->title ?? 'Project #' . $project->project_id) }}, '{{ route('worker.task-progress.sync', $project->project_id) }}')">
+             x-data="workerTaskProgress({{ $project->project_id }}, '{{ $defaultNextStatus }}', {{ json_encode($project->request->title ?? 'Project #' . $project->project_id) }}, '{{ route('worker.task-progress.sync', $project->project_id) }}')"
+             :data-realtime-pause="(cameraActive || !!capturedFile || !!proofFile || saving) ? 'true' : 'false'">
 
              <div class="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100 dark:border-zinc-800">
                   <h3 class="text-[#1a3c8f] dark:text-blue-400 font-extrabold text-base sm:text-lg flex items-center gap-2 min-w-0">
@@ -875,16 +877,66 @@
                     offlineMsg: '',
                     taskFinishedOffline: false,
 
+                    compressImage(dataUrl, filename, callback) {
+                        const img = new Image();
+                        img.onload = () => {
+                            const maxDim = 1280;
+                            let width = img.width;
+                            let height = img.height;
+                            if (width > height) {
+                                if (width > maxDim) {
+                                    height = Math.round((height * maxDim) / width);
+                                    width = maxDim;
+                                }
+                            } else {
+                                if (height > maxDim) {
+                                    width = Math.round((width * maxDim) / height);
+                                    height = maxDim;
+                                }
+                            }
+                            const canvas = document.createElement('canvas');
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            canvas.toBlob((blob) => {
+                                if (blob) {
+                                    const cleanName = filename.replace(/\.[^/.]+$/, "") + ".jpg";
+                                    const compressed = new File([blob], cleanName, { type: 'image/jpeg' });
+                                    callback(compressed);
+                                } else {
+                                    callback(null);
+                                }
+                            }, 'image/jpeg', 0.80);
+                        };
+                        img.onerror = () => callback(null);
+                        img.src = dataUrl;
+                    },
+
                     handleFile(file) {
                         if (!file) return;
                         this.photoError = '';
                         this.proofFile = file.name;
                         this.proofSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
                         this.capturedFile = file;
+
                         if (file.type && file.type.startsWith('image/')) {
                             const reader = new FileReader();
                             reader.onload = (e) => {
                                 this.proofPreviewUrl = e.target.result;
+                                this.compressImage(e.target.result, file.name, (compressed) => {
+                                    if (compressed) {
+                                        this.capturedFile = compressed;
+                                        this.proofSize = (compressed.size / (1024 * 1024)).toFixed(2) + ' MB (optimized)';
+                                        try {
+                                            const dt = new DataTransfer();
+                                            dt.items.add(compressed);
+                                            if (this.$refs.workerFileInput) {
+                                                this.$refs.workerFileInput.files = dt.files;
+                                            }
+                                        } catch (err) {}
+                                    }
+                                });
                             };
                             reader.readAsDataURL(file);
                         } else {
@@ -893,6 +945,13 @@
                     },
 
                     takePhoto() {
+                        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                        if (isMobile || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                            if (this.$refs.mobileCameraInput) {
+                                this.$refs.mobileCameraInput.click();
+                                return;
+                            }
+                        }
                         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                             this.openCamera();
                         } else if (this.$refs.mobileCameraInput) {
@@ -1155,12 +1214,26 @@
                                 method: 'POST',
                                 body: formData,
                                 headers: {
-                                    'X-Requested-With': 'XMLHttpRequest'
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json'
                                 }
                             });
 
+                            const contentType = response.headers.get('content-type') || '';
+                            if (contentType.includes('application/json')) {
+                                const data = await response.json();
+                                if (response.ok && data.success !== false) {
+                                    window.location.reload();
+                                    return;
+                                }
+                                this.photoError = data.message || (data.errors ? Object.values(data.errors).flat()[0] : 'Unable to update task status.');
+                                this.saving = false;
+                                return;
+                            }
+
                             if (response.ok) {
                                 window.location.reload();
+                                return;
                             } else {
                                 throw new Error('Server returned ' + response.status);
                             }
@@ -1212,9 +1285,11 @@
                 };
             }
         </script>
+        </div>
 
         <!-- 3rd Box: Material Requisition -->
-        @if(!in_array($project->current_status, ['Pending Verification', 'Completed']))
+        <div data-realtime-container="worker-job-bom" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif>
+        @if(!in_array($project->current_status, ['Completed', 'Cancelled', 'Rejected']))
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-7">
 
             <h3 class="text-gray-900 dark:text-white font-bold text-lg mb-2 flex items-center gap-2">
@@ -1246,16 +1321,21 @@
                                 </div>
                                 <div class="shrink-0">
                                     @if($isApproved)
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-extrabold rounded-md uppercase">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                            Approved
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 text-xs font-extrabold rounded-md uppercase">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                            Pending Admin Approval
-                                        </span>
-                                    @endif
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-extrabold rounded-md uppercase">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                        Approved
+                                    </span>
+                                @elseif($project->current_status === 'BOM Verified (Awaiting Client Approval)' || $project->request?->bom_status === 'awaiting_client')
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 text-xs font-extrabold rounded-md uppercase">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                                        Awaiting Client Approval
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 text-xs font-extrabold rounded-md uppercase">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                        Pending Verification
+                                    </span>
+                                @endif
                                 </div>
                             </div>
                         @endforeach
@@ -1264,29 +1344,152 @@
             @endif
 
             @if($project->current_status !== 'Completed' && $project->current_status !== 'Pending Verification')
-                @if($isTeamLeader)
-                    <!-- Team Leader Direct Fast-Track Button if BOM pending -->
-                    @if($project->billOfMaterials->whereNull('date_approved')->count() > 0 || in_array($project->current_status, ['Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)']))
-                        <div class="mb-5 p-4 bg-emerald-50/80 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div>
-                                <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    Team Leader On-Site Direct Override
+                {{-- Stage 1: Team Leader Verify & Submit to Client (Active when materials are requested but not yet submitted to client) --}}
+                @if($isTeamLeader && $project->billOfMaterials->count() > 0 && !in_array($project->current_status, ['BOM Verified (Awaiting Client Approval)', 'Awaiting Materials', 'In Progress', 'Completed', 'Cancelled', 'Rejected']) && $project->request?->bom_status !== 'awaiting_client' && $project->request?->bom_status !== 'approved')
+                    <div x-data="{ showTlVerifyModal: false, submittingTlVerify: false }" class="mb-5 p-4 sm:p-5 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-indigo-50/70 dark:from-blue-950/40 dark:via-zinc-900 dark:to-blue-950/30 border-2 border-blue-200 dark:border-blue-800/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+                        <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+                            <div class="w-10 h-10 rounded-xl bg-[#0038A8]/10 dark:bg-blue-400/10 border border-[#0038A8]/20 dark:border-blue-400/20 text-[#0038A8] dark:text-blue-400 flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-[#0038A8] dark:text-blue-300 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-[#0038A8] dark:bg-blue-400 animate-pulse"></span>
+                                    Team Leader Verification Required
                                 </h4>
-                                <p class="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
-                                    Did the client purchase or provide the requested materials directly to the team on-site?
+                                <p class="text-xs text-slate-600 dark:text-gray-300 mt-0.5 leading-relaxed">
+                                    The requested materials list is ready. As Team Leader, review the items above and submit the verified list to the client for sign-off.
                                 </p>
                             </div>
-                            <form action="{{ route('worker.bom.team-leader-approve', $project->project_id) }}" method="POST">
-                                @csrf
-                                <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 whitespace-nowrap">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                    Confirm Materials Received &amp; Start Work
-                                </button>
-                            </form>
+                        </div>
+                        <div class="shrink-0">
+                            <button type="button" 
+                                    @click="showTlVerifyModal = true" 
+                                    class="w-full sm:w-auto px-5 py-2.5 bg-[#0038A8] hover:bg-[#002480] active:scale-[0.99] text-white text-xs font-extrabold rounded-xl transition shadow-xs inline-flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer">
+                                <svg class="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                <span>Verify &amp; Submit List to Client</span>
+                            </button>
+                        </div>
+
+                        <!-- Modal: Confirm TL Verification & Submission to Client -->
+                        <div x-show="showTlVerifyModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+                             @keydown.escape.window="showTlVerifyModal = false">
+                            <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 text-left"
+                                 @click.outside="showTlVerifyModal = false">
+                                <div class="flex items-center gap-3.5">
+                                    <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center justify-center shrink-0">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-base font-extrabold text-slate-900 dark:text-white">Submit List to Client</h4>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Verification by Team Leader</p>
+                                    </div>
+                                </div>
+
+                                <p class="text-xs text-slate-600 dark:text-gray-300 leading-relaxed">
+                                    Have you verified all materials and quantities listed above? Submitting will notify the client immediately via email and in-app alert to review and approve the List of Materials.
+                                </p>
+
+                                <form action="{{ route('worker.bom.verify', $project->project_id) }}" method="POST"
+                                      @submit="submittingTlVerify = true"
+                                      class="flex items-center justify-end gap-3 pt-2">
+                                    @csrf
+                                    <button type="button" 
+                                            @click="showTlVerifyModal = false" 
+                                            class="px-4 py-2.5 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition cursor-pointer">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" 
+                                            :disabled="submittingTlVerify"
+                                            data-no-auto-loading
+                                            class="px-5 py-2.5 bg-[#0038A8] hover:bg-[#002480] text-white text-xs font-extrabold rounded-xl shadow-md inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                                        <svg x-show="submittingTlVerify" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <span x-text="submittingTlVerify ? 'Submitting...' : 'Confirm & Submit to Client'">Confirm &amp; Submit to Client</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Stage 2: Authorize on Client's Behalf (Active AFTER BOM is verified and awaiting client sign-off) --}}
+                @if($isTeamLeader && ($project->current_status === 'BOM Verified (Awaiting Client Approval)' || $project->request?->bom_status === 'awaiting_client'))
+                    <div x-data="{ showTlApproveModal: false, submittingTlApprove: false }" class="mb-5 p-4 sm:p-5 bg-emerald-50/80 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+                        <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    Authorize on Client's Behalf
+                                </h4>
+                                <p class="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5 leading-relaxed">
+                                    Did the client provide verbal or on-site approval for the requested materials? Authorize on their behalf to advance the order to <span class="font-bold underline decoration-emerald-500">Awaiting Materials</span>.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="shrink-0">
+                            <button type="button" 
+                                    @click="showTlApproveModal = true" 
+                                    class="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white text-xs font-extrabold rounded-xl transition shadow-xs inline-flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer">
+                                <svg class="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                <span>Approve BOM on Client's Behalf</span>
+                            </button>
+                        </div>
+
+                        <!-- Modal: Confirm TL Approval on Client's Behalf -->
+                        <div x-show="showTlApproveModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+                             @keydown.escape.window="showTlApproveModal = false">
+                            <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 text-left"
+                                 @click.outside="showTlApproveModal = false">
+                                <div class="flex items-center gap-3.5">
+                                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-base font-extrabold text-slate-900 dark:text-white">Approve List of Materials</h4>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Team Leader Authorization on Client's Behalf</p>
+                                    </div>
+                                </div>
+
+                                <p class="text-xs text-slate-600 dark:text-gray-300 leading-relaxed">
+                                    Are you sure you want to approve this List of Materials on behalf of the client? The project status will update to <span class="font-bold text-amber-600 dark:text-amber-400">Awaiting Materials</span>. Once materials arrive on site, you can confirm arrival to begin the work.
+                                </p>
+
+                                <form action="{{ route('worker.bom.team-leader-approve', $project->project_id) }}" method="POST"
+                                      @submit="submittingTlApprove = true"
+                                      class="flex items-center justify-end gap-3 pt-2">
+                                    @csrf
+                                    <button type="button" 
+                                            @click="showTlApproveModal = false" 
+                                            class="px-4 py-2.5 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition cursor-pointer">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" 
+                                            :disabled="submittingTlApprove"
+                                            data-no-auto-loading
+                                            class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-md inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                                        <svg x-show="submittingTlApprove" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <span x-text="submittingTlApprove ? 'Approving...' : 'Confirm Approval'">Confirm Approval</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Material Entry Form: Available to assigned crew members & TL --}}
+                @if(!in_array($project->current_status, ['Completed', 'Cancelled', 'Rejected']))
+                    @if($project->current_status === 'BOM Verified (Awaiting Client Approval)' || $project->request?->bom_status === 'awaiting_client')
+                        <div class="p-3.5 mb-3 bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 rounded-xl flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <p class="text-xs text-sky-800 dark:text-sky-300 font-medium">
+                                The initial List of Materials is pending client sign-off. You can append additional required items below if needed.
+                            </p>
                         </div>
                     @endif
-
                     <div x-data="{
                         submittingBOM: false,
                         rows: [
@@ -1427,7 +1630,13 @@
 
                         
                         <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                            @if($project->request?->isScheduleApproved())
+                            @php
+                                $canRequestMaterials = $project->request?->isScheduleApproved() 
+                                    || !empty($project->date_approved) 
+                                    || in_array($project->request?->current_status, ['Approved', 'In Progress', 'Pending', 'On Hold', 'Awaiting Materials'])
+                                    || ($project->request?->is_manpower ?? false);
+                            @endphp
+                            @if($canRequestMaterials)
                                 <button type="button" 
                                         @click="addRow()" 
                                         class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold hover:underline inline-flex items-center gap-1.5 cursor-pointer">
@@ -1442,7 +1651,7 @@
                                     <span x-text="submittingBOM ? 'Submitting...' : 'Submit Material Request'">Submit Material Request</span>
                                 </button>
                             @else
-                                <span class="text-xs text-gray-400 font-medium">Client must approve the visit schedule before materials can be requested.</span>
+                                <span class="text-xs text-gray-400 font-medium">Schedule or request approval is required before materials can be requested.</span>
                                 <button type="button" disabled class="w-full sm:w-auto bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 px-6 py-2.5 rounded-xl text-xs font-bold cursor-not-allowed inline-flex items-center justify-center gap-2 opacity-80">
                                     <span>Submit Material Request</span>
                                 </button>
@@ -1450,21 +1659,16 @@
                         </div>
                     </form>
                 </div>
-                @else
-                    <div class="p-4 bg-slate-50 dark:bg-zinc-800/40 rounded-xl border border-gray-200 dark:border-zinc-700 text-center">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                            <strong>Role Notice:</strong> Only the assigned <strong>Team Leader</strong> or GSO Admin is authorized to prepare and submit a List of Materials for this job order.
-                        </p>
-                    </div>
                 @endif
             @endif
         </div>
         @endif
+        </div>
 
     </div>
 
     <!-- The 2 Boxes on the Right Side (Job Details & Client Contact) -->
-    <div class="w-full md:w-80 lg:w-96 shrink-0 space-y-6">
+    <div data-realtime-container="worker-job-sidebar" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif class="w-full md:w-80 lg:w-96 shrink-0 space-y-6">
         <!-- Job Details Card -->
         <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xs p-6">
             <h3 class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-4 border-b border-gray-100 dark:border-zinc-800 pb-2">JOB DETAILS</h3>

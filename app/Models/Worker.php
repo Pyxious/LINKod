@@ -73,19 +73,71 @@ class Worker extends Model
         return $isAvailable;
     }
 
-    public function isTeamLeader(): bool
+    public function teams(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        if ($this->staff?->role === 'Team Leader') {
+        return $this->belongsToMany(Team::class, 'team_worker', 'worker_id', 'team_id');
+    }
+
+    public function belongsToTeam(int $teamId): bool
+    {
+        if ($this->relationLoaded('teams')) {
+            return $this->teams->contains('team_id', $teamId);
+        }
+
+        return $this->teams()->where('team.team_id', $teamId)->exists() || $this->team_id === $teamId;
+    }
+
+    protected static ?array $teamLeaderStaffMap = null;
+
+    protected static function getTeamLeaderStaffMap(): array
+    {
+        if (static::$teamLeaderStaffMap !== null) {
+            return static::$teamLeaderStaffMap;
+        }
+
+        static::$teamLeaderStaffMap = \Illuminate\Support\Facades\Cache::remember('team_leader_staff_map', 120, function () {
+            return Team::with('leader')
+                ->get()
+                ->mapWithKeys(fn(Team $t) => [(int) $t->team_id => $t->leader?->staff_id ? (int) $t->leader->staff_id : null])
+                ->all();
+        });
+
+        return static::$teamLeaderStaffMap;
+    }
+
+    public function isTeamLeader(?int $teamId = null): bool
+    {
+        if ($this->relationLoaded('staff') && $this->staff?->role === 'Team Leader') {
             return true;
         }
 
-        if ($this->staff && \App\Models\TeamLeader::where('staff_id', $this->staff_id)->exists()) {
-            return true;
+        if (!$this->staff_id) {
+            return false;
         }
 
-        if ($this->team_id && $this->team && $this->staff) {
-            $tl = \App\Models\TeamLeader::find($this->team->team_leader);
-            if ($tl && $tl->staff_id === $this->staff_id) {
+        $leaderMap = static::getTeamLeaderStaffMap();
+        $staffId = (int) $this->staff_id;
+
+        // If checking for a specific team
+        if ($teamId !== null) {
+            if (!$this->belongsToTeam($teamId)) {
+                return false;
+            }
+
+            return ($leaderMap[$teamId] ?? null) === $staffId;
+        }
+
+        // Otherwise check if worker leads ANY unit they currently belong to
+        $assignedTeamIds = $this->relationLoaded('teams')
+            ? $this->teams->pluck('team_id')->toArray()
+            : ($this->team_id ? [$this->team_id] : $this->teams()->pluck('team.team_id')->toArray());
+
+        if (empty($assignedTeamIds) && $this->team_id) {
+            $assignedTeamIds = [$this->team_id];
+        }
+
+        foreach ($assignedTeamIds as $tId) {
+            if (($leaderMap[(int) $tId] ?? null) === $staffId) {
                 return true;
             }
         }

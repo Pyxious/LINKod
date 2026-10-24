@@ -3,7 +3,7 @@
 @section('page-title', 'List of Materials')
 
 @section('content')
-<div class="w-full max-w-4xl mx-auto space-y-6 font-sans">
+<div data-realtime-container="client-bom-show" data-realtime-project-id="{{ $project->project_id }}" @if($project->request_id) data-realtime-request-id="{{ $project->request_id }}" @endif class="w-full max-w-4xl mx-auto space-y-6 font-sans">
     
     <!-- Top Header Banner -->
     <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-6 sm:px-8 py-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -41,6 +41,12 @@
             <span>Itemized Materials & Supplies</span>
         </h2>
 
+        @php
+            $isAwaitingClientApproval = $project->request?->bom_status === 'awaiting_client'
+                || $project->request?->current_status === 'BOM Verified (Awaiting Client Approval)';
+
+            $clientMaterials = $project->billOfMaterials->filter(fn($b) => !is_null($b->date_approved));
+        @endphp
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
@@ -52,7 +58,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
-                    @forelse($project->billOfMaterials as $bom)
+                    @forelse($clientMaterials as $bom)
                         @php
                             $unit = $bom->material->unit_of_measurement ?? 'pcs';
                             $isApproved = !is_null($bom->date_approved);
@@ -70,16 +76,20 @@
                                 {{ rtrim(rtrim(number_format($bom->qty, 2), '0'), '.') }}
                             </td>
                             <td class="py-3 px-3 text-center">
-                                @if($isApproved)
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">Approved</span>
+                                @if($isAwaitingClientApproval)
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 uppercase">
+                                        Verified
+                                    </span>
                                 @else
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 uppercase">Pending Review</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
+                                        Approved
+                                    </span>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="py-8 text-center text-gray-400 italic">No materials recorded yet for this project.</td>
+                            <td colspan="4" class="py-8 text-center text-gray-400 italic">No verified materials recorded yet for this project.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -88,7 +98,7 @@
 
         <div class="mt-5 pt-3 border-t border-gray-200 dark:border-zinc-800 flex items-center justify-between bg-gray-50 dark:bg-zinc-800/50 p-4 rounded-xl">
             <span class="text-xs font-bold text-slate-700 dark:text-gray-300">Total Listed Items:</span>
-            <span class="text-base font-black text-[#0033a0] dark:text-blue-400">{{ $project->billOfMaterials->count() }} item(s)</span>
+            <span class="text-base font-black text-[#0033a0] dark:text-blue-400">{{ $clientMaterials->count() }} item(s)</span>
         </div>
     </div>
 

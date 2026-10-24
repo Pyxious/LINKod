@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth scroll-pt-16">
+<html lang="en" class="scroll-smooth scroll-pt-16 overflow-x-hidden max-w-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -31,9 +31,9 @@
     </script>
     @stack('styles')
 </head>
-<body class="bg-[#e8eef7] dark:bg-[#111111] min-h-screen text-slate-800 dark:text-gray-200 antialiased flex flex-col transition-colors duration-200">
+<body class="bg-[#e8eef7] dark:bg-[#111111] min-h-screen text-slate-800 dark:text-gray-200 antialiased flex flex-col transition-colors duration-200 w-full max-w-full overflow-x-hidden">
     <!-- Top Nav -->
-    <nav class="bg-white dark:bg-[#18181b] border-b border-gray-200 dark:border-zinc-800 h-16 flex items-center justify-between px-6 md:px-12 sticky top-0 z-50 shadow-sm">
+    <nav class="w-full max-w-full bg-white dark:bg-[#18181b] border-b border-gray-200 dark:border-zinc-800 h-16 flex items-center justify-between px-4 sm:px-6 md:px-12 sticky top-0 z-50 shadow-sm">
         <!-- Left: Logo with clickable blue BU-GSO -->
         <a href="{{ route('home') }}" class="flex items-center gap-2.5 group cursor-pointer" title="Return to Home">
             <span class="text-[#0033a0] dark:text-blue-400 font-extrabold text-base sm:text-lg tracking-tight group-hover:opacity-85 transition">BU-GSO</span>
@@ -151,18 +151,26 @@
 
         @php
             $clientUser = auth()->user();
-            $clientId = $clientUser?->client?->client_id;
             if ($clientUser) {
-                $navNotifications      = $clientUser->notifications()->latest('sent_at')->take(20)->get();
-                $navUnreadCount        = $navNotifications->where('is_read', false)->count();
-                $navRequestUnreadCount = $navNotifications->where('type', '!=', 'new_message')->where('is_read', false)->count();
-                $navMessageUnreadCount = $navNotifications->where('type', 'new_message')->where('is_read', false)->count();
-                $clientUnreadMessagesCount = \App\Models\RequestMessage::where('is_read', false)
-                    ->where('sender_id', '!=', $clientUser->user_id)
-                    ->whereHas('serviceRequest', function($q) use ($clientId) {
-                        if ($clientId) $q->where('client_id', $clientId);
-                    })
-                    ->count();
+                $navData = \Illuminate\Support\Facades\Cache::remember('user_nav_data_' . $clientUser->user_id, 45, function () use ($clientUser) {
+                    $clientId = $clientUser->client?->client_id;
+                    $notifs = $clientUser->notifications()->latest('sent_at')->take(20)->get();
+                    $unreadMsgs = \App\Models\RequestMessage::where('is_read', false)
+                        ->where('sender_id', '!=', $clientUser->user_id)
+                        ->whereHas('serviceRequest', function($q) use ($clientId) {
+                            if ($clientId) $q->where('client_id', $clientId);
+                        })
+                        ->count();
+
+                    return [
+                        'navNotifications'          => $notifs,
+                        'navUnreadCount'            => $notifs->where('is_read', false)->count(),
+                        'navRequestUnreadCount'     => $notifs->where('type', '!=', 'new_message')->where('is_read', false)->count(),
+                        'navMessageUnreadCount'     => $notifs->where('type', 'new_message')->where('is_read', false)->count(),
+                        'clientUnreadMessagesCount' => $unreadMsgs,
+                    ];
+                });
+                extract($navData);
             } else {
                 $navNotifications = collect();
                 $navUnreadCount = 0;
@@ -541,14 +549,14 @@
     @endauth
 
     <!-- Main Content -->
-    <main class="flex-1 @hasSection('fullwidth') @else flex flex-col items-center justify-center @endif min-h-[calc(100vh-56px)]">
+    <main class="w-full max-w-full min-w-0 flex-1 @hasSection('fullwidth') @else flex flex-col items-center justify-center @endif min-h-[calc(100vh-56px)]">
         @yield('content')
     </main>
 
     <!-- Footer -->
-    <footer class="w-full mt-auto flex flex-col font-sans">
+    <footer class="w-full max-w-full mt-auto flex flex-col font-sans">
         <!-- Main Footer -->
-        <div class="bg-[#041a40] text-white py-12 px-6 md:px-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 text-xs">
+        <div class="w-full max-w-full bg-[#041a40] text-white py-12 px-6 md:px-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 text-xs">
             <!-- Col 1: Brand -->
             <div class="flex flex-col items-start">
                 <div class="flex items-center gap-3 mb-2">
@@ -601,7 +609,7 @@
         </div>
 
         <!-- Bottom Bar -->
-        <div class="bg-[#020d24] py-3 text-center text-gray-300 text-[11px]">
+        <div class="w-full bg-[#020d24] py-3 text-center text-gray-300 text-[11px] px-4">
             © 2026 Bicol University – General Services Office. All rights reserved.
         </div>
     </footer>

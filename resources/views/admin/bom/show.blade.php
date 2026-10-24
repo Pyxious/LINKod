@@ -6,7 +6,7 @@
 <div class="w-full max-w-6xl mx-auto space-y-6 font-sans">
     
     <!-- Top Header Banner -->
-    <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-6 sm:px-8 py-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div data-realtime-container="admin-bom-show-header" data-realtime-project-id="{{ $project->project_id }}" @if($project->request_id) data-realtime-request-id="{{ $project->request_id }}" @endif class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-6 sm:px-8 py-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <div class="flex items-center gap-3 mb-2 flex-wrap">
                 <span class="px-3 py-1 bg-[#0033a0] text-white text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-sm">
@@ -48,12 +48,17 @@
     </div>
 
 @php
-    $nonEditableStatuses = ['Cancelled', 'Rejected'];
-    $isBomEditable = !in_array($project->current_status, $nonEditableStatuses) 
+    $nonEditableStatuses = ['Completed', 'Cancelled', 'Rejected'];
+    $isRequestAccepted = $project->request ? $project->request->isAccepted() : !empty($project->date_approved);
+    $isBomEditable = $isRequestAccepted
+                  && !in_array($project->current_status, $nonEditableStatuses) 
                   && !in_array($project->request?->current_status, $nonEditableStatuses);
+    $hasWorkerRequestedBom = $project->billOfMaterials->contains(fn($b) => ($b->createdBy?->user?->role ?? '') === 'worker');
+    $approveBomBtnText = $hasWorkerRequestedBom ? 'Verify & Forward to Client for Approval' : 'Approve List of Materials';
 @endphp
 
     <!-- Main Materials Table Form Area -->
+    <div data-realtime-container="admin-bom-show-table" data-realtime-project-id="{{ $project->project_id }}" @if($project->request_id) data-realtime-request-id="{{ $project->request_id }}" @endif>
     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-7 shadow-sm"
          x-data="{
              items: {{ Js::from($project->billOfMaterials->map(fn($b) => [
@@ -180,7 +185,7 @@
                                 :disabled="submitting" 
                                 class="w-full sm:w-auto px-8 py-3 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-sm font-bold transition shadow-md inline-flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer">
                             <svg x-show="submitting" x-cloak class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            <span x-text="submitting ? 'Saving...' : 'Verify & Forward to Client for Approval'">Verify & Forward to Client for Approval</span>
+                            <span x-text="submitting ? 'Saving...' : '{{ $approveBomBtnText }}'">{{ $approveBomBtnText }}</span>
                         </button>
                     @endif
                 </div>
@@ -203,6 +208,7 @@
                 <p class="text-xs text-gray-400 mt-1">You can add materials manually using the form below.</p>
             </div>
         @endif
+    </div>
     </div>
 
     @if($isBomEditable)

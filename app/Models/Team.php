@@ -25,9 +25,14 @@ class Team extends Model
         return $this->belongsTo(TeamLeader::class, 'team_leader', 'leader_id');
     }
 
-    public function workers()
+    public function teamLeader()
     {
-        return $this->hasMany(Worker::class, 'team_id', 'team_id');
+        return $this->belongsTo(TeamLeader::class, 'team_leader', 'leader_id');
+    }
+
+    public function workers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Worker::class, 'team_worker', 'team_id', 'worker_id');
     }
 
     public function getIconUrlAttribute(): string

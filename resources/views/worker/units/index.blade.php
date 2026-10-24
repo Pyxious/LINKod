@@ -16,6 +16,21 @@
     </div>
 </div>
 
+@if(isset($teams) && $teams->count() > 1)
+<div class="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
+    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0 mr-1">My Units:</span>
+    @foreach($teams as $t)
+        <a href="{{ route('worker.units.index', ['unit' => $t->team_id]) }}"
+           class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 {{ $t->team_id === $team->team_id ? 'bg-[#0033a0] text-white shadow-sm' : 'bg-white dark:bg-[#1c1c1e] text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-zinc-800 hover:border-[#0033a0]' }}">
+            <span>{{ $t->team_name }}</span>
+            @if($t->team_leader && $t->leader && $t->leader->staff_id === auth()->user()->staff?->staff_id)
+                <span class="px-1.5 py-0.2 text-[9px] font-black uppercase rounded {{ $t->team_id === $team->team_id ? 'bg-white text-[#0033a0]' : 'bg-blue-100 text-[#0038A8]' }}">Leader</span>
+            @endif
+        </a>
+    @endforeach
+</div>
+@endif
+
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- 1. Assigned Unit Info -->
     <div class="space-y-3">

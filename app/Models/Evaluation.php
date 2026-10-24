@@ -22,6 +22,17 @@ class Evaluation extends Model
         'rated_by_admin'    => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(function (self $evaluation) {
+            \App\Events\RequestUpdated::broadcastUpdate((int) $evaluation->request_id, null, 'evaluation_saved');
+        });
+
+        static::deleted(function (self $evaluation) {
+            \App\Events\RequestUpdated::broadcastUpdate((int) $evaluation->request_id, null, 'evaluation_deleted');
+        });
+    }
+
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id', 'client_id');

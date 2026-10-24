@@ -244,6 +244,8 @@ class RequestTable extends Component
             });
         }
 
+        $isDateDefaultStatus = in_array($this->status, ['Completed', 'all'], true);
+
         if ($this->sortField === 'priority') {
             $dir = strtoupper($this->sortDirection) === 'DESC' ? 'DESC' : 'ASC';
             $query->orderByRaw("CASE WHEN LOWER(priority) IN ('high', 'urgent') THEN 1 ELSE 2 END {$dir}")
@@ -251,7 +253,7 @@ class RequestTable extends Component
                   ->orderBy('request_id', 'asc');
         } elseif ($this->sortField === 'submitted_at') {
             $dateDir = strtoupper($this->sortDirection) === 'DESC' ? 'DESC' : 'ASC';
-            if ($this->status === 'Completed') {
+            if ($isDateDefaultStatus) {
                 $query->orderBy('submitted_at', $dateDir)
                       ->orderBy('request_id', $dateDir);
             } else {
@@ -274,22 +276,26 @@ class RequestTable extends Component
                 ->latest('history_id')
                 ->limit(1);
 
-            if ($this->status === 'Completed') {
-                $query->orderBy($statusSub, $dir);
+            if ($isDateDefaultStatus) {
+                $query->orderBy($statusSub, $dir)
+                      ->orderBy('submitted_at', 'desc')
+                      ->orderBy('request_id', 'desc');
             } else {
                 $query->orderByRaw("CASE WHEN LOWER(priority) IN ('high', 'urgent') THEN 1 ELSE 2 END ASC")
                       ->orderBy($statusSub, $dir);
             }
         } elseif (in_array($this->sortField, ['request_id', 'title', 'campus', 'location'])) {
-            if ($this->status === 'Completed') {
-                $query->orderBy($this->sortField, $this->sortDirection);
+            if ($isDateDefaultStatus) {
+                $query->orderBy($this->sortField, $this->sortDirection)
+                      ->orderBy('submitted_at', 'desc')
+                      ->orderBy('request_id', 'desc');
             } else {
                 $query->orderByRaw("CASE WHEN LOWER(priority) IN ('high', 'urgent') THEN 1 ELSE 2 END ASC")
                       ->orderBy($this->sortField, $this->sortDirection);
             }
         } else {
-            if ($this->status === 'Completed') {
-                // Completed sorting: No need to follow urgent on top!
+            if ($isDateDefaultStatus) {
+                // Completed & All Statuses sorting: Sort by date as default without pinning urgent on top
                 $query->orderBy('submitted_at', 'desc')
                       ->orderBy('request_id', 'desc');
             } else {
@@ -303,25 +309,36 @@ class RequestTable extends Component
         $requests = $query->paginate(15);
         ServiceRequest::warmRecurringCounts($requests->getCollection());
 
-        // KPI metrics cached for 60 seconds to avoid repeating heavy count queries and self-joins on every render
-        $kpis = Cache::remember('admin_requests_table_kpis', 60, function () {
+        // KPI metrics cached for 180 seconds (busted immediately on any request update)
+        $kpis = Cache::remember('admin_requests_table_kpis', 180, function () {
             $totalRequests = ServiceRequest::count();
-            $submitted = ServiceRequest::where(function($q) {
-                $q->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Submitted'))
-                  ->orWhereDoesntHave('histories');
-            })->count();
-            $awaitingMaterials = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', [
-                'Awaiting Materials',
-                'Awaiting Verification of Bill of Materials',
-                'BOM Verified (Awaiting Client Approval)',
-                'On Hold',
-            ]))->count();
-            $inProgress = ServiceRequest::whereHas('latestHistory', fn($q) => $q->whereIn('current_status', ['In Progress', 'Pending Verification']))->count();
-            
-            $completedBase = ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'));
-            $completed = (clone $completedBase)->count();
-            $completedRated = (clone $completedBase)->whereHas('evaluation')->count();
-            $completedNotRated = (clone $completedBase)->whereDoesntHave('evaluation')->count();
+
+            $statusCounts = \App\Models\RequestHistory::whereIn('history_id', function ($sub) {
+                $sub->selectRaw('MAX(history_id)')->from('request_history')->groupBy('request_id');
+            })
+            ->whereHas('request')
+            ->selectRaw('current_status, COUNT(*) as total')
+            ->groupBy('current_status')
+            ->pluck('total', 'current_status');
+
+            $noHistoryCount = max(0, $totalRequests - (int) $statusCounts->sum());
+            $submitted = (int) ($statusCounts['Submitted'] ?? 0) + $noHistoryCount;
+
+            $awaitingMaterials = (int) ($statusCounts['Awaiting Materials'] ?? 0)
+                + (int) ($statusCounts['Awaiting Verification of Bill of Materials'] ?? 0)
+                + (int) ($statusCounts['BOM Verified (Awaiting Client Approval)'] ?? 0)
+                + (int) ($statusCounts['On Hold'] ?? 0);
+
+            $inProgress = (int) ($statusCounts['In Progress'] ?? 0)
+                + (int) ($statusCounts['Pending Verification'] ?? 0);
+
+            $completed = (int) ($statusCounts['Completed'] ?? 0);
+            $completedRated = $completed > 0
+                ? ServiceRequest::whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))
+                    ->whereHas('evaluation')
+                    ->count()
+                : 0;
+            $completedNotRated = max(0, $completed - $completedRated);
 
             $recurringCount = ServiceRequest::recurring()->count();
 

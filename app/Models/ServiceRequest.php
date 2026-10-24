@@ -23,6 +23,17 @@ class ServiceRequest extends Model
         'scheduled_date' => 'date',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(function (self $request) {
+            \App\Events\RequestUpdated::broadcastUpdate((int) $request->request_id, null, 'request_saved');
+        });
+
+        static::deleted(function (self $request) {
+            \App\Events\RequestUpdated::broadcastUpdate((int) $request->request_id, null, 'request_deleted');
+        });
+    }
+
     public function getIsUrgentAttribute(): bool
     {
         return in_array(strtolower($this->priority ?? ''), ['urgent', 'high']);
@@ -50,9 +61,32 @@ class ServiceRequest extends Model
         return $this->scheduled_date->format('M j, Y') . ' • ' . $windowText;
     }
 
+    public function isAccepted(): bool
+    {
+        if (in_array($this->current_status, ['Submitted', 'Pending', 'Schedule Set', 'Schedule Refused', 'Cancelled', 'Rejected'])) {
+            return false;
+        }
+
+        if (!$this->project) {
+            return false;
+        }
+
+        return !empty($this->project->date_approved) || in_array($this->current_status, [
+            'Approved',
+            'Schedule Confirmed',
+            'Awaiting Verification of Bill of Materials',
+            'BOM Verified (Awaiting Client Approval)',
+            'Awaiting Materials',
+            'In Progress',
+            'On Hold',
+            'Pending Verification',
+            'Completed',
+        ]);
+    }
+
     public function isScheduleApproved(): bool
     {
-        return !empty($this->scheduled_date) && $this->schedule_status === 'approved';
+        return (!empty($this->scheduled_date) && $this->schedule_status === 'approved') || $this->isAccepted();
     }
 
     public function client()
@@ -114,6 +148,7 @@ class ServiceRequest extends Model
     }
 
     public static array $recurringCountsCache = [];
+    public static array $monthRowsCache = [];
     public ?int $cachedRecurringCount = null;
 
     /**
@@ -127,14 +162,14 @@ class ServiceRequest extends Model
 
         foreach ($requests as $req) {
             if ($req instanceof self) {
-                $count = $req->recurring_count;
-                $req->cachedRecurringCount = $count;
+                $req->cachedRecurringCount = $req->recurring_count;
             }
         }
     }
 
     /**
-     * Get total count of requests with the same or similar description in the same calendar month
+     * Get total count of requests with the same or similar description in the same calendar month.
+     * Uses a single cached query per calendar month instead of 15 per-row COUNT(*) queries.
      */
     public function getRecurringCountAttribute(): int
     {
@@ -156,26 +191,39 @@ class ServiceRequest extends Model
         $date = $this->submitted_at;
         $cleanDesc = trim(strtolower($rawDesc));
         $prefix = substr($cleanDesc, 0, min(30, strlen($cleanDesc)));
-        $cacheKey = $date->format('Y-m') . ':' . md5($prefix);
+        $ym = $date->format('Y-m');
+        $cacheKey = $ym . ':' . md5($cleanDesc);
 
         if (isset(static::$recurringCountsCache[$cacheKey])) {
             return $this->cachedRecurringCount = static::$recurringCountsCache[$cacheKey];
         }
 
-        $count = \Illuminate\Support\Facades\Cache::remember("req_rec_count_{$cacheKey}", 300, function () use ($date, $cleanDesc, $prefix) {
-            return static::whereMonth('submitted_at', $date->month)
-                ->whereYear('submitted_at', $date->year)
-                ->where(function($q) use ($cleanDesc, $prefix) {
-                    $q->whereRaw('LOWER(TRIM(description)) = ?', [$cleanDesc])
-                      ->orWhereRaw('LOWER(TRIM(title)) = ?', [$cleanDesc]);
-                    if (strlen($prefix) >= 5) {
-                        $q->orWhereRaw('LOWER(description) LIKE ?', ["%{$prefix}%"])
-                          ->orWhereRaw('LOWER(title) LIKE ?', ["%{$prefix}%"]);
-                    }
-                })
-                ->count();
-        });
+        if (!isset(static::$monthRowsCache[$ym])) {
+            static::$monthRowsCache[$ym] = \Illuminate\Support\Facades\Cache::remember("req_rec_month_rows_{$ym}", 300, function () use ($date) {
+                return static::whereYear('submitted_at', $date->year)
+                    ->whereMonth('submitted_at', $date->month)
+                    ->get(['title', 'description'])
+                    ->map(fn($r) => [
+                        'title' => strtolower(trim($r->title ?? '')),
+                        'desc'  => strtolower(trim($r->description ?? '')),
+                    ])
+                    ->all();
+            });
+        }
 
+        $count = 0;
+        $hasPrefix = strlen($prefix) >= 5;
+        foreach (static::$monthRowsCache[$ym] as $row) {
+            if (
+                $row['desc'] === $cleanDesc ||
+                $row['title'] === $cleanDesc ||
+                ($hasPrefix && (str_contains($row['desc'], $prefix) || str_contains($row['title'], $prefix)))
+            ) {
+                $count++;
+            }
+        }
+
+        $count = max(1, $count);
         static::$recurringCountsCache[$cacheKey] = $count;
         return $this->cachedRecurringCount = $count;
     }
@@ -249,7 +297,7 @@ class ServiceRequest extends Model
                 if (($data['type'] ?? '') === 'janitorial' || isset($data['janitorial_areas'])) {
                     return false;
                 }
-                if (isset($data['prep_details']) || isset($data['assistance_details']) || isset($data['clearing_details']) || isset($data['activity_title']) || isset($data['event_date'])) {
+                if (isset($data['prep_details']) || isset($data['assistance_details']) || isset($data['clearing_details']) || isset($data['activity_title']) || isset($data['event_date']) || isset($data['venue']) || ($data['type'] ?? '') === 'manpower') {
                     return true;
                 }
             }
@@ -268,14 +316,7 @@ class ServiceRequest extends Model
             }
         }
 
-        $manpowerKeywords = ['event', 'venue setup', 'relocation', 'furniture', 'hauling', 'manpower', 'stage', 'table / chair', 'bulympics'];
-        foreach ($manpowerKeywords as $kw) {
-            if (str_contains($titleLower, $kw)) {
-                return true;
-            }
-        }
-
-        return false;
+        return true;
     }
 
     public function getIsJanitorialAttribute(): bool

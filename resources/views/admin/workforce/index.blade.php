@@ -33,7 +33,7 @@
     </div>
     <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-5 shadow-2xs">
         <div class="text-[#254378] dark:text-blue-300 text-sm font-semibold mb-2">Unassigned</div>
-        <div class="text-[#042B74] dark:text-white text-3xl font-bold leading-none">{{ $workers->whereNull('team_id')->count() }}</div>
+        <div class="text-[#042B74] dark:text-white text-3xl font-bold leading-none">{{ $workers->filter(fn($w) => $w->teams->isEmpty() && empty($w->team_id))->count() }}</div>
     </div>
 </div>
 
@@ -210,7 +210,11 @@
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
                 @foreach($workers as $worker)
-                <tr class="hover:bg-gray-50/70 dark:hover:bg-zinc-800/50 transition worker-row" data-team="{{ $worker->team_id ?? 'unassigned' }}">
+                @php
+                    $wTeams = $worker->teams->isNotEmpty() ? $worker->teams : ($worker->team ? collect([$worker->team]) : collect());
+                    $teamIdsCsv = $wTeams->pluck('team_id')->join(',');
+                @endphp
+                <tr class="hover:bg-gray-50/70 dark:hover:bg-zinc-800/50 transition worker-row" data-teams="{{ $teamIdsCsv }}" data-team="{{ $teamIdsCsv ?: 'unassigned' }}">
                     <!-- Worker Info -->
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
@@ -228,16 +232,21 @@
 
                     <!-- Team Column -->
                     <td class="px-6 py-4">
-                        @if($worker->team)
-                            <div class="flex items-center gap-2">
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-[#0038A8] border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800">
-                                    {{ $worker->team->team_name }}
-                                </span>
-                                @if($worker->team->teamLeader && $worker->team->teamLeader->staff_id === $worker->staff_id)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-[#0038A8] border border-blue-200 dark:bg-blue-950/80 dark:text-blue-300">
-                                        Leader
+                        @if($wTeams->isNotEmpty())
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                @foreach($wTeams as $wt)
+                                    @php
+                                        $isLeaderInThisTeam = ($wt->team_leader && $wt->leader && $wt->leader->staff_id === $worker->staff_id);
+                                    @endphp
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold {{ $isLeaderInThisTeam ? 'bg-blue-100 text-[#0038A8] border border-blue-300 dark:bg-blue-900/60 dark:text-blue-200' : 'bg-blue-50 text-[#0038A8] border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800' }}">
+                                        <span>{{ $wt->team_name }}</span>
+                                        @if($isLeaderInThisTeam)
+                                            <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-[#0038A8] text-white">
+                                                Leader
+                                            </span>
+                                        @endif
                                     </span>
-                                @endif
+                                @endforeach
                             </div>
                         @else
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200 dark:bg-zinc-800 dark:text-gray-400 dark:border-zinc-700">
@@ -304,13 +313,13 @@
                         <div class="flex items-center justify-end gap-2">
                             <!-- Assign / Change Team Button -->
                             <button
-                                onclick="openAssignModal({{ $worker->worker_id }}, '{{ addslashes($worker->staff->user->first_name ?? 'Worker') }} {{ addslashes($worker->staff->user->last_name ?? '') }}', {{ $worker->team_id ?? 'null' }})"
+                                onclick="openAssignModal({{ $worker->worker_id }}, '{{ addslashes($worker->staff->user->first_name ?? 'Worker') }} {{ addslashes($worker->staff->user->last_name ?? '') }}', {{ json_encode($wTeams->pluck('team_id')->toArray()) }})"
                                 class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0038A8] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-[#0038A8] hover:text-white dark:hover:bg-blue-600 px-3 py-1.5 rounded-lg border border-[#0038A8]/20 transition cursor-pointer"
                             >
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 </svg>
-                                {{ $worker->team ? 'Change Team' : 'Assign Team' }}
+                                {{ $wTeams->isNotEmpty() ? 'Manage Units' : 'Assign Unit' }}
                             </button>
                         </div>
                     </td>
@@ -340,15 +349,15 @@
 
             <div class="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-zinc-800 bg-[#FFFDE6] dark:bg-[#18181b]">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-blue-100 text-[#0038A8] font-bold flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-[#0038A8] dark:text-blue-400 font-bold flex items-center justify-center">
                         👥
                     </div>
                     <div>
-                        <h3 class="text-[#042B74] dark:text-blue-400 font-bold text-base">Assign Team / Unit</h3>
+                        <h3 class="text-[#042B74] dark:text-blue-400 font-bold text-base">Assign Units / Sections</h3>
                         <p id="modalWorkerName" class="text-gray-500 text-xs mt-0.5"></p>
                     </div>
                 </div>
-                <button onclick="closeAssignModal()" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-amber-100/60 dark:hover:bg-zinc-800 text-gray-400 hover:text-gray-600 transition">
+                <button type="button" onclick="closeAssignModal()" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-amber-100/60 dark:hover:bg-zinc-800 text-gray-400 hover:text-gray-600 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -358,38 +367,35 @@
             <form id="assignTeamForm" method="POST">
                 @csrf
                 <div class="px-6 py-5">
-                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-3">Select Unit</label>
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">Select Units</label>
+                        <span class="text-[11px] text-[#0038A8] dark:text-blue-400 font-semibold">Multiple units supported</span>
+                    </div>
 
                     <div class="space-y-2 max-h-64 overflow-y-auto pr-1" id="teamOptionsList">
                         @foreach($teams as $team)
-                        <label class="team-option-label flex items-center gap-4 p-3.5 rounded-xl border border-gray-200 dark:border-zinc-800 cursor-pointer hover:border-[#0038A8] hover:bg-blue-50/50 transition-all has-[:checked]:border-[#0038A8] has-[:checked]:bg-blue-50/50"
+                        <label class="team-option-label flex items-center gap-3.5 p-3 rounded-xl border border-gray-200 dark:border-zinc-800 cursor-pointer hover:border-[#0038A8] hover:bg-blue-50/40 transition-all has-[:checked]:border-[#0038A8] has-[:checked]:bg-blue-50/50 dark:has-[:checked]:bg-blue-950/30"
                             data-team-id="{{ $team->team_id }}">
-                            <input type="radio" name="team_id" value="{{ $team->team_id }}" class="sr-only team-radio">
-                            <div class="w-9 h-9 rounded-lg bg-blue-50/80 dark:bg-zinc-800 border border-blue-100 dark:border-zinc-700 flex items-center justify-center shrink-0 p-1.5 overflow-hidden">
-                                <img src="{{ $team->icon_url }}" alt="{{ $team->team_name }}" class="w-6 h-6 object-contain">
+                            <input type="checkbox" name="team_ids[]" value="{{ $team->team_id }}" class="team-checkbox w-4 h-4 rounded text-[#0038A8] border-gray-300 focus:ring-[#0038A8]">
+                            <div class="w-8 h-8 rounded-lg bg-blue-50/80 dark:bg-zinc-800 border border-blue-100 dark:border-zinc-700 flex items-center justify-center shrink-0 p-1 overflow-hidden">
+                                <img src="{{ $team->icon_url }}" alt="{{ $team->team_name }}" class="w-5 h-5 object-contain">
                             </div>
                             <div class="flex-1 min-w-0">
-                                <div class="text-xs font-bold text-gray-900 dark:text-white">{{ $team->team_name }}</div>
+                                <div class="text-xs font-bold text-gray-900 dark:text-white truncate">{{ $team->team_name }}</div>
                                 <div class="text-[11px] text-gray-400 mt-0.5">
                                     {{ $team->skilled_workers }} worker(s) · Leader: {{ $team->leader_name }}
                                 </div>
-                            </div>
-                            <div class="shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center team-radio-dot transition-all">
-                                <div class="w-2.5 h-2.5 rounded-full bg-[#0038A8] scale-0 transition-transform team-radio-fill"></div>
                             </div>
                         </label>
                         @endforeach
                     </div>
 
-                    <label class="flex items-center gap-4 p-3.5 rounded-xl border border-gray-200 dark:border-zinc-800 cursor-pointer hover:border-red-300 hover:bg-red-50/50 transition-all has-[:checked]:border-red-400 has-[:checked]:bg-red-50 mt-2"
-                        id="removeTeamLabel" style="display:none">
-                        <input type="radio" name="team_id" value="" class="sr-only">
-                        <div class="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center text-lg shrink-0">🚫</div>
-                        <div class="flex-1">
-                            <div class="text-xs font-bold text-red-600">Remove from unit</div>
-                            <div class="text-[11px] text-gray-400 mt-0.5">Worker will be marked as unassigned</div>
-                        </div>
-                    </label>
+                    <div class="mt-3 pt-3 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between">
+                        <button type="button" onclick="clearAllUnitCheckboxes()" class="text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 transition cursor-pointer flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            <span>Uncheck all (Remove from all units)</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex gap-3 px-6 pb-6 pt-2 border-t border-gray-100 dark:border-zinc-800">
@@ -399,7 +405,7 @@
                     </button>
                     <button type="submit" id="assignSubmitBtn"
                         class="flex-1 px-4 py-2.5 rounded-xl bg-[#0038A8] text-white text-xs font-semibold hover:bg-[#002B82] transition shadow-2xs flex items-center justify-center gap-2">
-                        Assign Team
+                        Save Units
                     </button>
                 </div>
             </form>
@@ -613,8 +619,13 @@
                 row.style.display = '';
                 return;
             }
-            const rowTeam = row.dataset.team;
-            row.style.display = (rowTeam == val) ? '' : 'none';
+            const teamsStr = row.dataset.teams || '';
+            const rowTeams = teamsStr.split(',').map(s => s.trim()).filter(Boolean);
+            if (val === 'unassigned') {
+                row.style.display = (rowTeams.length === 0) ? '' : 'none';
+            } else {
+                row.style.display = rowTeams.includes(val) ? '' : 'none';
+            }
         });
     }
 
@@ -670,23 +681,23 @@
         }, 180);
     }
 
-    // Assign Team Modal
-    function openAssignModal(workerId, workerName, currentTeamId) {
-        const modal     = document.getElementById('assignTeamModal');
-        const panel     = document.getElementById('assignModalPanel');
-        const form      = document.getElementById('assignTeamForm');
-        const nameEl    = document.getElementById('modalWorkerName');
-        const removeBtn = document.getElementById('removeTeamLabel');
+    // Assign Team Modal (Multi-unit Checkbox)
+    function openAssignModal(workerId, workerName, currentTeamIds) {
+        const modal  = document.getElementById('assignTeamModal');
+        const panel  = document.getElementById('assignModalPanel');
+        const form   = document.getElementById('assignTeamForm');
+        const nameEl = document.getElementById('modalWorkerName');
 
         form.action = `/admin/workforce/${workerId}/assign-team`;
         nameEl.textContent = workerName.trim();
 
-        document.querySelectorAll('.team-radio').forEach(radio => {
-            radio.checked = (parseInt(radio.value) === currentTeamId);
-            updateRadioStyle(radio);
-        });
+        const teamIds = Array.isArray(currentTeamIds)
+            ? currentTeamIds.map(id => parseInt(id))
+            : (currentTeamIds ? [parseInt(currentTeamIds)] : []);
 
-        removeBtn.style.display = currentTeamId ? 'flex' : 'none';
+        document.querySelectorAll('.team-checkbox').forEach(cb => {
+            cb.checked = teamIds.includes(parseInt(cb.value));
+        });
 
         modal.classList.remove('hidden');
         requestAnimationFrame(() => {
@@ -707,21 +718,13 @@
         }, 180);
     }
 
-    function updateRadioStyle(radio) {
-        const label    = radio.closest('label');
-        const dot      = label?.querySelector('.team-radio-dot');
-        const fill     = label?.querySelector('.team-radio-fill');
-        if (!dot) return;
-        if (radio.checked) {
-            dot.classList.add('border-[#0038A8]');
-            fill?.classList.remove('scale-0');
-        } else {
-            dot.classList.remove('border-[#0038A8]');
-            fill?.classList.add('scale-0');
-        }
+    function clearAllUnitCheckboxes() {
+        document.querySelectorAll('.team-checkbox').forEach(cb => {
+            cb.checked = false;
+        });
     }
 
-    // Change Leader Modal (For Team Cards Above with Primary Navy Theme)
+    // Change Leader Modal
     function openChangeLeaderModal(teamId, teamName, members) {
         const modal  = document.getElementById('changeLeaderModal');
         const panel  = document.getElementById('changeLeaderPanel');
@@ -737,7 +740,7 @@
         } else {
             members.forEach((m, idx) => {
                 const isChecked = m.is_leader ? 'checked' : (idx === 0 ? 'checked' : '');
-                const formUrl = `/admin/workforce/${m.worker_id}/make-leader`;
+                const formUrl = `/admin/workforce/${m.worker_id}/make-leader?team_id=${teamId}`;
                 
                 const html = `
                     <label class="flex items-center justify-between p-3.5 rounded-xl border border-gray-200 dark:border-zinc-800 cursor-pointer hover:border-[#0038A8] hover:bg-blue-50/40 transition">
@@ -778,12 +781,6 @@
             modal.classList.remove('modal-open');
         }, 180);
     }
-
-    document.querySelectorAll('.team-radio').forEach(radio => {
-        radio.addEventListener('change', () => {
-            document.querySelectorAll('.team-radio').forEach(r => updateRadioStyle(r));
-        });
-    });
 
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {

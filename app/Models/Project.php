@@ -16,6 +16,25 @@ class Project extends Model
 
     protected $casts = ['date_approved' => 'date'];
 
+    protected static function booted(): void
+    {
+        static::saved(function (self $project) {
+            \App\Events\RequestUpdated::broadcastUpdate(
+                $project->request_id ? (int) $project->request_id : null,
+                (int) $project->project_id,
+                'project_saved'
+            );
+        });
+
+        static::deleted(function (self $project) {
+            \App\Events\RequestUpdated::broadcastUpdate(
+                $project->request_id ? (int) $project->request_id : null,
+                (int) $project->project_id,
+                'project_deleted'
+            );
+        });
+    }
+
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id', 'client_id');
@@ -57,7 +76,7 @@ class Project extends Model
     public function latestHistory()
     {
         return $this->hasOne(ProjectHistory::class, 'project_id', 'project_id')
-                    ->latestOfMany('updated_at');
+                    ->latestOfMany('phistory_id');
     }
 
     public function getCurrentStatusAttribute(): string

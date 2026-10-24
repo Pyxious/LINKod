@@ -21,6 +21,17 @@ class BillOfMaterials extends Model
         'date_approved'=> 'date',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(function (self $bom) {
+            \App\Events\RequestUpdated::broadcastUpdate(null, (int) $bom->project_id, 'bom_saved');
+        });
+
+        static::deleted(function (self $bom) {
+            \App\Events\RequestUpdated::broadcastUpdate(null, (int) $bom->project_id, 'bom_deleted');
+        });
+    }
+
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id', 'project_id');

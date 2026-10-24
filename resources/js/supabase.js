@@ -191,6 +191,7 @@ export function initRealtimeNotifications(userId) {
                 updateNotificationBadges(1);
                 prependNotificationToDropdown(notif);
                 playNotificationChime();
+                window.dispatchEvent(new CustomEvent('linkod:notification-received', { detail: notif }));
             }
         )
         .subscribe();

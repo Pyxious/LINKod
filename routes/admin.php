@@ -37,6 +37,8 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
     Route::post('/requests/{id}/bom/approve-for-client', [RequestController::class, 'approveBomForClient'])->name('requests.bom.approve-for-client')->middleware('throttle:10,1');
     Route::post('/requests/{id}/materials-arrived', [RequestController::class, 'confirmMaterialsArrived'])->name('requests.materials-arrived')->middleware('throttle:10,1');
     Route::post('/requests/{id}/physical-evaluation', [RequestController::class, 'storePhysicalEvaluation'])->name('requests.physical-evaluation')->middleware('throttle:10,1');
+    Route::post('/requests/{id}/workers', [RequestController::class, 'updateAssignedWorkers'])->name('requests.workers.update')->middleware('throttle:20,1');
+    Route::post('/requests/{id}/workers/{workerId}/remove', [RequestController::class, 'removeWorker'])->name('requests.workers.remove')->middleware('throttle:20,1');
     Route::post('/requests/{id}/history/{historyId}/update-time', [RequestController::class, 'updateHistoryTime'])->name('requests.history.update-time')->middleware('throttle:30,1');
 
     // Workforce / Units

@@ -3,11 +3,11 @@
 @section('fullwidth', true)
 
 @section('content')
-<div class="w-full flex flex-col font-sans min-h-[calc(100vh-64px)] bg-slate-50/50 dark:bg-[#111111]">
+<div class="w-full max-w-full flex flex-col font-sans min-h-[calc(100vh-64px)] bg-slate-50/50 dark:bg-[#111111] overflow-x-hidden">
     
     <!-- Top Hero Section (Unified LinkOD Client Banner) -->
-    <div class="bg-[#fffde7] dark:bg-[#18181b] py-8 px-6 md:px-12 border-b border-gray-200/80 dark:border-zinc-800">
-        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div class="w-full bg-[#fffde7] dark:bg-[#18181b] py-8 px-4 sm:px-6 md:px-12 border-b border-gray-200/80 dark:border-zinc-800">
+        <div class="max-w-6xl w-full mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
                 <div class="flex items-center gap-2 mb-1.5">
                     <a href="{{ route('client.requests.index') }}" class="text-[#0033a0] dark:text-blue-400 hover:underline text-xs font-bold uppercase tracking-wider flex items-center gap-1">
@@ -28,7 +28,7 @@
     </div>
 
     <!-- Main Container -->
-    <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
+    <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 min-w-0">
 
         @if(isset($unratedCompletedRequest) && $unratedCompletedRequest)
             <div class="w-full mb-8 p-6 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/80 rounded-2xl shadow-sm text-amber-900 dark:text-amber-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -55,13 +55,14 @@
               @submit.prevent="validateManpowerForm($event)" 
               action="{{ route('client.requests.store') }}" 
               method="POST" 
-              enctype="multipart/form-data">
+              enctype="multipart/form-data"
+              class="w-full min-w-0 max-w-full">
             
-            <fieldset class="w-full flex flex-col lg:flex-row gap-8 items-start" {{ (isset($unratedCompletedRequest) && $unratedCompletedRequest) ? 'disabled' : '' }}>
+            <fieldset class="w-full min-w-0 max-w-full flex flex-col lg:flex-row gap-8 items-start" {{ (isset($unratedCompletedRequest) && $unratedCompletedRequest) ? 'disabled' : '' }}>
                 @csrf
 
                 <!-- Left Column: Requisition Form Card -->
-                <div class="flex-1 bg-white dark:bg-[#1c1c1e] rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 p-6 sm:p-8 space-y-6">
+                <div class="flex-1 min-w-0 max-w-full w-full bg-white dark:bg-[#1c1c1e] rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 p-4 sm:p-6 md:p-8 space-y-6">
                     
                     <div class="border-b border-gray-100 dark:border-zinc-800 pb-4">
                         <h2 class="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -514,7 +515,7 @@
                     </div>
 
                     <!-- 4. Supporting Documents & Camera Photo Capture -->
-                    <div>
+                    <div class="w-full min-w-0">
                         <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
                             Upload Supporting Documents / Photo (Optional)
                         </label>
@@ -527,17 +528,25 @@
                                @change="handleFileSelect($event)" 
                                class="hidden">
 
+                        <!-- Hidden Native Mobile Camera Input -->
+                        <input type="file" 
+                               x-ref="mobileCameraInput" 
+                               accept="image/*" 
+                               capture="environment" 
+                               @change="handleFileSelect($event)" 
+                               class="hidden">
+
                         <!-- Dropzone / Selected File Card -->
                         <div x-show="!fileName" 
-                             class="border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-xl p-6 text-center bg-gray-50/60 dark:bg-zinc-800/40 hover:bg-gray-100/50 dark:hover:bg-zinc-800/70 transition relative">
+                             class="border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-xl p-4 sm:p-6 text-center bg-gray-50/60 dark:bg-zinc-800/40 hover:bg-gray-100/50 dark:hover:bg-zinc-800/70 transition relative w-full">
                             
                             <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
                                 <!-- Browse Button -->
                                 <button type="button" 
                                         @click="$refs.fileInput.click()" 
-                                        class="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 transition shadow-xs inline-flex items-center gap-2">
-                                    <svg class="w-4 h-4 text-[#0033a0] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                                    Browse Document / Image
+                                        class="w-full sm:w-auto px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 transition shadow-xs inline-flex items-center justify-center gap-2">
+                                    <svg class="w-4 h-4 text-[#0033a0] dark:text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                    <span>Browse Document / Image</span>
                                 </button>
 
                                 <span class="text-xs text-gray-400 font-medium">or</span>
@@ -545,9 +554,9 @@
                                 <!-- Camera Button -->
                                 <button type="button" 
                                         @click="openCamera()" 
-                                        class="px-5 py-2.5 bg-[#0033a0] text-white rounded-xl text-xs font-bold hover:bg-[#002480] transition shadow-xs inline-flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                    Take Photo with Camera
+                                        class="w-full sm:w-auto px-5 py-2.5 bg-[#0033a0] text-white rounded-xl text-xs font-bold hover:bg-[#002480] transition shadow-xs inline-flex items-center justify-center gap-2">
+                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                    <span>Take Photo with Camera</span>
                                 </button>
                             </div>
 
@@ -557,37 +566,37 @@
                         </div>
 
                         <!-- Selected File Preview Card -->
-                        <div x-show="fileName" x-cloak class="border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl p-4 flex items-center justify-between gap-4">
-                            <div class="flex items-center gap-3 min-w-0">
+                        <div x-show="fileName" x-cloak class="border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 w-full max-w-full overflow-hidden">
+                            <div class="flex items-center gap-3 min-w-0 flex-1 w-full sm:w-auto">
                                 <!-- Image Preview Thumbnail or PDF Icon -->
                                 <template x-if="isImage && filePreviewUrl">
-                                    <img :src="filePreviewUrl" alt="Preview" @click="viewPreviewModal = true" class="w-12 h-12 object-cover rounded-lg border border-blue-200 dark:border-blue-800 shadow-xs shrink-0 cursor-pointer hover:opacity-80 transition" title="Click to view full photo">
+                                    <img :src="filePreviewUrl" alt="Preview" @click="viewPreviewModal = true" class="w-11 h-11 sm:w-12 sm:h-12 object-cover rounded-lg border border-blue-200 dark:border-blue-800 shadow-xs shrink-0 cursor-pointer hover:opacity-80 transition" title="Click to view full photo">
                                 </template>
                                 <template x-if="!isImage">
-                                    <div @click="viewPreviewModal = true" class="w-12 h-12 bg-blue-100 dark:bg-blue-900/60 text-[#0033a0] dark:text-blue-300 rounded-lg flex items-center justify-center font-black text-xs uppercase shrink-0 cursor-pointer hover:opacity-80 transition" title="Click to preview document">
+                                    <div @click="viewPreviewModal = true" class="w-11 h-11 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-900/60 text-[#0033a0] dark:text-blue-300 rounded-lg flex items-center justify-center font-black text-xs uppercase shrink-0 cursor-pointer hover:opacity-80 transition" title="Click to preview document">
                                         DOC
                                     </div>
                                 </template>
 
-                                <div class="min-w-0">
+                                <div class="min-w-0 flex-1">
                                     <p class="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate" x-text="fileName"></p>
-                                    <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5" x-text="fileSizeFormatted"></p>
+                                    <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate" x-text="fileSizeFormatted"></p>
                                 </div>
                             </div>
 
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto w-full sm:w-auto justify-end pt-2.5 sm:pt-0 border-t sm:border-t-0 border-blue-200/60 dark:border-blue-900/40">
                                 <template x-if="filePreviewUrl">
                                     <button type="button" 
                                             @click="viewPreviewModal = true" 
-                                            class="px-3 py-1.5 text-xs font-bold text-[#0033a0] dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 dark:hover:bg-blue-800/60 rounded-lg transition border border-blue-200 dark:border-blue-800 shrink-0 inline-flex items-center gap-1.5">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                        Preview
+                                            class="px-3 py-1.5 text-xs font-bold text-[#0033a0] dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 dark:hover:bg-blue-800/60 rounded-lg transition border border-blue-200 dark:border-blue-800 shrink-0 inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-initial">
+                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <span>Preview</span>
                                     </button>
                                 </template>
                                 <button type="button" 
                                         @click="removeFile()" 
-                                        class="px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-lg transition border border-red-200 dark:border-red-800/80 shrink-0">
-                                    ✕ Remove
+                                        class="px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-lg transition border border-red-200 dark:border-red-800/80 shrink-0 inline-flex items-center justify-center gap-1 flex-1 sm:flex-initial">
+                                    <span>✕ Remove</span>
                                 </button>
                             </div>
                         </div>
@@ -595,9 +604,9 @@
                         <!-- Uploaded File Preview Modal (Popup without leaving page) -->
                         <div x-show="viewPreviewModal" 
                              x-cloak 
-                             class="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4" 
+                             class="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 max-w-full overflow-hidden" 
                              @keydown.escape.window="viewPreviewModal = false">
-                            <div class="bg-white dark:bg-zinc-900 rounded-2xl max-w-3xl w-full max-h-[90vh] shadow-2xl relative flex flex-col border border-gray-200 dark:border-zinc-800 overflow-hidden" 
+                            <div class="bg-white dark:bg-zinc-900 rounded-2xl max-w-3xl w-full max-h-[90vh] shadow-2xl relative flex flex-col border border-gray-200 dark:border-zinc-800 overflow-hidden min-w-0" 
                                  @click.away="viewPreviewModal = false">
                                 <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-zinc-800 bg-gray-50/80 dark:bg-zinc-800/80">
                                     <div class="flex items-center gap-2 min-w-0">
@@ -626,8 +635,8 @@
                         </div>
 
                         <!-- WebCam Camera Snapshot Modal -->
-                        <div x-show="cameraActive" x-cloak class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-                            <div class="bg-white dark:bg-zinc-900 rounded-2xl p-6 max-w-lg w-full shadow-2xl relative flex flex-col items-center border border-gray-200 dark:border-zinc-800">
+                        <div x-show="cameraActive" x-cloak class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 max-w-full overflow-hidden">
+                            <div class="bg-white dark:bg-zinc-900 rounded-2xl p-6 max-w-lg w-full shadow-2xl relative flex flex-col items-center border border-gray-200 dark:border-zinc-800 min-w-0">
                                 <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-3">Snap Photo of Service Concern</h3>
                                 
                                 <div class="w-full bg-black rounded-xl overflow-hidden mb-4 relative aspect-video flex items-center justify-center">
@@ -662,7 +671,7 @@
                 </div>
 
                 <!-- Right Column: Requester Information & Guidelines -->
-                <div class="w-full lg:w-80 space-y-6 shrink-0">
+                <div class="w-full lg:w-80 space-y-6 shrink-0 min-w-0 max-w-full">
                     
                     <!-- Requester Profile Card -->
                     <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 p-6 space-y-5">
@@ -1090,6 +1099,13 @@ function clientRequestForm(config = {}) {
         },
 
         openCamera() {
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            if (isMobile || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                if (this.$refs.mobileCameraInput) {
+                    this.$refs.mobileCameraInput.click();
+                    return;
+                }
+            }
             this.cameraActive = true;
             navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
                 .then(stream => {

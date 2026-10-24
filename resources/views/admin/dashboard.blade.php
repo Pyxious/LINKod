@@ -21,7 +21,7 @@
 </div>
 
 <!-- KPI Grid (Functional Subtexts) -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 font-sans">
+<div data-realtime-container="admin-dashboard-kpis" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 font-sans">
     <!-- Card 1: Total Requests -->
     <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
         <div class="text-[#1a3c8f] dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Total Requests</div>
@@ -72,12 +72,13 @@
         <div class="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div class="relative w-[180px] h-[180px]">
                 <canvas id="taskDonut"></canvas>
-                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <div data-realtime-container="admin-dashboard-donut-total" class="absolute inset-0 flex flex-col items-center justify-center">
                     <div class="text-[11px] text-gray-500 font-semibold">Total Tasks</div>
                     <div class="text-2xl font-black text-slate-900 dark:text-white">{{ array_sum($taskStatus) }}</div>
                 </div>
             </div>
-            <div class="space-y-2 flex-1 text-xs">
+            <div data-realtime-container="admin-dashboard-donut-legend" class="space-y-2 flex-1 text-xs">
+                <div class="hidden" data-chart-values="{{ json_encode([$taskStatus['Pending'] ?? 0, $taskStatus['Awaiting Materials'] ?? 0, $taskStatus['In Progress'] ?? 0, $taskStatus['Pending Verification'] ?? 0, $taskStatus['Completed'] ?? 0, $taskStatus['Cancelled'] ?? 0]) }}"></div>
                 @foreach(['Pending' => '#facc15', 'Awaiting Materials' => '#f97316', 'In Progress' => '#eab308', 'Pending Verification' => '#94a3b8', 'Completed' => '#4ade80', 'Cancelled' => '#f87171'] as $st => $c)
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-2">
@@ -92,7 +93,7 @@
     </div>
 
     <!-- Client Request Progress -->
-    <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+    <div data-realtime-container="admin-dashboard-client-progress" class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
         <div class="flex justify-between items-start mb-5">
             <div>
                 <div class="text-[#1a3c8f] dark:text-blue-400 text-lg font-bold">Client Request Progress</div>
@@ -126,7 +127,7 @@
 </div>
 
 <!-- Real-Time Monitoring & Service Requests Inventory Section -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6 font-sans">
+<div data-realtime-container="admin-dashboard-bottom" class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6 font-sans">
     
     <!-- Card 1: Real-Time Task Monitoring -->
     <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
@@ -296,7 +297,7 @@
 @push('scripts')
 <script>
 // Donut Chart
-new Chart(document.getElementById('taskDonut'), {
+window.adminTaskStatusChart = new Chart(document.getElementById('taskDonut'), {
     type: 'doughnut',
     data: {
         labels: ['Pending', 'Awaiting Materials', 'In Progress', 'Pending Verification', 'Completed', 'Cancelled'],

@@ -13,11 +13,13 @@ class JobOrderController extends Controller
     {
         $worker = auth()->user()->staff?->worker;
 
-        $statusFilter   = $request->get('status', '');
-        $priorityFilter = $request->get('priority', '');
-        $search         = strtolower(trim($request->get('search', '')));
-        $sort           = $request->get('sort', 'priority');
-        $direction      = strtolower($request->get('direction', 'asc'));
+        $statusFilter        = $request->get('status', '');
+        $priorityFilter      = $request->get('priority', '');
+        $search              = strtolower(trim($request->get('search', '')));
+        $isDateDefaultStatus = in_array($statusFilter, ['Completed', 'all'], true);
+        $defaultSort         = $isDateDefaultStatus ? 'date_desc' : 'priority';
+        $sort                = $request->filled('sort') ? $request->get('sort') : $defaultSort;
+        $direction           = strtolower($request->get('direction', 'asc'));
 
         if (!$worker) {
             $assignments = collect();
@@ -89,13 +91,21 @@ class JobOrderController extends Controller
             if ($sort === 'date_desc' || ($sort === 'date' && $direction === 'desc') || ($sort === 'assigned_date' && $direction === 'desc')) {
                 $dateA = $a->date_assigned ?? $a->created_at ?? '';
                 $dateB = $b->date_assigned ?? $b->created_at ?? '';
-                return strcmp((string)$dateB, (string)$dateA);
+                $cmp = strcmp((string)$dateB, (string)$dateA);
+                if ($cmp !== 0) {
+                    return $cmp;
+                }
+                return ($b->assignment_id ?? $b->project_id ?? 0) <=> ($a->assignment_id ?? $a->project_id ?? 0);
             }
 
             if ($sort === 'date_asc' || ($sort === 'date' && $direction === 'asc') || ($sort === 'assigned_date' && $direction === 'asc')) {
                 $dateA = $a->date_assigned ?? $a->created_at ?? '';
                 $dateB = $b->date_assigned ?? $b->created_at ?? '';
-                return strcmp((string)$dateA, (string)$dateB);
+                $cmp = strcmp((string)$dateA, (string)$dateB);
+                if ($cmp !== 0) {
+                    return $cmp;
+                }
+                return ($a->assignment_id ?? $a->project_id ?? 0) <=> ($b->assignment_id ?? $b->project_id ?? 0);
             }
 
             // Title sorting
