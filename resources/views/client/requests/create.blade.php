@@ -873,6 +873,16 @@ function clientRequestForm(config = {}) {
                 }
             } catch (e) {}
 
+            if (this.selectedCollege) {
+                const found = this.collegeUnits.find(u => u.college === this.selectedCollege);
+                if (found) {
+                    this.selectedCluster = found.cluster;
+                } else {
+                    this.selectedCollege = '';
+                    this.selectedCluster = '';
+                }
+            }
+
             this.$nextTick(() => {
                 const selectEl = this.$refs.categorySelect;
                 if (selectEl) {
@@ -977,15 +987,20 @@ function clientRequestForm(config = {}) {
             { cluster: 'Cluster 1', label: 'BUCE (College of Education)', college: 'BUCE (College of Education)' },
             { cluster: 'Cluster 1', label: 'BUCM (College of Medicine)', college: 'BUCM (College of Medicine)' },
             { cluster: 'Cluster 1', label: 'IPESR (Institute of Physical Education, Sports and Recreation)', college: 'IPESR (Institute of Physical Education, Sports and Recreation)' },
-            { cluster: 'Cluster 2', label: 'CS (College of Science)', college: 'CS (College of Science)' },
-            { cluster: 'Cluster 2', label: 'BUCN (College of Nursing)', college: 'BUCN (College of Nursing)' },
-            { cluster: 'Cluster 2', label: 'CENG (College of Engineering)', college: 'CENG (College of Engineering)' },
-            { cluster: 'Cluster 3', label: 'CAL (College of Arts and Letters)', college: 'CAL (College of Arts and Letters)' },
-            { cluster: 'Cluster 3', label: 'CIT (College of Industrial Technology)', college: 'CIT (College of Industrial Technology)' },
-            { cluster: 'Cluster 3', label: 'CBPA (College of Business and Public Administration)', college: 'CBPA (College of Business and Public Administration)' },
-            { cluster: 'Cluster 4', label: 'BUIDeA (Institute of Design and Architecture)', college: 'BUIDeA (Institute of Design and Architecture)' },
-            { cluster: 'Cluster 4', label: 'Graduate School (BUGS)', college: 'Graduate School (BUGS)' },
-            { cluster: 'Cluster 4', label: 'East Campus Facilities (ESC)', college: 'East Campus Facilities (ESC)' },
+            { cluster: 'Cluster 2', label: 'CAL (College of Arts and Letters)', college: 'CAL (College of Arts and Letters)' },
+            { cluster: 'Cluster 2', label: 'BUGS (Graduate School)', college: 'BUGS (Graduate School)' },
+            { cluster: 'Cluster 2', label: 'Language Center', college: 'Language Center' },
+            { cluster: 'Cluster 2', label: 'BU College of Law', college: 'BU College of Law' },
+            { cluster: 'Cluster 2', label: 'BU Open University', college: 'BU Open University' },
+            { cluster: 'Cluster 2', label: 'Dental Medicine (College of Dental Medicine)', college: 'Dental Medicine (College of Dental Medicine)' },
+            { cluster: 'Cluster 2', label: 'BUJMRIGD (Jesse M. Robredo Institute of Governance and Development)', college: 'BUJMRIGD (Jesse M. Robredo Institute of Governance and Development)' },
+            { cluster: 'Cluster 3', label: 'CS (College of Science)', college: 'CS (College of Science)' },
+            { cluster: 'Cluster 3', label: 'CN (College of Nursing)', college: 'CN (College of Nursing)' },
+            { cluster: 'Cluster 3', label: 'RCSMED (Regional Center for Science and Mathematics Education Development)', college: 'RCSMED (Regional Center for Science and Mathematics Education Development)' },
+            { cluster: 'Cluster 4', label: 'CIT (College of Industrial Technology)', college: 'CIT (College of Industrial Technology)' },
+            { cluster: 'Cluster 4', label: 'CENG (College of Engineering)', college: 'CENG (College of Engineering)' },
+            { cluster: 'Cluster 4', label: 'IA (Institute of Design and Architecture)', college: 'IA (Institute of Design and Architecture)' },
+            { cluster: 'Cluster 4', label: 'ESC (East Campus Facilities)', college: 'ESC (East Campus Facilities)' },
             { cluster: 'Cluster 4', label: 'RDC (Research and Development Center)', college: 'RDC (Research and Development Center)' },
             { cluster: 'Cluster Daraga', label: 'CSSP (College of Social Sciences and Philosophy)', college: 'CSSP (College of Social Sciences and Philosophy)' },
             { cluster: 'Cluster Daraga', label: 'CBEM (College of Business, Economics and Management)', college: 'CBEM (College of Business, Economics and Management)' },
