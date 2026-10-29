@@ -914,7 +914,7 @@ function clientRequestForm(config = {}) {
                 'Circuit Breaker Tripping / Power Outage',
                 'Wiring Inspection & Electrical Safety',
                 'Ceiling Fan / Exhaust Fan Repair',
-                'Other Electrical Concern'
+                'Other Electrical/Carpentry/Masonry Concern'
             ],
             'Carpentry': [
                 'Door Lock / Handle / Hinge Repair',
