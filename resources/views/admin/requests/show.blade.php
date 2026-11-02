@@ -38,6 +38,12 @@
                     {{ $serviceRequest->is_urgent ? 'bg-red-100 text-red-700 border-red-300' : 'bg-blue-100 text-blue-700 border-blue-300' }}">
                     {{ $serviceRequest->priority_label }}
                 </span>
+                @if($serviceRequest->is_recurring || (!$serviceRequest->isResolved() && isset($potentialDuplicates) && $potentialDuplicates->isNotEmpty()))
+                    <span class="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider rounded-full bg-rose-100 text-rose-700 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800"
+                          title="Recurring / Duplicate Issue for this location and concern">
+                        Recurring
+                    </span>
+                @endif
                 @php
                     $isAwaitingVerification = $serviceRequest->current_status === 'Awaiting Verification of Bill of Materials' 
                         || ($serviceRequest->bom_status === 'awaiting_admin' && !in_array($serviceRequest->current_status, ['In Progress', 'Completed', 'Cancelled', 'Rejected']));
@@ -47,6 +53,8 @@
                         bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700
                     @elseif($serviceRequest->current_status === 'BOM Verified (Awaiting Client Approval)')
                         bg-indigo-100 text-indigo-900 border border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-700
+                    @elseif($serviceRequest->current_status === 'Materials Arrived')
+                        bg-sky-100 text-sky-900 border border-sky-300 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-700
                     @elseif($serviceRequest->current_status === 'Completed')
                         bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700
                     @else
@@ -140,6 +148,230 @@
         </div>
     </div>
 
+    @if(!$serviceRequest->isResolved() && isset($potentialDuplicates) && $potentialDuplicates->isNotEmpty())
+        @php
+            $allGroupEntries = collect([$serviceRequest])
+                ->concat($potentialDuplicates)
+                ->unique('request_id')
+                ->sortBy('request_id')
+                ->values();
+            $primaryMatch = $allGroupEntries->first();
+            $primaryPad = str_pad((string) $primaryMatch->request_id, 4, '0', STR_PAD_LEFT);
+            $defaultDuplicateIds = $allGroupEntries
+                ->where('request_id', '!=', $primaryMatch->request_id)
+                ->pluck('request_id')
+                ->map(fn ($v) => (string) $v)
+                ->values();
+            $isCurrentFirstEntry = (int) $serviceRequest->request_id === (int) $primaryMatch->request_id;
+            $otherCount = $potentialDuplicates->count();
+        @endphp
+        <!-- Potential Duplicate Entries Alert & Multi-Select Merge Banner -->
+        <div class="bg-gradient-to-r from-rose-50/90 via-indigo-50/70 to-slate-50 dark:from-rose-950/30 dark:via-zinc-900 dark:to-indigo-950/30 border-2 border-rose-300 dark:border-rose-800/80 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+             x-data="{
+                 showMergeModal: false,
+                 merging: false,
+                 selectedTargetId: '{{ $primaryMatch->request_id }}',
+                 selectedDuplicateIds: {{ Js::from($defaultDuplicateIds) }},
+                 allIds: {{ Js::from($allGroupEntries->pluck('request_id')->map(fn ($v) => (string) $v)->values()) }},
+                 onTargetChange() {
+                     this.selectedDuplicateIds = this.selectedDuplicateIds.filter(id => id !== String(this.selectedTargetId));
+                     if (this.selectedDuplicateIds.length === 0) {
+                         this.selectedDuplicateIds = this.allIds.filter(id => id !== String(this.selectedTargetId));
+                     }
+                 },
+                 selectAllDuplicates() {
+                     this.selectedDuplicateIds = this.allIds.filter(id => id !== String(this.selectedTargetId));
+                 },
+                 clearDuplicates() {
+                     this.selectedDuplicateIds = [];
+                 }
+             }"
+             :data-realtime-pause="(showMergeModal || merging) ? 'true' : 'false'">
+            <div class="flex items-start sm:items-center gap-3.5">
+                <div class="w-10 h-10 rounded-xl bg-rose-600/10 dark:bg-rose-400/10 border border-rose-500/20 flex items-center justify-center text-rose-700 dark:text-rose-300 shrink-0 mt-0.5 sm:mt-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">
+                            {{ $otherCount }} Matching Active {{ Str::plural('Entry', $otherCount) }} Detected
+                        </h3>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-rose-100 text-rose-700 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800">
+                            First Entry: #{{ $primaryPad }} ({{ $primaryMatch->tracking_code }})
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-700 dark:text-gray-300 mt-0.5 leading-relaxed">
+                        @if($isCurrentFirstEntry)
+                            This is the <strong>first active entry (#{{ $primaryPad }})</strong>, and <strong>{{ $otherCount }} newer {{ Str::plural('entry', $otherCount) }}</strong> share the same category and location (<strong>{{ $serviceRequest->campus }} • {{ $serviceRequest->location }}</strong>). Select and merge duplicates directly into this requisition.
+                        @else
+                            Matches earlier active requisition <strong>#{{ $primaryPad }} — {{ $primaryMatch->title }}</strong> ({{ $primaryMatch->current_status }}) at <strong>{{ $primaryMatch->campus }} • {{ $primaryMatch->location }}</strong>. Select which duplicates to merge altogether.
+                        @endif
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0 self-stretch sm:self-auto">
+                @if(!$isCurrentFirstEntry)
+                    <a href="{{ route('admin.requests.show', $primaryMatch->request_id) }}"
+                       class="px-4 py-2.5 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-bold transition shadow-2xs inline-flex items-center justify-center">
+                        View #{{ $primaryPad }}
+                    </a>
+                @endif
+                <button type="button"
+                        @click="showMergeModal = true"
+                        class="px-4 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-xs whitespace-nowrap inline-flex items-center justify-center gap-1.5 cursor-pointer">
+                    <span>Select &amp; Merge Duplicates ({{ $allGroupEntries->count() - 1 }})</span>
+                </button>
+            </div>
+
+            <!-- Multi-Select Merge Confirmation Modal -->
+            <template x-teleport="body">
+                <div x-show="showMergeModal"
+                     style="display: none;"
+                     class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+                     x-transition.opacity>
+                    <div @click.outside="if (!merging) showMergeModal = false"
+                         class="w-full max-w-2xl bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+                        <div class="px-6 py-4 bg-[#fffde7] dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between">
+                            <div>
+                                <h3 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">Mark &amp; Merge Recurring / Duplicate Requisitions</h3>
+                                <p class="text-xs text-slate-600 dark:text-gray-400">Check which duplicate entries to consolidate into a single primary requisition</p>
+                            </div>
+                            <button type="button" @click="showMergeModal = false" :disabled="merging" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+
+                        <form method="POST"
+                              action="{{ route('admin.requests.merge', $serviceRequest->request_id) }}"
+                              @submit="merging = true"
+                              class="p-6 space-y-4">
+                            @csrf
+
+                            <div>
+                                <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-gray-300 mb-1.5">
+                                    1. Primary (First) Requisition to Keep Active
+                                </label>
+                                <select name="target_request_id"
+                                        x-model="selectedTargetId"
+                                        @change="onTargetChange()"
+                                        class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                                    @foreach($allGroupEntries as $idx => $entry)
+                                        <option value="{{ $entry->request_id }}">
+                                            #{{ str_pad((string) $entry->request_id, 4, '0', STR_PAD_LEFT) }} ({{ $entry->tracking_code }}) — {{ $entry->title }}{{ $idx === 0 ? ' [First Entry]' : '' }} • {{ $entry->current_status }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-gray-300">
+                                        2. Mark Duplicate Entries to Merge (<span x-text="selectedDuplicateIds.length"></span> of {{ max(0, $allGroupEntries->count() - 1) }} checked)
+                                    </label>
+                                    <div class="flex items-center gap-2 text-[11px] font-bold">
+                                        <button type="button" @click="selectAllDuplicates()" class="text-[#0033a0] dark:text-blue-400 hover:underline cursor-pointer">Check All</button>
+                                        <span class="text-gray-300 dark:text-zinc-700">|</span>
+                                        <button type="button" @click="clearDuplicates()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 hover:underline cursor-pointer">Uncheck All</button>
+                                    </div>
+                                </div>
+
+                                <div class="max-h-60 overflow-y-auto space-y-2 pr-1 border border-gray-200 dark:border-zinc-800 rounded-xl p-3 bg-slate-50/70 dark:bg-zinc-900/60">
+                                    @foreach($allGroupEntries as $entry)
+                                        @php
+                                            $entryPad = str_pad((string) $entry->request_id, 4, '0', STR_PAD_LEFT);
+                                            $rawEntryDesc = trim((string) ($entry->description ?? ''));
+                                            if (str_starts_with($rawEntryDesc, '{') && str_ends_with($rawEntryDesc, '}')) {
+                                                $parsedEntry = json_decode($rawEntryDesc, true);
+                                                $rawEntryDesc = trim((string) ($parsedEntry['general_description'] ?? $parsedEntry['activity_title'] ?? ''));
+                                            }
+                                        @endphp
+                                        <label :class="String(selectedTargetId) === '{{ $entry->request_id }}'
+                                                   ? 'bg-blue-50/80 dark:bg-blue-950/30 border-[#0033a0]/40'
+                                                   : (selectedDuplicateIds.includes('{{ $entry->request_id }}')
+                                                       ? 'bg-white dark:bg-[#1c1c1e] border-gray-200 dark:border-zinc-800 cursor-pointer'
+                                                       : 'bg-white/60 dark:bg-zinc-900/40 border-gray-200/70 dark:border-zinc-800/70 opacity-75 cursor-pointer')"
+                                               class="flex items-start gap-3 p-3 rounded-xl border transition">
+                                            <template x-if="String(selectedTargetId) === '{{ $entry->request_id }}'">
+                                                <input type="checkbox" checked disabled class="mt-0.5 rounded border-gray-300 text-[#0033a0] opacity-70 cursor-not-allowed">
+                                            </template>
+                                            <template x-if="String(selectedTargetId) !== '{{ $entry->request_id }}'">
+                                                <input type="checkbox"
+                                                       name="duplicate_ids[]"
+                                                       value="{{ $entry->request_id }}"
+                                                       x-model="selectedDuplicateIds"
+                                                       class="mt-0.5 rounded border-gray-300 text-[#0033a0] focus:ring-[#0033a0] cursor-pointer">
+                                            </template>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                                    <span class="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white">
+                                                        #{{ $entryPad }} ({{ $entry->tracking_code }}) — {{ $entry->title }}
+                                                    </span>
+                                                    <span x-show="String(selectedTargetId) === '{{ $entry->request_id }}'"
+                                                          class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#0033a0] text-white">
+                                                        Primary (Kept)
+                                                    </span>
+                                                    <span x-show="String(selectedTargetId) !== '{{ $entry->request_id }}' && selectedDuplicateIds.includes('{{ $entry->request_id }}')"
+                                                          class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                                                        Will Merge &amp; Close
+                                                    </span>
+                                                    <span x-show="String(selectedTargetId) !== '{{ $entry->request_id }}' && !selectedDuplicateIds.includes('{{ $entry->request_id }}')"
+                                                          class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-gray-400">
+                                                        Unchecked (Keep Separate)
+                                                    </span>
+                                                </div>
+                                                <p class="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5 break-words">
+                                                    By {{ $entry->client->user->first_name ?? '' }} {{ $entry->client->user->last_name ?? '' }}
+                                                    @if($rawEntryDesc !== '')
+                                                        • "{{ \Illuminate\Support\Str::limit($rawEntryDesc, 90) }}"
+                                                    @endif
+                                                </p>
+                                            </div>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-gray-300 mb-1.5">
+                                    Optional Note for Audit &amp; Submitters
+                                </label>
+                                <textarea name="remarks"
+                                          rows="2"
+                                          placeholder="e.g., Consolidated duplicate submissions for the same concern and location."
+                                          class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#0033a0]"></textarea>
+                            </div>
+
+                            <div class="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 text-xs text-slate-700 dark:text-gray-300 space-y-1">
+                                <p class="font-bold text-[#0033a0] dark:text-blue-300">What happens when you merge:</p>
+                                <ul class="list-disc pl-4 space-y-0.5">
+                                    <li>All checked duplicates have their messages, descriptions, and attachments consolidated into the primary requisition.</li>
+                                    <li>Checked duplicates are closed as <strong>Merged (Cancelled)</strong> and will <strong>not</strong> count toward the 4/month recurring cap.</li>
+                                </ul>
+                            </div>
+
+                            <div class="flex items-center justify-end gap-2.5 pt-2">
+                                <button type="button"
+                                        @click="showMergeModal = false"
+                                        :disabled="merging"
+                                        class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-gray-300 rounded-xl text-xs font-bold transition">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                        :disabled="merging || selectedDuplicateIds.length === 0"
+                                        class="px-5 py-2 bg-[#0033a0] hover:bg-[#002480] disabled:opacity-60 text-white rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5">
+                                    <span x-text="merging ? 'Merging...' : ('Merge ' + selectedDuplicateIds.length + ' Selected')">Confirm Merge</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </template>
+        </div>
+    @endif
+
     @if($serviceRequest->current_status === 'Awaiting Verification of Bill of Materials' || ($serviceRequest->project && $serviceRequest->project->billOfMaterials()->whereNull('date_approved')->exists()))
         <!-- Prominent Awaiting Verification Alert Card -->
         <div class="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/20 border border-amber-300 dark:border-amber-800/80 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -216,7 +448,7 @@
                     </div>
 
                     <p class="text-xs text-slate-600 dark:text-gray-300 leading-relaxed">
-                        Are you sure all approved materials have physically arrived on-site? Confirming will transition this requisition status to <span class="font-bold text-[#0033a0] dark:text-blue-400">In Progress</span> and enable workers to commence work.
+                        Are you sure all approved materials have physically arrived on-site? Confirming will update this requisition status to <span class="font-bold text-[#0033a0] dark:text-blue-400">Materials Arrived</span> and allow workers (or Admin) to start the task when ready.
                     </p>
 
                     <form method="POST" action="{{ route('admin.requests.materials-arrived', $serviceRequest->request_id) }}" 
@@ -1438,7 +1670,7 @@
                         ]);
                     @endphp
 
-                    @if((!$isMaterialsBlocking && in_array($serviceRequest->current_status, ['Approved', 'Pending', 'On Hold', 'Schedule Set', 'Schedule Confirmed'])) || ($serviceRequest->current_status === 'In Progress' && !$overrideHasBeforePhoto))
+                    @if((!$isMaterialsBlocking && in_array($serviceRequest->current_status, ['Approved', 'Pending', 'On Hold', 'Schedule Set', 'Schedule Confirmed', 'Materials Arrived'])) || ($serviceRequest->current_status === 'In Progress' && !$overrideHasBeforePhoto))
                         @if($serviceRequest->isScheduleApproved() || $serviceRequest->current_status === 'In Progress')
                             <button type="button" @click="showStartModal = true" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -1948,6 +2180,11 @@
                                     <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
                                     <span>Approved (Awaiting Delivery)</span>
                                 </span>
+                            @elseif($serviceRequest->current_status === 'Materials Arrived')
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 uppercase">
+                                    <svg class="w-3 h-3 text-sky-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    <span>Materials Arrived</span>
+                                </span>
                             @else
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
                                     <svg class="w-3 h-3 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
@@ -2181,7 +2418,7 @@
                     </div>
 
                     <p class="text-xs text-slate-600 dark:text-gray-300 leading-relaxed">
-                        Are you sure all approved materials have physically arrived on site? Confirming will transition this requisition status to <span class="font-bold text-[#0033a0] dark:text-blue-400">In Progress</span>.
+                        Are you sure all approved materials have physically arrived on site? Confirming will update this requisition status to <span class="font-bold text-[#0033a0] dark:text-blue-400">Materials Arrived</span> and allow the task to be started when ready.
                     </p>
 
                     <form id="admin-confirm-materials-form" action="{{ route('admin.requests.materials-arrived', $serviceRequest->request_id) }}" method="POST"

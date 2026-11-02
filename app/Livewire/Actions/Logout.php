@@ -12,9 +12,15 @@ class Logout
      */
     public function __invoke(): void
     {
+        $hadPilotAccess = (bool) Session::get('pilot_access_granted', false);
+
         Auth::guard('web')->logout();
 
         Session::invalidate();
         Session::regenerateToken();
+
+        if ($hadPilotAccess) {
+            Session::put('pilot_access_granted', true);
+        }
     }
 }

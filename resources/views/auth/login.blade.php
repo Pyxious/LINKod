@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body class="bg-[#edf2f8] font-sans antialiased min-h-screen flex flex-col items-center justify-center p-4 selection:bg-[#0038A8] selection:text-white">
 
@@ -69,9 +70,11 @@
 
         <!-- Terms of Service & Privacy Policy Footer -->
         <p class="mt-6 sm:mt-7 text-center text-xs text-slate-400">
-            By signing in, you agree to our <a href="#" class="underline underline-offset-2 hover:text-slate-600 transition">Terms of Service</a> and <a href="#" class="underline underline-offset-2 hover:text-slate-600 transition">Privacy Policy</a> .
+            By signing in, you agree to our <a href="{{ route('terms.conditions') }}" class="underline underline-offset-2 hover:text-slate-600 transition">Terms &amp; Conditions</a> and <a href="{{ route('privacy.policy') }}" class="underline underline-offset-2 hover:text-slate-600 transition">Privacy Policy</a>.
         </p>
     </div>
+
+    @include('partials.cookie-consent')
 
 </body>
 </html>

@@ -37,6 +37,7 @@ class DashboardController extends Controller
             foreach ($statuses as $status) {
                 $taskStatus[$status] = (int) ($projectStatusCounts[$status] ?? 0);
             }
+            $taskStatus['Pending'] += (int) ($projectStatusCounts['Materials Arrived'] ?? 0);
 
             $activeTasks    = $taskStatus['In Progress'] ?? 0;
             $completedTasks = $taskStatus['Completed'] ?? 0;
@@ -59,7 +60,7 @@ class DashboardController extends Controller
 
             $requestProgress = [
                 'Submitted'          => (int) ($reqStatusCounts['Submitted'] ?? 0),
-                'Approved'           => (int) ($reqStatusCounts['Approved'] ?? 0),
+                'Approved'           => (int) ($reqStatusCounts['Approved'] ?? 0) + (int) ($reqStatusCounts['Schedule Confirmed'] ?? 0) + (int) ($reqStatusCounts['Materials Arrived'] ?? 0),
                 'Awaiting Materials' => (int) ($reqStatusCounts['Awaiting Materials'] ?? 0),
                 'In Progress'        => (int) ($reqStatusCounts['In Progress'] ?? 0),
                 'Completed'          => (int) ($reqStatusCounts['Completed'] ?? 0),

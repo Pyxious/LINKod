@@ -18,10 +18,10 @@ class DashboardController extends Controller
                 ->get()
             : collect();
 
-        // 1. Pending Tasks (Needs Attention): Pending or On Hold (only with approved schedule)
+        // 1. Pending Tasks (Needs Attention): Pending, On Hold, or Materials Arrived (only with approved schedule)
         $pendingCount = $allAssignments->filter(function($a) {
             $status = $a->project?->current_status;
-            return in_array($status, ['Pending', 'On Hold']) && ($a->project?->request?->isScheduleApproved() ?? false);
+            return in_array($status, ['Pending', 'On Hold', 'Materials Arrived']) && ($a->project?->request?->isScheduleApproved() ?? false);
         })->count();
 
         // 2. In Progress (Currently working - only with approved schedule)

@@ -21,22 +21,58 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch h-[calc(100dvh-64px)] lg:h-[calc(100vh-120px)]">
 
         <!-- Left Pane: Conversations List (4 Columns on Desktop) -->
-        <div class="lg:col-span-4 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-3 sm:p-4 shadow-sm flex flex-col h-full overflow-hidden {{ $hasActiveSelection ? 'hidden lg:flex' : 'flex' }}">
+        <div x-data="{
+                 searchQuery: {{ Js::from((string) request('search', '')) }},
+                 searching: false,
+                 visibleCount: {{ $requests->count() }},
+                 matchesSearch(searchText) {
+                     const q = (this.searchQuery || '').trim().toLowerCase();
+                     if (!q) return true;
+                     return (searchText || '').includes(q);
+                 },
+                 recountVisible() {
+                     this.$nextTick(() => {
+                         const items = this.$refs.convList ? this.$refs.convList.querySelectorAll('[data-conv-item]') : [];
+                         const q = (this.searchQuery || '').trim().toLowerCase();
+                         if (!q) {
+                             this.visibleCount = items.length;
+                             return;
+                         }
+                         let count = 0;
+                         items.forEach(el => {
+                             if ((el.getAttribute('data-search-text') || '').includes(q)) count++;
+                         });
+                         this.visibleCount = count;
+                     });
+                 }
+             }"
+             x-init="recountVisible()"
+             class="lg:col-span-4 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-3 sm:p-4 shadow-sm flex flex-col h-full overflow-hidden {{ $hasActiveSelection ? 'hidden lg:flex' : 'flex' }}">
             
             <div class="shrink-0 space-y-3 mb-3">
                 <!-- Search & Filter Controls -->
-                <form method="GET" action="{{ route(auth()->user()->role . '.messages.index') }}" x-data="{ searching: false }" @submit="searching = true" class="flex items-center gap-2 mb-4">
+                <form method="GET" action="{{ route($currentRole . '.messages.index') }}" @submit="searching = true" class="flex items-center gap-2 mb-4">
                     <input type="hidden" name="status" value="{{ $statusFilter }}">
                     <div class="relative flex-1">
                         <input type="text" 
                                name="search" 
-                               value="{{ request('search') }}"
-                               placeholder="Search..." 
-                               class="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0033a0]">
+                               x-model="searchQuery"
+                               @input="recountVisible()"
+                               autocomplete="off"
+                               placeholder="Search Requisition" 
+                               class="w-full pl-9 pr-8 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0033a0]">
                         <svg x-show="!searching" class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <svg x-show="searching" x-cloak class="w-4 h-4 absolute left-3 top-2.5 text-[#0033a0] animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <button type="button"
+                                x-show="searchQuery.length > 0"
+                                x-cloak
+                                @click="searchQuery = ''; recountVisible(); @if(request()->filled('search')) window.location.href = '{{ route($currentRole . '.messages.index', ['status' => $statusFilter]) }}'; @endif"
+                                class="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 rounded cursor-pointer"
+                                title="Clear search">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
                     </div>
-                    <button type="submit" :disabled="searching" class="p-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60" title="Search">
+                    <button type="submit" :disabled="searching" class="p-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60 cursor-pointer" title="Search">
                         <svg x-show="!searching" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <svg x-show="searching" x-cloak class="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     </button>
@@ -45,7 +81,7 @@
                 <!-- Status Tabs (All, Active, Resolved, Cancelled) -->
                 <div class="flex items-center gap-1.5 border-b border-gray-100 dark:border-zinc-800 pb-2 overflow-x-auto no-scrollbar" style="scrollbar-width: none; -ms-overflow-style: none;">
                     @php
-                        $baseUrl = route(auth()->user()->role . '.messages.index');
+                        $baseUrl = route($currentRole . '.messages.index');
                         $searchParam = request('search') ? '&search=' . urlencode(request('search')) : '';
                     @endphp
                     <a href="{{ $baseUrl }}?status=all{{ $searchParam }}" class="text-xs font-bold px-2.5 py-1 rounded-lg transition shrink-0 {{ $statusFilter === 'all' ? 'text-[#0033a0] dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 font-extrabold' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400' }}">
@@ -65,7 +101,7 @@
 
 
             <!-- Conversation List Items -->
-            <div class="flex-1 min-h-0 space-y-2 overflow-y-auto p-1">
+            <div x-ref="convList" class="flex-1 min-h-0 space-y-2 overflow-y-auto p-1">
                 @forelse($requests as $req)
                     @php
                         $isSelected = $selectedRequest && $selectedRequest->request_id === $req->request_id;
@@ -87,8 +123,22 @@
                         };
                         $reqCode = $req->requisition_no ?: ($prefix . '-' . str_pad($req->request_id, 3, '0', STR_PAD_LEFT));
                         $unreadThisReq = (!$isSelected && isset($unreadCounts[$req->request_id])) ? $unreadCounts[$req->request_id] : 0;
+                        $searchBlob = strtolower(implode(' ', array_filter([
+                            $reqCode,
+                            (string) $req->request_id,
+                            $req->title ?? '',
+                            $req->category->category_name ?? '',
+                            $req->campus ?? '',
+                            $req->location ?? '',
+                            ($clientUser->first_name ?? '') . ' ' . ($clientUser->last_name ?? ''),
+                            $clientUser->email_account ?? '',
+                            $lastMsg?->message ?? '',
+                        ])));
                     @endphp
-                    <a href="{{ route($currentRole . '.messages.index', ['requestId' => $req->request_id, 'status' => $statusFilter]) }}{{ request('search') ? '&search=' . urlencode(request('search')) : '' }}" 
+                    <a href="{{ route($currentRole . '.messages.index', ['requestId' => $req->request_id, 'status' => $statusFilter]) }}{{ request('search') ? '&search=' . urlencode(request('search')) : '' }}"
+                       data-conv-item
+                       data-search-text="{{ e($searchBlob) }}"
+                       x-show="matchesSearch($el.getAttribute('data-search-text'))"
                        class="rounded-xl transition flex items-center gap-3 {{ $isSelected ? 'border-2 border-[#0033a0] dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 p-[11px]' : ($unreadThisReq > 0 ? 'border border-red-300 bg-red-50/30 dark:bg-red-950/20 hover:bg-red-50/60 dark:hover:bg-red-950/40 p-3' : 'border border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 p-3') }}">
                         @if($isClientPortal)
                             <!-- Client Portal: Requisition Document Icon Badge -->
@@ -167,6 +217,19 @@
                         No requisition conversations found.
                     </div>
                 @endforelse
+
+                @if($requests->isNotEmpty())
+                    <div x-show="visibleCount === 0 && searchQuery.trim().length > 0"
+                         x-cloak
+                         class="text-center py-8 px-3 text-xs text-gray-400 space-y-1.5">
+                        <p>No conversations match "<span class="font-bold text-gray-600 dark:text-gray-300" x-text="searchQuery"></span>".</p>
+                        <button type="button"
+                                @click="searchQuery = ''; recountVisible()"
+                                class="text-[11px] font-bold text-[#0033a0] dark:text-blue-400 hover:underline cursor-pointer">
+                            Clear filter
+                        </button>
+                    </div>
+                @endif
             </div>
         </div>
 

@@ -325,8 +325,9 @@ class RequestController extends Controller
 
         $categories = \App\Models\Category::all();
         $allMaterials = \App\Models\Materials::orderBy('material_name')->get();
+        $potentialDuplicates = $serviceRequest->findPotentialPrimaryDuplicates();
 
-        return view('admin.requests.show', compact('serviceRequest', 'workers', 'categories', 'allMaterials'));
+        return view('admin.requests.show', compact('serviceRequest', 'workers', 'categories', 'allMaterials', 'potentialDuplicates'));
     }
 
     public function approve(Request $request, int $id)
@@ -698,6 +699,61 @@ class RequestController extends Controller
         }
     }
 
+    public function mergeDuplicate(Request $request, int $id)
+    {
+        try {
+            $validated = $request->validate([
+                'target_request_id' => 'required|integer|exists:request,request_id',
+                'duplicate_ids'     => 'nullable|array',
+                'duplicate_ids.*'   => 'integer|exists:request,request_id',
+                'remarks'           => 'nullable|string|max:500',
+            ]);
+
+            $targetId = (int) $validated['target_request_id'];
+            $duplicateIds = !empty($validated['duplicate_ids'])
+                ? array_map('intval', $validated['duplicate_ids'])
+                : [$id];
+
+            $duplicateIds = array_values(array_filter(
+                array_unique($duplicateIds),
+                fn (int $dupId) => $dupId > 0 && $dupId !== $targetId
+            ));
+
+            if (empty($duplicateIds)) {
+                return redirect()->back()->with('error', 'Please select at least one duplicate requisition to merge into the primary entry.');
+            }
+
+            $primary = ServiceRequest::with(['client.user', 'category', 'latestHistory'])->findOrFail($targetId);
+
+            if (in_array($primary->current_status, ['Cancelled', 'Rejected'], true)) {
+                return redirect()->back()
+                    ->with('error', 'Cannot merge into a cancelled or disapproved requisition.');
+            }
+
+            $mergedCount = ServiceRequest::mergeDuplicatesIntoPrimary(
+                $primary,
+                $duplicateIds,
+                (int) auth()->id(),
+                $validated['remarks'] ?? null,
+                $this->notifications
+            );
+
+            if ($mergedCount === 0) {
+                return redirect()->route('admin.requests.show', $primary->request_id)
+                    ->with('info', 'Selected duplicate requisitions were already closed or merged.');
+            }
+
+            $primaryPad = str_pad((string) $primary->request_id, 4, '0', STR_PAD_LEFT);
+
+            return redirect()->route('admin.requests.show', $primary->request_id)
+                ->with('success', "Successfully merged {$mergedCount} duplicate " . Str::plural('requisition', $mergedCount) . " into primary requisition #{$primaryPad} ({$primary->tracking_code}).");
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error merging duplicate request: ' . $e->getMessage());
+        }
+    }
+
     public function verifyCompletion(Request $request, int $id)
     {
         try {
@@ -863,7 +919,26 @@ class RequestController extends Controller
                 return redirect()->back()->with('error', 'No active project found for this request. Please approve the request first.');
             }
 
+            if (in_array($serviceRequest->current_status, [
+                'Awaiting Verification of Bill of Materials',
+                'BOM Verified (Awaiting Client Approval)',
+                'Awaiting Materials',
+            ], true)) {
+                return redirect()->back()->with('error', 'Cannot start task while materials are still pending approval or arrival. Please confirm materials have arrived first.');
+            }
+
             $project = $serviceRequest->project;
+            $hasExistingBeforePhoto = $project->histories()
+                ->where('current_status', 'In Progress')
+                ->whereNotNull('proof_attachment')
+                ->where('proof_attachment', '!=', '0')
+                ->exists();
+
+            if ($serviceRequest->current_status === 'In Progress' && $hasExistingBeforePhoto) {
+                return redirect()->route('admin.requests.show', $id)
+                    ->with('info', 'This task is already In Progress with a recorded Before-Work photo.');
+            }
+
             $disk = config('filesystems.default', 'public');
             if ($disk === 's3' && empty(config('filesystems.disks.s3.key'))) {
                 $disk = 'public';
@@ -875,7 +950,8 @@ class RequestController extends Controller
 
             $previousStatus = $project->current_status;
             $newStatus = 'In Progress';
-            $remarks = 'Admin implemented the project.';
+            $customRemarks = trim((string) ($validated['remarks'] ?? ''));
+            $remarks = $customRemarks !== '' ? $customRemarks : 'Admin implemented the project.';
 
             ProjectHistory::create([
                 'project_id'       => $project->project_id,
@@ -1118,8 +1194,9 @@ class RequestController extends Controller
     }
 
     /**
-     * Admin confirms that materials have arrived and work can begin.
-     * Transitions status from "Awaiting Materials" → "In Progress".
+     * Admin confirms that materials have arrived on site.
+     * Transitions status from "Awaiting Materials" → "Materials Arrived"
+     * (does not set to "In Progress" until worker/admin explicitly starts the task).
      */
     public function confirmMaterialsArrived(int $id)
     {
@@ -1131,36 +1208,31 @@ class RequestController extends Controller
             }
 
             $prevStatus = $serviceRequest->current_status;
-            $remarks = 'Admin confirmed that all required materials have arrived. Work is ready to commence.';
-
-            $serviceRequest->update([
-                'current_status' => 'In Progress',
-            ]);
+            $targetStatus = 'Materials Arrived';
+            $remarks = 'Admin confirmed that all required materials have arrived. Ready for on-site work to commence.';
 
             RequestHistory::create([
                 'request_id'      => $serviceRequest->request_id,
                 'previous_status' => $prevStatus,
-                'current_status'  => 'In Progress',
+                'current_status'  => $targetStatus,
                 'remarks'         => $remarks,
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
             ]);
 
             if ($serviceRequest->project) {
-                $serviceRequest->project->update([
-                    'current_status' => 'In Progress',
-                ]);
+                $prevProjStatus = $serviceRequest->project->current_status;
 
                 \App\Models\ProjectHistory::create([
                     'project_id'      => $serviceRequest->project->project_id,
-                    'previous_status' => $prevStatus,
-                    'current_status'  => 'In Progress',
+                    'previous_status' => $prevProjStatus,
+                    'current_status'  => $targetStatus,
                     'remarks'         => $remarks,
                     'updated_at'      => now(),
                     'updated_by'      => auth()->id(),
                 ]);
 
-                // Notify assigned workers that materials arrived and work can begin
+                // Notify assigned workers that materials arrived and work can be started
                 $projectTitle = $serviceRequest->title ?? "Project #{$serviceRequest->project->project_id}";
                 $notificationService = new \App\Services\NotificationService();
 
@@ -1170,8 +1242,8 @@ class RequestController extends Controller
                         $notificationService->send(
                             $workerUserId,
                             'materials_arrived',
-                            'Materials Have Arrived — Begin Work',
-                            "All required materials for \"{$projectTitle}\" have arrived. You may now proceed with the job.",
+                            'Materials Have Arrived — Ready to Start',
+                            "All required materials for \"{$projectTitle}\" have arrived. You may now start the job order when on site.",
                             route('worker.job-orders.show', $serviceRequest->project->project_id, false)
                         );
                     }
@@ -1180,13 +1252,13 @@ class RequestController extends Controller
 
             \App\Models\UserLog::create([
                 'user_id'    => auth()->id(),
-                'action'     => "Admin confirmed materials arrived for request #{$serviceRequest->request_id}. Status set to In Progress.",
+                'action'     => "Admin confirmed materials arrived for request #{$serviceRequest->request_id}. Status set to Materials Arrived.",
                 'ip_address' => request()->ip(),
                 'created_at' => now(),
             ]);
 
             return redirect()->route('admin.requests.show', $id)
-                ->with('success', 'Materials confirmed as arrived. The project is now In Progress.');
+                ->with('success', 'Materials confirmed as arrived. The job order is ready to be started.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error confirming materials: ' . $e->getMessage());
         }

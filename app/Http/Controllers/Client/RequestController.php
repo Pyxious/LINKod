@@ -25,53 +25,89 @@ class RequestController extends Controller
         $client = $user->client;
 
         if ($client) {
-            // Cache per-client KPI counts (120s — 2 min)
-            $kpi = Cache::remember("client_{$client->client_id}_request_kpi", 120, function () use ($client) {
+            $nonPendingStatuses = ['In Progress', 'Pending Verification', 'Completed', 'Cancelled', 'Rejected'];
+
+            // Cache per-client KPI counts (60s)
+            $kpi = Cache::remember("client_{$client->client_id}_request_kpi_v2", 60, function () use ($client, $nonPendingStatuses) {
                 $baseQuery = $client->requests();
                 return [
-                    'totalRequests'   => (clone $baseQuery)->count(),
-                    'pendingCount'    => (clone $baseQuery)->where(function($q) {
-                        $q->whereHas('latestHistory', fn($lh) => $lh->whereIn('current_status', ['Submitted', 'Pending', 'On Hold']))
+                    'totalRequests'       => (clone $baseQuery)->count(),
+                    'pendingCount'        => (clone $baseQuery)->where(function ($q) use ($nonPendingStatuses) {
+                        $q->whereHas('latestHistory', fn($lh) => $lh->whereNotIn('current_status', $nonPendingStatuses))
                           ->orWhereDoesntHave('histories');
                     })->count(),
-                    'inProgressCount' => (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->whereIn('current_status', ['In Progress', 'Pending Verification']))->count(),
-                    'completedCount'  => (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Completed'))->count(),
-                    'cancelledCount'  => (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Cancelled'))->count(),
+                    'inProgressCount'     => (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->whereIn('current_status', ['In Progress', 'Pending Verification']))->count(),
+                    'completedCount'      => (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Completed'))->count(),
+                    'cancelledCount'      => (clone $baseQuery)->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Cancelled'))->count(),
+                    'actionRequiredCount' => (clone $baseQuery)->where(function ($q) {
+                        $q->where('bom_status', 'awaiting_client')
+                          ->orWhereHas('latestHistory', fn($lh) => $lh->whereIn('current_status', [
+                              'BOM Verified (Awaiting Client Approval)',
+                              'List of Materials Verified (Awaiting Client Approval)',
+                          ]))
+                          ->orWhere(function ($sq) {
+                              $sq->where('schedule_status', 'pending_client_approval')
+                                 ->whereHas('latestHistory', fn($lh) => $lh->whereNotIn('current_status', ['Cancelled', 'Rejected', 'Completed']));
+                          })
+                          ->orWhere(function ($eq) {
+                              $eq->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Completed'))
+                                 ->doesntHave('evaluation');
+                          });
+                    })->count(),
                 ];
             });
             extract($kpi);
 
-            $baseQuery = $client->requests();
-
-            $query = $client->requests()->with('category', 'latestHistory');
+            $query = $client->requests()->with(['category', 'latestHistory', 'evaluation']);
 
             // Status Filter
             if ($request->filled('status') && $request->status !== 'all') {
                 $status = strtolower($request->status);
                 if ($status === 'pending') {
-                    $query->where(function($q) {
-                        $q->whereHas('latestHistory', fn($lh) => $lh->whereIn('current_status', ['Submitted', 'Pending', 'On Hold']))
+                    $query->where(function ($q) use ($nonPendingStatuses) {
+                        $q->whereHas('latestHistory', fn($lh) => $lh->whereNotIn('current_status', $nonPendingStatuses))
                           ->orWhereDoesntHave('histories');
                     });
                 } elseif ($status === 'in_progress') {
                     $query->whereHas('latestHistory', fn($lh) => $lh->whereIn('current_status', ['In Progress', 'Pending Verification']));
+                } elseif ($status === 'action_required') {
+                    $query->where(function ($q) {
+                        $q->where('bom_status', 'awaiting_client')
+                          ->orWhereHas('latestHistory', fn($lh) => $lh->whereIn('current_status', [
+                              'BOM Verified (Awaiting Client Approval)',
+                              'List of Materials Verified (Awaiting Client Approval)',
+                          ]))
+                          ->orWhere(function ($sq) {
+                              $sq->where('schedule_status', 'pending_client_approval')
+                                 ->whereHas('latestHistory', fn($lh) => $lh->whereNotIn('current_status', ['Cancelled', 'Rejected', 'Completed']));
+                          })
+                          ->orWhere(function ($eq) {
+                              $eq->whereHas('latestHistory', fn($lh) => $lh->where('current_status', 'Completed'))
+                                 ->doesntHave('evaluation');
+                          });
+                    });
                 } else {
                     $query->whereHas('latestHistory', fn($lh) => $lh->where('current_status', ucfirst($status)));
                 }
             }
 
-            // Search Query
-            if ($request->filled('search')) {
-                $rawSearch = trim($request->search);
-                $numericId = (int) preg_replace('/[^0-9]/', '', $rawSearch);
+            // Search / Tracking Code Query
+            $rawSearch = trim((string) ($request->input('search') ?? $request->input('tracking_number') ?? ''));
+            if ($rawSearch !== '') {
+                $explicitId = null;
+                if (preg_match('/^(?:REQ|LS|JS|CMS|PLS|EMS|PAS|PAINT|MAN|PS)?[-\s#]*0*([1-9]\d*)$/i', $rawSearch, $matches)) {
+                    $explicitId = (int) $matches[1];
+                }
 
-                $query->where(function($q) use ($rawSearch, $numericId) {
+                $query->where(function ($q) use ($rawSearch, $explicitId) {
                     $q->where('title', 'LIKE', "%{$rawSearch}%")
                       ->orWhere('location', 'LIKE', "%{$rawSearch}%")
-                      ->orWhere('campus', 'LIKE', "%{$rawSearch}%");
+                      ->orWhere('campus', 'LIKE', "%{$rawSearch}%")
+                      ->orWhere('description', 'LIKE', "%{$rawSearch}%")
+                      ->orWhereHas('category', fn($catQ) => $catQ->where('category_name', 'LIKE', "%{$rawSearch}%"));
 
-                    if ($numericId > 0) {
-                        $q->orWhere('request_id', $numericId);
+                    if ($explicitId !== null) {
+                        $q->orWhere('request_id', $explicitId);
                     }
                 });
             }
@@ -83,19 +119,32 @@ class RequestController extends Controller
             $inProgressCount = 0;
             $completedCount = 0;
             $cancelledCount = 0;
+            $actionRequiredCount = 0;
             $requests = collect();
         }
 
         return view('client.requests.index', compact(
-            'requests', 'totalRequests', 'pendingCount', 'inProgressCount', 'completedCount', 'cancelledCount'
+            'requests', 'totalRequests', 'pendingCount', 'inProgressCount', 'completedCount', 'cancelledCount', 'actionRequiredCount'
         ));
     }
 
     public function track(Request $request)
     {
-        
-        
-        return view('client.requests.track');
+        $term = trim((string) ($request->input('tracking_number') ?? $request->input('search') ?? ''));
+        $client = auth()->user()?->client;
+
+        if ($term !== '') {
+            if ($client && preg_match('/^(?:REQ|LS|JS|CMS|PLS|EMS|PAS|PAINT|MAN|PS)?[-\s#]*0*([1-9]\d*)$/i', $term, $matches)) {
+                $exactRequest = $client->requests()->where('request_id', (int) $matches[1])->first();
+                if ($exactRequest) {
+                    return redirect()->route('client.requests.show', $exactRequest->request_id);
+                }
+            }
+
+            return redirect()->route('client.requests.index', ['search' => $term]);
+        }
+
+        return redirect()->route('client.requests.index');
     }
 
     public function create(Request $request)
@@ -103,6 +152,9 @@ class RequestController extends Controller
         $user = auth()->user();
         $client = $user?->client;
         $unratedCompletedRequest = null;
+        $activeQuotaCount = 0;
+        $reachedMaxActiveRequests = false;
+        $activeClientRequestsData = [];
 
         if ($client) {
             $unratedCompletedRequest = $client->requests()
@@ -110,6 +162,24 @@ class RequestController extends Controller
                 ->doesntHave('evaluation')
                 ->latest('submitted_at')
                 ->first();
+
+            $unfinishedRequests = ServiceRequest::getUnfinishedRequestsForClient((int) $client->client_id);
+            $activeQuotaCount = $unfinishedRequests->count();
+            $reachedMaxActiveRequests = $activeQuotaCount >= 5;
+
+            if (!$reachedMaxActiveRequests) {
+                $activeClientRequestsData = $unfinishedRequests->map(fn (ServiceRequest $r) => [
+                    'request_id'    => $r->request_id,
+                    'tracking_code' => $r->tracking_code,
+                    'status'        => $r->current_status,
+                    'category_id'   => (int) $r->category_id,
+                    'campus_norm'   => ServiceRequest::normalizeText($r->campus),
+                    'location_norm' => ServiceRequest::normalizeText($r->location),
+                    'title_norm'    => ServiceRequest::normalizeText($r->title),
+                    'desc_norm'     => ServiceRequest::normalizeDescriptionForComparison($r->description),
+                    'show_url'      => route('client.requests.show', $r->request_id),
+                ])->values()->all();
+            }
         }
 
         $categories = Category::orderBy('category_name')->get();
@@ -126,7 +196,14 @@ class RequestController extends Controller
             }
         }
 
-        return view('client.requests.create', compact('categories', 'preselectedCatId', 'unratedCompletedRequest'));
+        return view('client.requests.create', compact(
+            'categories',
+            'preselectedCatId',
+            'unratedCompletedRequest',
+            'activeQuotaCount',
+            'reachedMaxActiveRequests',
+            'activeClientRequestsData'
+        ));
     }
 
     public function store(Request $request)
@@ -144,7 +221,14 @@ class RequestController extends Controller
 
                 if ($unratedCompletedRequest) {
                     return redirect()->route('client.evaluations.create', $unratedCompletedRequest->request_id)
-                        ->with('error', 'Request creation is locked because you have not evaluated your last completed request.');
+                        ->with('error', 'Please rate your completed request first.');
+                }
+
+                // Overall 5-request cap across all services (only reduced when disapproved or completed & rated)
+                if (ServiceRequest::countUnfinishedRequestsForClient((int) $client->client_id) >= 5) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'Request limit reached (5/5): Wait until a request is disapproved or completed & rated.');
                 }
             }
 
@@ -229,6 +313,41 @@ class RequestController extends Controller
                 }
             }
 
+            // 1) Allow up to 4 active requests per client with the exact same structured details (category + campus + location + concern)
+            $sameDetailsCount = ServiceRequest::countClientSameDetailsRequests(
+                (int) $client->client_id,
+                (int) $validated['category_id'],
+                (string) $validated['title'],
+                (string) $validated['campus'],
+                (string) $validated['location']
+            );
+
+            if ($sameDetailsCount >= 4) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Same-concern limit reached (4/4) for this location.');
+            }
+
+            // 2) If description is also identical to an active request, warn the client unless already confirmed
+            if (!$request->boolean('confirm_same_description')) {
+                $sameDescriptionMatch = ServiceRequest::findActiveSameDescriptionForClient(
+                    (int) $client->client_id,
+                    (int) $validated['category_id'],
+                    (string) $validated['title'],
+                    (string) $validated['campus'],
+                    (string) $validated['location'],
+                    $validated['description'] ?? null
+                );
+
+                if ($sameDescriptionMatch) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('same_description_request_id', $sameDescriptionMatch->request_id)
+                        ->with('same_description_tracking_code', $sameDescriptionMatch->tracking_code)
+                        ->with('warning', "Same request warning: Matches {$sameDescriptionMatch->tracking_code}. Confirm below to submit anyway.");
+                }
+            }
+
             $attachmentPath = null;
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
@@ -291,6 +410,8 @@ class RequestController extends Controller
                 'attachment'   => $attachmentPath,
                 'submitted_at' => now(),
             ]);
+
+            Cache::forget("client_{$client->client_id}_request_kpi_v2");
 
             \App\Models\UserLog::create([
                 'user_id'    => auth()->id(),

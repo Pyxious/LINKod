@@ -14,7 +14,7 @@ class DashboardController extends Controller
         $client = $user->client;
 
         $activeRequests = $client
-            ? $client->requests()->with('latestHistory', 'category')->latest('submitted_at')->take(5)->get()
+            ? $client->requests()->with(['latestHistory', 'category', 'evaluation'])->latest('submitted_at')->take(4)->get()
             : collect();
 
         // Compute unread from a single notifications fetch

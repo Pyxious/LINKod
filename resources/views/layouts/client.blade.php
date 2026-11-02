@@ -92,9 +92,15 @@
             </a>
         </div>
         @else
+        @php
+            $isClientNav = auth()->check() && auth()->user()->role === 'client';
+            $homeHref = $isClientNav ? route('client.dashboard') : route('home');
+            $servicesHref = $homeHref . '#services';
+            $trackHref = $isClientNav ? route('client.requests.index') : (route('home') . '#track');
+        @endphp
         <div class="hidden md:flex items-center gap-8 h-full"
              x-data="{ 
-                 activeTab: '{{ request()->routeIs('home') ? 'home' : (request()->routeIs('faq') ? 'faq' : '') }}',
+                 activeTab: '{{ request()->routeIs('client.requests.*') ? 'track' : (request()->routeIs('faq') ? 'faq' : (request()->routeIs('home', 'client.dashboard') ? 'home' : '')) }}',
                  init() {
                      const updateTab = () => {
                          const path = window.location.pathname;
@@ -102,7 +108,9 @@
 
                          if (path === '/faq') {
                              this.activeTab = 'faq';
-                         } else if (path === '/') {
+                         } else if (path.startsWith('/client/requests')) {
+                             this.activeTab = 'track';
+                         } else if (path === '/' || path === '/client/dashboard') {
                              if (hash === '#services') this.activeTab = 'services';
                              else if (hash === '#track') this.activeTab = 'track';
                              else if (hash === '#faq') this.activeTab = 'faq';
@@ -116,15 +124,15 @@
                  }
              }">
             <!-- HOME -->
-            <a href="{{ route('home') }}" 
+            <a href="{{ $homeHref }}" 
                @click="activeTab = 'home'"
                :class="activeTab === 'home' ? 'text-[#0033a0] dark:text-blue-400 font-bold border-b-2 border-[#0033a0] dark:border-blue-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-semibold'"
                class="h-full flex items-center px-2 text-xs uppercase tracking-wider transition">
                 HOME
             </a>
 
-            <!-- SERVICES (Always goes to main page #services section) -->
-            <a href="{{ route('home') }}#services" 
+            <!-- SERVICES -->
+            <a href="{{ $servicesHref }}" 
                @click="activeTab = 'services'"
                :class="activeTab === 'services' ? 'text-[#0033a0] dark:text-blue-400 font-bold border-b-2 border-[#0033a0] dark:border-blue-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-semibold'"
                class="h-full flex items-center px-2 text-xs uppercase tracking-wider transition">
@@ -132,7 +140,7 @@
             </a>
 
             <!-- TRACK -->
-            <a href="{{ route('home') }}#track" 
+            <a href="{{ $trackHref }}" 
                @click="activeTab = 'track'"
                :class="activeTab === 'track' ? 'text-[#0033a0] dark:text-blue-400 font-bold border-b-2 border-[#0033a0] dark:border-blue-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-semibold'"
                class="h-full flex items-center px-2 text-xs uppercase tracking-wider transition">
@@ -396,14 +404,10 @@
 
                     <!-- Sign Out Section -->
                     <div class="py-1">
-                        <form method="POST" action="{{ route('logout') }}" x-data="{ loggingOut: false }" @submit="loggingOut = true">
-                            @csrf
-                            <button type="submit" :disabled="loggingOut" class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition text-left cursor-pointer disabled:opacity-60">
-                                <svg x-show="!loggingOut" class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                                <svg x-show="loggingOut" x-cloak class="w-4 h-4 animate-spin text-red-500 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                <span x-text="loggingOut ? 'LOGGING OUT...' : 'SIGN OUT'">SIGN OUT</span>
-                            </button>
-                        </form>
+                        <button type="button" @click="open = false; $dispatch('open-logout-modal')" class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition text-left cursor-pointer">
+                            <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                            <span>SIGN OUT</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -483,6 +487,28 @@
                     </button>
                 </div>
             @endif
+            @if(session('warning'))
+                <div x-data="{ show: true }" 
+                     x-show="show" 
+                     x-init="setTimeout(() => show = false, 5500)"
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="opacity-0 -translate-y-3 scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                     x-transition:leave-end="opacity-0 -translate-y-3 scale-95"
+                     x-cloak
+                     id="client-flash-warning" 
+                     class="pointer-events-auto bg-amber-100/95 dark:bg-amber-950/90 backdrop-blur-xs border border-amber-300 dark:border-amber-700/60 text-amber-900 dark:text-amber-200 px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold shadow-lg flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 flex-1 min-w-0">
+                        <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                        <span class="leading-snug break-words">{{ session('warning') }}</span>
+                    </div>
+                    <button type="button" @click="show = false" class="text-amber-700 hover:text-amber-950 dark:text-amber-300 dark:hover:text-white p-1 rounded-md transition cursor-pointer text-xs font-bold leading-none shrink-0" title="Dismiss">
+                        ✕
+                    </button>
+                </div>
+            @endif
         </div>
     @endunless
 
@@ -491,8 +517,9 @@
             $clientUser = auth()->user();
             $isClient = $clientUser && $clientUser->role === 'client' && $clientUser->client;
             $unratedCompletedRequest = null;
-            if ($isClient && !request()->routeIs('client.evaluations.create', 'client.evaluations.store', 'logout')) {
-                $unratedCompletedRequest = \App\Models\ServiceRequest::where('client_id', $clientUser->client->client_id)
+            if ($isClient && !request()->routeIs('client.evaluations.create', 'client.evaluations.store', 'logout', 'privacy.policy', 'terms.conditions', 'faq')) {
+                $unratedCompletedRequest = \App\Models\ServiceRequest::with('category')
+                    ->where('client_id', $clientUser->client->client_id)
                     ->whereHas('latestHistory', fn($q) => $q->where('current_status', 'Completed'))
                     ->whereDoesntHave('evaluation')
                     ->first();
@@ -527,7 +554,7 @@
                             Your Feedback is Required!
                         </h2>
                         <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed max-w-md mx-auto">
-                            Your service request <span class="font-bold text-[#0033a0] dark:text-blue-400">#{{ str_pad($unratedCompletedRequest->request_id, 4, '0', STR_PAD_LEFT) }} — {{ $unratedCompletedRequest->title }}</span> has been completed by the GSO team.
+                            Your service request <span class="font-bold text-[#0033a0] dark:text-blue-400">{{ $unratedCompletedRequest->tracking_code }} (#{{ str_pad($unratedCompletedRequest->request_id, 4, '0', STR_PAD_LEFT) }}) — {{ $unratedCompletedRequest->title }}</span> has been completed by the GSO team.
                         </p>
                         <p class="text-xs text-gray-500 dark:text-gray-400">
                             Please take a moment to evaluate the service. You must submit your evaluation before accessing other pages on the portal.
@@ -596,18 +623,24 @@
                 <h4 class="font-bold text-[11px] tracking-wider uppercase text-white mb-4">QUICK LINKS</h4>
                 <ul class="space-y-2 text-gray-300 text-[11px]">
                     <li><a href="{{ route('home') }}" class="hover:text-white transition">Home</a></li>
-                    <li><a href="#services" class="hover:text-white transition">Services</a></li>
+                    <li><a href="{{ route('home') }}#services" class="hover:text-white transition">Services</a></li>
                     <li><a href="{{ route('client.requests.index') }}" class="hover:text-white transition">Track Request</a></li>
+                    <li><a href="{{ route('faq') }}" class="hover:text-white transition">FAQs</a></li>
                 </ul>
             </div>
 
-            <!-- Col 4: Help -->
+            <!-- Col 4: Legal & Help -->
             <div>
-                <h4 class="font-bold text-[11px] tracking-wider uppercase text-white mb-4">HELP</h4>
+                <h4 class="font-bold text-[11px] tracking-wider uppercase text-white mb-4">LEGAL &amp; HELP</h4>
                 <ul class="space-y-2 text-gray-300 text-[11px]">
-                    <li><a href="#" class="hover:text-white transition">Privacy Policy</a></li>
-                    <li><a href="#" class="hover:text-white transition">Technical Support</a></li>
-                    <li><a href="{{ route('faq') }}" class="hover:text-white transition">FAQs</a></li>
+                    <li><a href="{{ route('privacy.policy') }}" class="hover:text-white transition">Privacy Policy</a></li>
+                    <li><a href="{{ route('terms.conditions') }}" class="hover:text-white transition">Terms &amp; Conditions</a></li>
+                    <li>
+                        <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-cookie-settings'))" class="hover:text-white transition text-left cursor-pointer">
+                            Cookie Preferences
+                        </button>
+                    </li>
+                    <li><a href="mailto:bu-gso@bicol-u.edu.ph" class="hover:text-white transition">Technical Support</a></li>
                 </ul>
             </div>
         </div>
@@ -618,6 +651,11 @@
         </div>
     </footer>
 
+    @include('partials.cookie-consent')
+
+    @auth
+        <x-logout-confirmation-modal />
+    @endauth
     @livewireScripts
     @stack('scripts')
     <script>

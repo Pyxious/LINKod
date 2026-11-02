@@ -19,10 +19,16 @@ class RequestHistory extends Model
     protected static function booted(): void
     {
         static::saved(function (self $history) {
+            $req = $history->request;
+            ServiceRequest::bustRecurringCache($req?->submitted_at?->format('Y-m'));
+            if ($req?->client_id) {
+                \Illuminate\Support\Facades\Cache::forget("client_{$req->client_id}_request_kpi_v2");
+            }
             \App\Events\RequestUpdated::broadcastUpdate((int) $history->request_id, null, 'request_history_saved');
         });
 
         static::deleted(function (self $history) {
+            ServiceRequest::bustRecurringCache($history->request?->submitted_at?->format('Y-m'));
             \App\Events\RequestUpdated::broadcastUpdate((int) $history->request_id, null, 'request_history_deleted');
         });
     }
@@ -57,6 +63,9 @@ class RequestHistory extends Model
         }
 
         // List of Materials (BOM) actions
+        if (str_contains($remarks, 'materials have arrived') || $status === 'Materials Arrived') {
+            return 'Materials Arrived';
+        }
         if (str_contains($remarks, 'on-site direct') || $status === 'BOM Approved (On-Site Direct)') {
             return 'Materials Approved (On-Site)';
         }
@@ -76,6 +85,14 @@ class RequestHistory extends Model
         // Client evaluation / rating actions
         if (str_contains($remarks, 'rated the service') || str_contains($remarks, 'client rated') || str_contains($remarks, 'submitted satisfaction') || $status === 'Evaluated' || $status === 'Client Rated Service') {
             return 'Client Rated Service';
+        }
+
+        // Duplicate merge actions
+        if (str_contains($remarks, 'merged as a duplicate')) {
+            return 'Merged (Cancelled)';
+        }
+        if (str_contains($remarks, 'merged duplicate ')) {
+            return 'Duplicate Merged';
         }
 
         // Standard Lifecycle actions
@@ -141,7 +158,7 @@ class RequestHistory extends Model
             str_contains($title, 'Rejected') || str_contains($title, 'Disapproved') || str_contains($title, 'Cancelled') || str_contains($title, 'Declined')
                 => 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900',
 
-            str_contains($title, 'Confirmed') || str_contains($title, 'Approved') || str_contains($title, 'Completed') || str_contains($title, 'Acceptance') || str_contains($title, 'Client Rated') || str_contains($title, 'Evaluated')
+            str_contains($title, 'Confirmed') || str_contains($title, 'Approved') || str_contains($title, 'Materials Arrived') || str_contains($title, 'Completed') || str_contains($title, 'Acceptance') || str_contains($title, 'Client Rated') || str_contains($title, 'Evaluated')
                 => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900',
 
             str_contains($title, 'Proposed') || str_contains($title, 'Submitted') || str_contains($title, 'Pending') || str_contains($title, 'On Hold')
@@ -163,7 +180,7 @@ class RequestHistory extends Model
             str_contains($title, 'Rejected') || str_contains($title, 'Disapproved') || str_contains($title, 'Cancelled') || str_contains($title, 'Declined')
                 => 'bg-rose-500 ring-rose-100 dark:ring-rose-950',
 
-            str_contains($title, 'Confirmed') || str_contains($title, 'Approved') || str_contains($title, 'Completed') || str_contains($title, 'Acceptance') || str_contains($title, 'Client Rated') || str_contains($title, 'Evaluated')
+            str_contains($title, 'Confirmed') || str_contains($title, 'Approved') || str_contains($title, 'Materials Arrived') || str_contains($title, 'Completed') || str_contains($title, 'Acceptance') || str_contains($title, 'Client Rated') || str_contains($title, 'Evaluated')
                 => 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-950',
 
             str_contains($title, 'Proposed') || str_contains($title, 'Submitted') || str_contains($title, 'Pending') || str_contains($title, 'On Hold')

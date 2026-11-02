@@ -100,10 +100,16 @@ class GoogleAuthController extends Controller
      */
     public function logout(Request $request): RedirectResponse
     {
+        $hadPilotAccess = (bool) $request->session()->get('pilot_access_granted', false);
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        if ($hadPilotAccess) {
+            $request->session()->put('pilot_access_granted', true);
+        }
+
+        return redirect()->route('home');
     }
 }

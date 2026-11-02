@@ -83,7 +83,7 @@ class MessagePortalController extends Controller
                     WHEN LOWER(priority) = 'high' THEN 1 
                     ELSE 2 
                 END ASC
-            ")->orderBy('submitted_at', 'asc')->orderBy('request_id', 'asc')->take(50)->get();
+            ")->orderBy('submitted_at', 'asc')->orderBy('request_id', 'asc')->take(100)->get();
 
         // Perform search filtering on loaded Collection (supports decrypted user PII names, requisition codes, categories, titles, locations, emails)
         if ($request->filled('search')) {
@@ -103,10 +103,12 @@ class MessagePortalController extends Controller
 
                 $prefix = match(true) {
                     str_contains($catName, 'landscaping') => 'ls',
-                    str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'ems',
+                    str_contains($catName, 'janitorial') => 'js',
                     str_contains($catName, 'carpentry') || str_contains($catName, 'masonry') => 'cms',
                     str_contains($catName, 'plumbing') => 'pls',
-                    str_contains($catName, 'painting') => 'paint',
+                    str_contains($catName, 'electrical') || str_contains($catName, 'mechanical') => 'ems',
+                    str_contains($catName, 'painting') || str_contains($catName, 'paint') => 'pas',
+                    str_contains($catName, 'manpower') || str_contains($catName, 'event') => 'man',
                     default => 'req'
                 };
                 $reqCode = strtolower($req->requisition_no ?: ($prefix . '-' . str_pad($req->request_id, 3, '0', STR_PAD_LEFT)));
