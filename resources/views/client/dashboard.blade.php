@@ -22,8 +22,8 @@
                 Submit a Request
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 17L17 7M17 7H7M17 7v10"/></svg>
             </a>
-            <a href="{{ route('client.requests.index') }}" class="w-full sm:w-auto px-8 py-3.5 bg-[#fef3c7] hover:bg-[#fde68a] text-[#b45309] border border-[#fde68a] rounded-full font-bold text-sm transition text-center min-w-[200px]">
-                Track My Requests
+            <a href="#track" class="w-full sm:w-auto px-8 py-3.5 bg-[#fef3c7] hover:bg-[#fde68a] text-[#b45309] border border-[#fde68a] rounded-full font-bold text-sm transition text-center min-w-[200px]">
+                Track a Request
             </a>
         </div>
 
@@ -127,118 +127,194 @@
 
     <!-- Track Your Request Status Section (SECOND - WITH SCROLL OFFSET) -->
     <section id="track" class="w-full bg-[#edf4fb] dark:bg-[#18181b] py-16 px-4 sm:px-6 lg:px-12 border-b border-gray-200 dark:border-zinc-800 scroll-mt-16">
-        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             
-            <!-- Left Column: Quick Lookup & Direct Portal Link (5 cols) -->
-            <div class="lg:col-span-5 space-y-5">
-                <div>
-                    <span class="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 text-[10.5px] font-extrabold uppercase tracking-wider rounded-full mb-3">
-                        Real-Time Status Tracker
-                    </span>
-                    <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
-                        <span class="text-[#0033a0] dark:text-blue-400">Track</span> your requests
-                    </h2>
-                    <p class="text-gray-600 dark:text-gray-300 text-xs sm:text-sm mt-2.5 leading-relaxed">
-                        Jump straight to a requisition using its code, or click any of your recent requests on the right to monitor live updates.
-                    </p>
-                </div>
-
-                <!-- Quick Search Card -->
-                <div class="border border-blue-200 dark:border-zinc-700 rounded-2xl p-5 bg-white dark:bg-zinc-900 shadow-xs">
-                    <form method="GET" action="{{ route('client.requests.track') }}" x-data="{ tracking: false }" @submit="if ($el.checkValidity()) tracking = true" class="space-y-3">
-                        <label class="block text-xs font-extrabold text-slate-800 dark:text-gray-200 uppercase tracking-wider">
-                            Quick Search by Code or Keyword
-                        </label>
-                        <div class="flex flex-col sm:flex-row gap-2.5">
-                            <input type="text" 
-                                   name="tracking_number" 
-                                   required
-                                   placeholder="e.g., PLS-012, CMS-005, or Room 204" 
-                                   class="flex-1 px-4 py-2.5 bg-[#edf4fb] dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-[#0033a0]">
-                            <button type="submit" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer shrink-0">
-                                <svg x-show="tracking" x-cloak class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                <span x-text="tracking ? 'Opening...' : 'Find'">Find</span>
-                            </button>
-                        </div>
-                    </form>
-
-                    <div class="mt-4 pt-3.5 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">Want to see all history &amp; filters?</span>
-                        <a href="{{ route('client.requests.index') }}" class="text-xs font-bold text-[#0033a0] dark:text-blue-400 hover:underline inline-flex items-center gap-1">
-                            <span>Open My Requests</span>
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-                    </div>
-                </div>
+            <!-- Left Info -->
+            <div>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+                    <span class="text-[#0033a0] dark:text-blue-400">Track</span> your request status
+                </h2>
+                <p class="text-gray-600 dark:text-gray-300 text-xs sm:text-sm mt-3 leading-relaxed max-w-md">
+                    Enter your tracking number to see the real-time status of your submitted service job request.
+                </p>
             </div>
 
-            <!-- Right Column: Live Recent Requests Feed (7 cols) -->
-            <div class="lg:col-span-7 bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-sm">
-                <div class="flex items-center justify-between pb-3.5 mb-4 border-b border-gray-100 dark:border-zinc-800">
-                    <div>
-                        <h3 class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">Your Recent Requests</h3>
-                        <p class="text-[11px] text-gray-500 dark:text-gray-400">Click any item to view its step-by-step progress and timeline</p>
-                    </div>
-                    <a href="{{ route('client.requests.index') }}" class="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-[#0033a0] dark:text-blue-300 rounded-lg text-xs font-bold transition whitespace-nowrap">
-                        View All
-                    </a>
-                </div>
+            <!-- Right Form Box (Dotted Border Card) -->
+            <div class="border-2 border-dashed border-[#0033a0] rounded-2xl p-7 bg-white dark:bg-zinc-900 shadow-sm">
+                <script type="application/json" id="clientTrackSearchData">@json($searchableRequests ?? [])</script>
+                <form method="GET"
+                      action="{{ route('client.requests.track') }}"
+                      x-data="{
+                          tracking: false,
+                          query: '',
+                          openDropdown: false,
+                          activeIndex: -1,
+                          items: [],
+                          indexBaseUrl: @js(route('client.requests.index')),
+                          init() {
+                              try {
+                                  const el = document.getElementById('clientTrackSearchData');
+                                  this.items = el ? JSON.parse(el.textContent || '[]') : [];
+                              } catch (e) {
+                                  this.items = [];
+                              }
+                          },
+                          matchesItem(item, rawQuery) {
+                              const q = (rawQuery || '').trim().toLowerCase();
+                              if (!q) return false;
 
-                <div class="space-y-2.5">
-                    @forelse($activeRequests ?? [] as $req)
-                        @php
-                            $rawSt = strtolower($req->current_status ?? 'submitted');
-                            $dispSt = match($rawSt) {
-                                'rejected' => 'Disapproved',
-                                'awaiting verification of bill of materials', 'awaiting verification of list of materials' => 'Approved',
-                                'bom verified (awaiting client approval)', 'list of materials verified (awaiting client approval)' => 'Approve Materials',
-                                'awaiting materials', 'waiting for materials' => 'Awaiting Materials',
-                                'materials arrived' => 'Materials Arrived',
-                                'pending verification' => 'Final Check',
-                                default => ucfirst($req->current_status ?? 'Submitted'),
-                            };
-                            $pillCls = match(true) {
-                                $rawSt === 'completed' => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
-                                in_array($rawSt, ['cancelled', 'rejected']) => 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
-                                in_array($rawSt, ['in progress', 'pending verification']) => 'bg-blue-50 text-[#0038A8] border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800',
-                                ($req->bom_status === 'awaiting_client' || str_contains($rawSt, 'awaiting client approval')) => 'bg-indigo-50 text-indigo-700 border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-700',
-                                default => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
-                            };
-                        @endphp
-                        <a href="{{ route('client.requests.show', $req->request_id) }}" class="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-gray-100 dark:border-zinc-800 hover:border-[#0033a0]/40 dark:hover:border-blue-500/40 hover:bg-blue-50/30 dark:hover:bg-zinc-800/60 transition group">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span class="font-mono font-extrabold text-[11px] px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-200/80 dark:border-blue-800">
-                                        {{ $req->tracking_code }}
-                                    </span>
-                                    <span class="text-[11px] text-gray-400 dark:text-gray-500 truncate">
-                                        {{ \Carbon\Carbon::parse($req->submitted_at)->diffForHumans() }}
-                                    </span>
+                              const spaceMatch = q.match(/^([a-z]{1,6})\s+#?0*([1-9]\d*)$/);
+                              if (spaceMatch) {
+                                  const pfx = spaceMatch[1] === 'paint' ? 'pas' : (spaceMatch[1] === 'ps' ? 'pls' : spaceMatch[1]);
+                                  if (Number(spaceMatch[2]) === Number(item.id) && (pfx === 'req' || pfx === item.prefix)) {
+                                      return true;
+                                  }
+                              }
+
+                              const codeLower = (item.code || '').toLowerCase();
+                              const codeCompact = codeLower.replace(/-/g, '');
+                              const pad3 = item.padded3 || String(item.id).padStart(3, '0');
+                              const pad4 = String(item.id).padStart(4, '0');
+                              const codeCandidates = [
+                                  codeLower,
+                                  codeCompact,
+                                  'req-' + pad3,
+                                  'req-' + pad4,
+                                  'req' + pad3,
+                                  'req' + pad4
+                              ];
+
+                              const tokens = q.split(/\s+/).filter(Boolean);
+                              return tokens.every((tok) => {
+                                  if (codeCandidates.some((cand) => cand.startsWith(tok))) return true;
+
+                                  const cleanDigits = tok.replace(/^#+/, '');
+                                  if (cleanDigits && /^\d+$/.test(cleanDigits)) {
+                                      if (Number(cleanDigits) === Number(item.id) || pad4.includes(cleanDigits)) return true;
+                                  }
+
+                                  const codeMatch = tok.match(/^([a-z]{1,6})[-#]+0*([1-9]\d*)$/);
+                                  if (codeMatch && Number(codeMatch[2]) === Number(item.id)) {
+                                      const pfx = codeMatch[1] === 'paint' ? 'pas' : (codeMatch[1] === 'ps' ? 'pls' : codeMatch[1]);
+                                      if (pfx === 'req' || pfx === item.prefix) return true;
+                                  }
+
+                                  if (item.searchBlob && item.searchBlob.includes(tok)) return true;
+                                  return false;
+                              });
+                          },
+                          get filteredItems() {
+                              const q = this.query.trim().toLowerCase();
+                              if (!q) return [];
+                              return this.items
+                                  .filter((item) => this.matchesItem(item, q))
+                                  .sort((a, b) => {
+                                      const aCode = (a.code || '').toLowerCase();
+                                      const bCode = (b.code || '').toLowerCase();
+                                      const aStarts = aCode.startsWith(q) ? 0 : (aCode.includes(q) ? 1 : 2);
+                                      const bStarts = bCode.startsWith(q) ? 0 : (bCode.includes(q) ? 1 : 2);
+                                      return aStarts - bStarts;
+                                  });
+                          },
+                          handleEnter(e) {
+                              if (this.openDropdown && this.activeIndex >= 0 && this.filteredItems[this.activeIndex]) {
+                                  e.preventDefault();
+                                  window.location.href = this.filteredItems[this.activeIndex].url;
+                              }
+                          }
+                      }"
+                      @click.outside="openDropdown = false; activeIndex = -1"
+                      @submit="if ($el.checkValidity()) tracking = true">
+                    <label class="block text-xs font-black text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-0.5">
+                        ENTER TRACKING CODE OR REQUEST # <span class="text-red-500">*</span>
+                    </label>
+                    <span class="text-[11px] text-gray-400 block mb-4">
+                        Enter your requisition code (e.g., PLS-012, CMS-005) or keyword to search your requests.
+                    </span>
+
+                    <div class="relative mb-4">
+                        <input type="text" 
+                               name="tracking_number" 
+                               x-model="query"
+                               @focus="if (query.trim().length > 0) openDropdown = true"
+                               @input="openDropdown = query.trim().length > 0; activeIndex = -1"
+                               @keydown.arrow-down.prevent="if (filteredItems.length) { openDropdown = true; activeIndex = (activeIndex + 1) % Math.min(filteredItems.length, 6); }"
+                               @keydown.arrow-up.prevent="if (filteredItems.length) { openDropdown = true; activeIndex = activeIndex <= 0 ? Math.min(filteredItems.length, 6) - 1 : activeIndex - 1; }"
+                               @keydown.enter="handleEnter($event)"
+                               @keydown.escape="openDropdown = false; activeIndex = -1"
+                               autocomplete="off"
+                               required
+                               placeholder="e.g., PLS-012, CMS-005, or #0012" 
+                               class="w-full pl-4 pr-9 py-3 bg-[#edf4fb] dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-[#0033a0]">
+
+                        <button type="button"
+                                x-show="query.length > 0"
+                                x-cloak
+                                @click="query = ''; openDropdown = false; activeIndex = -1"
+                                title="Clear"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs font-bold cursor-pointer">
+                            ✕
+                        </button>
+
+                        <!-- Live Instant Results Dropdown -->
+                        <div x-show="openDropdown && query.trim().length > 0"
+                             x-cloak
+                             x-transition:enter="transition ease-out duration-150"
+                             x-transition:enter-start="opacity-0 translate-y-1"
+                             x-transition:enter-end="opacity-100 translate-y-0"
+                             class="absolute left-0 right-0 top-[calc(100%+6px)] z-30 bg-white dark:bg-zinc-900 border border-blue-200 dark:border-zinc-700 rounded-xl shadow-xl overflow-hidden">
+                            <template x-if="filteredItems.length > 0">
+                                <div>
+                                    <div class="max-h-64 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800">
+                                        <template x-for="(item, idx) in filteredItems.slice(0, 6)" :key="item.id">
+                                            <a :href="item.url"
+                                               @mouseenter="activeIndex = idx"
+                                               :class="activeIndex === idx ? 'bg-blue-50/80 dark:bg-zinc-800' : 'hover:bg-blue-50/50 dark:hover:bg-zinc-800/60'"
+                                               class="flex items-center justify-between gap-3 px-3.5 py-2.5 transition">
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex items-center gap-2 mb-0.5">
+                                                        <span class="font-mono font-extrabold text-[11px] px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-[#0033a0] dark:text-blue-300 border border-blue-200/80 dark:border-blue-800" x-text="item.code"></span>
+                                                        <span class="text-[10.5px] text-gray-400 dark:text-gray-500" x-text="item.padded4"></span>
+                                                        <span class="text-[10.5px] text-gray-400 dark:text-gray-500 truncate" x-text="item.timeAgo ? '• ' + item.timeAgo : ''"></span>
+                                                    </div>
+                                                    <div class="text-xs font-bold text-slate-900 dark:text-white truncate" x-text="item.title"></div>
+                                                    <div class="text-[11px] text-gray-500 dark:text-gray-400 truncate" x-text="item.location"></div>
+                                                </div>
+                                                <span class="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold border whitespace-nowrap shrink-0"
+                                                      :class="item.pillClass"
+                                                      x-text="item.status"></span>
+                                            </a>
+                                        </template>
+                                    </div>
+                                    <a :href="indexBaseUrl + '?search=' + encodeURIComponent(query.trim())"
+                                       class="flex items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-800/80 border-t border-gray-100 dark:border-zinc-800 text-[11px] font-bold text-[#0033a0] dark:text-blue-400 hover:bg-blue-50/60 dark:hover:bg-zinc-800 transition">
+                                        <span x-text="'View all ' + filteredItems.length + ' matching ' + (filteredItems.length === 1 ? 'request' : 'requests')"></span>
+                                        <span>&rarr;</span>
+                                    </a>
                                 </div>
-                                <div class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-[#0033a0] dark:group-hover:text-blue-400 truncate transition">
-                                    {{ $req->title }}
+                            </template>
+
+                            <template x-if="filteredItems.length === 0">
+                                <div class="px-4 py-3.5 text-center">
+                                    <p class="text-xs font-semibold text-slate-700 dark:text-gray-300">
+                                        No requests matching "<span class="font-bold text-[#0033a0] dark:text-blue-400" x-text="query.trim()"></span>"
+                                    </p>
+                                    <p class="text-[11px] text-gray-400 mt-0.5">Try searching by code prefix (e.g. CMS, PLS), request #, title, or room.</p>
                                 </div>
-                                <div class="text-[11px] text-gray-500 dark:text-gray-400 truncate">
-                                    {{ $req->campus ?? 'BU Main' }}{{ $req->location ? ' — ' . $req->location : '' }}
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap {{ $pillCls }}">
-                                    {{ $dispSt }}
-                                </span>
-                                <svg class="w-4 h-4 text-gray-400 group-hover:text-[#0033a0] dark:group-hover:text-blue-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                            </div>
-                        </a>
-                    @empty
-                        <div class="py-8 px-4 text-center rounded-xl bg-slate-50/70 dark:bg-zinc-800/40 border border-dashed border-gray-200 dark:border-zinc-700">
-                            <p class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300">No service requests submitted yet</p>
-                            <p class="text-xs text-gray-400 mt-1 mb-3">Once you submit a job requisition, its real-time status will appear right here.</p>
-                            <a href="{{ route('client.requests.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-xs">
-                                <span>Submit Your First Request</span>
-                            </a>
+                            </template>
                         </div>
-                    @endforelse
-                </div>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-2 cursor-pointer">
+                        <svg x-show="tracking" x-cloak class="animate-spin -ml-1 mr-1.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span x-text="tracking ? 'Tracking...' : 'Track Request'">Track Request</span>
+                    </button>
+
+                    <div class="text-center mt-3">
+                        <span class="text-[11px] text-gray-400">Don't remember your tracking code? </span>
+                        <a href="{{ route('client.requests.index') }}" class="text-[11px] font-bold text-[#0033a0] dark:text-blue-400 underline">View all my requests</a>
+                    </div>
+                </form>
             </div>
 
         </div>

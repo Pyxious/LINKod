@@ -88,6 +88,112 @@ class ServiceRequest extends Model
         return $prefix . '-' . str_pad((string) $this->request_id, 3, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * Determine whether this request matches a search query across tracking codes
+     * (e.g. "cms", "CMS-010", "CMS 10", "#0010"), title, campus, location, description,
+     * category, and status, supporting multi-word keyword queries.
+     */
+    public function matchesSearchQuery(string $rawSearch): bool
+    {
+        $q = strtolower(trim($rawSearch));
+        if ($q === '') {
+            return true;
+        }
+
+        $trackingCode = strtolower($this->tracking_code);
+        $trackingPrefix = explode('-', $trackingCode)[0] ?? 'req';
+        $trackingCompact = str_replace('-', '', $trackingCode);
+        $padded3 = str_pad((string) $this->request_id, 3, '0', STR_PAD_LEFT);
+        $padded4 = str_pad((string) $this->request_id, 4, '0', STR_PAD_LEFT);
+
+        // Support space-separated prefix + number such as "cms 10" or "cms #010"
+        if (preg_match('/^([a-z]{1,6})\s+#?0*([1-9]\d*)$/', $q, $spaceMatch)) {
+            $typedPfx = match ($spaceMatch[1]) {
+                'paint' => 'pas',
+                'ps'    => 'pls',
+                default => $spaceMatch[1],
+            };
+            if ((int) $spaceMatch[2] === (int) $this->request_id && ($typedPfx === 'req' || $typedPfx === $trackingPrefix)) {
+                return true;
+            }
+        }
+
+        $rawStatus = strtolower($this->current_status ?? 'submitted');
+        $displayStatus = match ($rawStatus) {
+            'rejected' => 'disapproved',
+            'awaiting verification of bill of materials', 'awaiting verification of list of materials' => 'approved',
+            'bom verified (awaiting client approval)', 'list of materials verified (awaiting client approval)' => 'materials verified approve materials',
+            'awaiting materials', 'waiting for materials' => 'awaiting materials',
+            'materials arrived' => 'materials arrived',
+            'pending verification' => 'final check',
+            default => $rawStatus,
+        };
+
+        $textHaystack = strtolower(implode(' ', [
+            $this->title ?? '',
+            $this->location ?? '',
+            $this->campus ?? '',
+            static::normalizeDescriptionForComparison($this->description),
+            $this->category?->display_name ?? '',
+            $this->category?->category_name ?? '',
+            $rawStatus,
+            $displayStatus,
+        ]));
+
+        $codeCandidates = [
+            $trackingCode,
+            $trackingCompact,
+            'req-' . $padded3,
+            'req-' . $padded4,
+            'req' . $padded3,
+            'req' . $padded4,
+        ];
+
+        $tokens = array_values(array_filter(preg_split('/\s+/', $q) ?: []));
+        foreach ($tokens as $tok) {
+            // 1. Prefix-anchored match on tracking codes (so "ls" matches "LS-053", NOT "PLS-034")
+            $matchedCode = false;
+            foreach ($codeCandidates as $cand) {
+                if (str_starts_with($cand, $tok)) {
+                    $matchedCode = true;
+                    break;
+                }
+            }
+            if ($matchedCode) {
+                continue;
+            }
+
+            // 2. Digit / #ID match (e.g. "#51", "051", "0051", "51")
+            $cleanDigits = ltrim($tok, '#');
+            if ($cleanDigits !== '' && ctype_digit($cleanDigits)) {
+                if ((int) $cleanDigits === (int) $this->request_id || str_contains($padded4, $cleanDigits)) {
+                    continue;
+                }
+            }
+
+            // 3. Flexible prefixed ID match (e.g. "cms-51", "cms-0051", "req-51")
+            if (preg_match('/^([a-z]{1,6})[-#]+0*([1-9]\d*)$/', $tok, $codeMatch) && (int) $codeMatch[2] === (int) $this->request_id) {
+                $typedPfx = match ($codeMatch[1]) {
+                    'paint' => 'pas',
+                    'ps'    => 'pls',
+                    default => $codeMatch[1],
+                };
+                if ($typedPfx === 'req' || $typedPfx === $trackingPrefix) {
+                    continue;
+                }
+            }
+
+            // 4. Keyword match anywhere in title, campus, location, description, category, or status
+            if (str_contains($textHaystack, $tok)) {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
     public function getFormattedScheduleAttribute(): string
     {
         if (!$this->scheduled_date) return '';

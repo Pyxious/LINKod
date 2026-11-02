@@ -27,7 +27,7 @@ class JobOrderController extends Controller
         }
 
         $allAssignments = $worker->assignments()
-            ->with('project.request.category', 'project.latestHistory')
+            ->with('project.request.category', 'project.request.latestHistory', 'project.latestHistory')
             ->get();
 
         $assignments = $allAssignments->filter(function($a) use ($statusFilter, $priorityFilter, $search) {
@@ -76,12 +76,9 @@ class JobOrderController extends Controller
                 }
             }
 
-            // 3. Search Query (Title, Location, Requisition Code/ID)
+            // 3. Search Query (Title, Location, Requisition Code/ID, Keywords)
             if (!empty($search)) {
-                $title = strtolower($req?->title ?? '');
-                $loc   = strtolower($req?->location ?? '');
-                $reqId = (string)($req?->request_id ?? '');
-                if (!str_contains($title, $search) && !str_contains($loc, $search) && !str_contains($reqId, $search)) {
+                if (!$req || !$req->matchesSearchQuery($search)) {
                     return false;
                 }
             }

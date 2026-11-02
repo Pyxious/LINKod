@@ -91,28 +91,31 @@ class RequestController extends Controller
                 }
             }
 
-            // Search / Tracking Code Query
+            // Search / Tracking Code / Keyword Query
             $rawSearch = trim((string) ($request->input('search') ?? $request->input('tracking_number') ?? ''));
             if ($rawSearch !== '') {
-                $explicitId = null;
-                if (preg_match('/^(?:REQ|LS|JS|CMS|PLS|EMS|PAS|PAINT|MAN|PS)?[-\s#]*0*([1-9]\d*)$/i', $rawSearch, $matches)) {
-                    $explicitId = (int) $matches[1];
-                }
+                $filtered = $query->latest('submitted_at')
+                    ->get()
+                    ->filter(fn (ServiceRequest $r) => $r->matchesSearchQuery($rawSearch))
+                    ->values();
 
-                $query->where(function ($q) use ($rawSearch, $explicitId) {
-                    $q->where('title', 'LIKE', "%{$rawSearch}%")
-                      ->orWhere('location', 'LIKE', "%{$rawSearch}%")
-                      ->orWhere('campus', 'LIKE', "%{$rawSearch}%")
-                      ->orWhere('description', 'LIKE', "%{$rawSearch}%")
-                      ->orWhereHas('category', fn($catQ) => $catQ->where('category_name', 'LIKE', "%{$rawSearch}%"));
+                $perPage = 10;
+                $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage('page');
+                $currentItems = $filtered->slice(($currentPage - 1) * $perPage, $perPage)->values();
 
-                    if ($explicitId !== null) {
-                        $q->orWhere('request_id', $explicitId);
-                    }
-                });
+                $requests = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $currentItems,
+                    $filtered->count(),
+                    $perPage,
+                    $currentPage,
+                    [
+                        'path'  => $request->url(),
+                        'query' => $request->query(),
+                    ]
+                );
+            } else {
+                $requests = $query->latest('submitted_at')->paginate(10)->appends($request->query());
             }
-
-            $requests = $query->latest('submitted_at')->paginate(10)->appends($request->query());
         } else {
             $totalRequests = 0;
             $pendingCount = 0;
@@ -134,10 +137,19 @@ class RequestController extends Controller
         $client = auth()->user()?->client;
 
         if ($term !== '') {
-            if ($client && preg_match('/^(?:REQ|LS|JS|CMS|PLS|EMS|PAS|PAINT|MAN|PS)?[-\s#]*0*([1-9]\d*)$/i', $term, $matches)) {
-                $exactRequest = $client->requests()->where('request_id', (int) $matches[1])->first();
+            if ($client && preg_match('/^([a-z]{1,6})?[-\s#]*0*([1-9]\d*)$/i', $term, $matches)) {
+                $typedPrefix = strtolower($matches[1] ?? '');
+                $typedPrefix = match ($typedPrefix) {
+                    'paint' => 'pas',
+                    'ps'    => 'pls',
+                    default => $typedPrefix,
+                };
+                $exactRequest = $client->requests()->with('category')->where('request_id', (int) $matches[2])->first();
                 if ($exactRequest) {
-                    return redirect()->route('client.requests.show', $exactRequest->request_id);
+                    $actualPrefix = strtolower(explode('-', $exactRequest->tracking_code)[0] ?? 'req');
+                    if ($typedPrefix === '' || $typedPrefix === 'req' || $typedPrefix === $actualPrefix) {
+                        return redirect()->route('client.requests.show', $exactRequest->request_id);
+                    }
                 }
             }
 

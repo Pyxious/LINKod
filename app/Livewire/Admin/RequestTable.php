@@ -291,9 +291,28 @@ class RequestTable extends Component
             $searchTerm = strtolower($rawSearch);
 
             // Check if search query is a specific requisition code/ID (e.g. "REQ-034", "CMS-005", "#34", "034", "34")
+            // or a tracking-code prefix (e.g. "CMS", "PLS", "PAS", "EMS", "JS", "LS", "MAN", "REQ")
             $explicitId = null;
-            if (preg_match('/^(?:REQ|LS|JS|CMS|PLS|EMS|PAS|PAINT|MAN)?[-\s#]*0*([1-9]\d*)$/i', $rawSearch, $matches)) {
-                $explicitId = (int)$matches[1];
+            $prefixCodeFilter = null;
+            if (preg_match('/^([a-z]{1,6})?[-\s#]*0*([1-9]\d*)$/i', $rawSearch, $matches)) {
+                $typedPfx = strtolower($matches[1] ?? '');
+                $typedPfx = match ($typedPfx) {
+                    'paint' => 'pas',
+                    'ps'    => 'pls',
+                    default => $typedPfx,
+                };
+                if ($typedPfx === '' || in_array($typedPfx, ['req', 'ls', 'js', 'cms', 'pls', 'ems', 'pas', 'man'], true)) {
+                    $explicitId = (int) $matches[2];
+                    if ($typedPfx !== '' && $typedPfx !== 'req') {
+                        $prefixCodeFilter = $typedPfx;
+                    }
+                }
+            } elseif (preg_match('/^(req|ls|js|cms|pls|ems|pas|paint|man|ps)[-\s#]*0*$/i', $rawSearch, $pfxOnly)) {
+                $prefixCodeFilter = match (strtolower($pfxOnly[1])) {
+                    'paint' => 'pas',
+                    'ps'    => 'pls',
+                    default => strtolower($pfxOnly[1]),
+                };
             }
 
             // Find matching client or worker user IDs by decrypting client names/emails (AES-256 encrypted columns)
@@ -316,7 +335,7 @@ class RequestTable extends Component
 
             $words = array_values(array_filter(explode(' ', $rawSearch), fn($w) => strlen(trim($w)) >= 2));
 
-            $query->where(function($q) use ($rawSearch, $searchTerm, $explicitId, $matchingClientIds, $matchingWorkerIds, $words) {
+            $query->where(function($q) use ($rawSearch, $searchTerm, $explicitId, $prefixCodeFilter, $matchingClientIds, $matchingWorkerIds, $words) {
                 $q->where(function($sub) use ($rawSearch, $searchTerm, $words) {
                     $sub->where('title', 'like', "%{$rawSearch}%")
                         ->orWhere('location', 'like', "%{$rawSearch}%")
@@ -347,7 +366,22 @@ class RequestTable extends Component
                 });
 
                 if ($explicitId !== null) {
-                    $q->orWhere('request_id', $explicitId);
+                    if ($prefixCodeFilter !== null) {
+                        $q->orWhere(function ($codeQ) use ($explicitId, $prefixCodeFilter) {
+                            $codeQ->where('request_id', $explicitId);
+                            $this->applyPrefixFilterToQuery($codeQ, $prefixCodeFilter);
+                        });
+                    } else {
+                        $q->orWhere('request_id', $explicitId);
+                    }
+                } elseif ($prefixCodeFilter !== null) {
+                    if ($prefixCodeFilter === 'req') {
+                        $q->orWhereNotNull('request_id');
+                    } else {
+                        $q->orWhere(function ($pfxQ) use ($prefixCodeFilter) {
+                            $this->applyPrefixFilterToQuery($pfxQ, $prefixCodeFilter);
+                        });
+                    }
                 }
 
                 if ($matchingClientIds->isNotEmpty()) {
@@ -506,5 +540,33 @@ class RequestTable extends Component
         // Bust KPI cache so real-time Supabase events recalculate immediately
         Cache::forget('admin_requests_table_kpis');
         Cache::forget('admin_requests_table_kpis_v2');
+    }
+
+    protected function applyPrefixFilterToQuery($query, string $prefix): void
+    {
+        match ($prefix) {
+            'cms' => $query->whereHas('category', fn ($c) => $c->where(function ($sub) {
+                $sub->where('category_name', 'like', '%carpentry%')
+                    ->orWhere('category_name', 'like', '%masonry%');
+            })),
+            'pls' => $query->whereHas('category', fn ($c) => $c->where('category_name', 'like', '%plumbing%')),
+            'pas' => $query->whereHas('category', fn ($c) => $c->where('category_name', 'like', '%paint%')),
+            'ls'  => $query->whereHas('category', fn ($c) => $c->where('category_name', 'like', '%landscaping%')),
+            'ems' => $query->whereHas('category', fn ($c) => $c->where(function ($sub) {
+                $sub->where('category_name', 'like', '%electrical%')
+                    ->orWhere('category_name', 'like', '%mechanical%');
+            })->where('category_name', 'not like', '%carpentry%')->where('category_name', 'not like', '%masonry%')),
+            'js'  => $query->whereHas('category', fn ($c) => $c->where('category_name', 'like', '%janitor%'))
+                           ->where(function ($sub) {
+                               $sub->whereNull('description')
+                                   ->orWhere('description', 'not like', '%"type":"manpower"%');
+                           }),
+            'man' => $query->where(function ($sub) {
+                $sub->where('description', 'like', '%"type":"manpower"%')
+                    ->orWhere('description', 'like', '%"activity_title"%')
+                    ->orWhereHas('category', fn ($c) => $c->where('category_name', 'like', '%manpower%'));
+            }),
+            default => null,
+        };
     }
 }
