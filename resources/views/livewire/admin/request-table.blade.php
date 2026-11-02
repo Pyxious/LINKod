@@ -597,16 +597,63 @@
         </div>
     </div>
 
-    <!-- Wider Popup Modal for Marking & Merging Duplicate/Recurring Entries -->
+    <!-- Wider Popup Modal for Marking & Merging Duplicate/Recurring Entries (Instant Client-Side Selection) -->
     @if($showMergeModal && $selectedModels->count() >= 2)
-        <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-            <div class="w-full max-w-2xl bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+        <div wire:key="merge-modal-v-{{ $mergeModalVersion }}"
+             wire:ignore.self
+             data-realtime-pause="true"
+             x-data="{
+                 open: true,
+                 merging: false,
+                 primaryId: @js((string) ($mergePrimaryId ?: ($selectedModels->first()?->request_id ?? ''))),
+                 checkedIds: @js(array_values(array_map('strval', $selectedIds))),
+                 allIds: @js($selectedModels->pluck('request_id')->map(fn ($id) => (string) $id)->values()->all()),
+                 remarks: @js((string) $mergeRemarks),
+                 onPrimaryChange() {
+                     const p = String(this.primaryId);
+                     this.checkedIds = this.checkedIds.filter((id) => String(id) !== p);
+                 },
+                 checkAll() {
+                     const p = String(this.primaryId);
+                     this.checkedIds = this.allIds.filter((id) => String(id) !== p);
+                 },
+                 uncheckAll() {
+                     this.checkedIds = [];
+                 },
+                 toggleItem(id) {
+                     const strId = String(id);
+                     if (String(this.primaryId) === strId) return;
+                     const idx = this.checkedIds.indexOf(strId);
+                     if (idx > -1) {
+                         this.checkedIds.splice(idx, 1);
+                     } else {
+                         this.checkedIds.push(strId);
+                     }
+                 },
+                 closeModal() {
+                     if (this.merging) return;
+                     this.open = false;
+                     $wire.clearSelection();
+                 },
+                 submitMerge() {
+                     if (this.merging || this.checkedIds.length === 0) return;
+                     this.merging = true;
+                     Promise.resolve($wire.mergeSelected(Number(this.primaryId), this.checkedIds, this.remarks))
+                         .finally(() => { this.merging = false; });
+                 }
+             }"
+             x-show="open"
+             @keydown.escape.window="closeModal()"
+             class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <div wire:ignore
+                 @click.outside="closeModal()"
+                 class="w-full max-w-2xl bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
                 <div class="px-6 py-4 bg-[#fffde7] dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between">
                     <div>
                         <h3 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">Mark &amp; Merge Recurring / Duplicate Requests</h3>
                         <p class="text-xs text-slate-600 dark:text-gray-400">Check which duplicate entries to consolidate into the primary requisition</p>
                     </div>
-                    <button type="button" wire:click="clearSelection" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer">
+                    <button type="button" @click="closeModal()" :disabled="merging" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer disabled:opacity-50">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -616,7 +663,9 @@
                         <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-gray-300 mb-1.5">
                             1. Primary (First) Requisition to Keep Active
                         </label>
-                        <select wire:model.live="mergePrimaryId"
+                        <select x-model="primaryId"
+                                @change="onPrimaryChange()"
+                                :disabled="merging"
                                 class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
                             @foreach($selectedModels as $idx => $item)
                                 <option value="{{ $item->request_id }}">
@@ -629,58 +678,55 @@
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-gray-300">
-                                2. Mark Duplicate Entries to Merge ({{ count($selectedIds) }} of {{ max(0, $selectedModels->count() - 1) }} checked)
+                                2. Mark Duplicate Entries to Merge (<span x-text="checkedIds.length"></span> of {{ max(0, $selectedModels->count() - 1) }} checked)
                             </label>
                             <div class="flex items-center gap-2 text-[11px] font-bold">
-                                <button type="button" wire:click="selectAllModalDuplicates" class="text-[#0033a0] dark:text-blue-400 hover:underline cursor-pointer">Check All</button>
+                                <button type="button" @click="checkAll()" :disabled="merging" class="text-[#0033a0] dark:text-blue-400 hover:underline cursor-pointer disabled:opacity-50">Check All</button>
                                 <span class="text-gray-300 dark:text-zinc-700">|</span>
-                                <button type="button" wire:click="uncheckAllModalDuplicates" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 hover:underline cursor-pointer">Uncheck All</button>
+                                <button type="button" @click="uncheckAll()" :disabled="merging" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 hover:underline cursor-pointer disabled:opacity-50">Uncheck All</button>
                             </div>
                         </div>
 
                         <div class="max-h-60 overflow-y-auto space-y-2 pr-1 border border-gray-200 dark:border-zinc-800 rounded-xl p-3 bg-slate-50/70 dark:bg-zinc-900/60">
                             @foreach($selectedModels as $item)
                                 @php
-                                    $itemPad = str_pad((string) $item->request_id, 4, '0', STR_PAD_LEFT);
-                                    $isPrimary = (int) $mergePrimaryId === (int) $item->request_id;
-                                    $isChecked = !$isPrimary && in_array((string) $item->request_id, $selectedIds, true);
+                                    $itemIdStr = (string) $item->request_id;
+                                    $itemPad = str_pad($itemIdStr, 4, '0', STR_PAD_LEFT);
                                     $rawDesc = trim((string) ($item->description ?? ''));
                                     if (str_starts_with($rawDesc, '{') && str_ends_with($rawDesc, '}')) {
                                         $parsedItem = json_decode($rawDesc, true);
                                         $rawDesc = trim((string) ($parsedItem['general_description'] ?? $parsedItem['activity_title'] ?? ''));
                                     }
                                 @endphp
-                                <label wire:key="merge-modal-item-{{ $item->request_id }}"
-                                       class="flex items-start gap-3 p-3 rounded-xl border transition {{ $isPrimary ? 'bg-blue-50/80 dark:bg-blue-950/30 border-[#0033a0]/40' : ($isChecked ? 'bg-white dark:bg-[#1c1c1e] border-gray-200 dark:border-zinc-800 cursor-pointer' : 'bg-white/60 dark:bg-zinc-900/40 border-gray-200/70 dark:border-zinc-800/70 opacity-75 cursor-pointer') }}">
-                                    @if($isPrimary)
-                                        <input type="checkbox"
-                                               checked
-                                               disabled
-                                               class="mt-0.5 rounded border-gray-300 text-[#0033a0] opacity-70 cursor-not-allowed">
-                                    @else
-                                        <input type="checkbox"
-                                               value="{{ $item->request_id }}"
-                                               wire:model.live="selectedIds"
-                                               class="mt-0.5 rounded border-gray-300 text-[#0033a0] focus:ring-[#0033a0] cursor-pointer">
-                                    @endif
+                                <label :class="String(primaryId) === '{{ $itemIdStr }}'
+                                           ? 'bg-blue-50/80 dark:bg-blue-950/30 border-[#0033a0]/40 cursor-default'
+                                           : (checkedIds.includes('{{ $itemIdStr }}')
+                                               ? 'bg-white dark:bg-[#1c1c1e] border-gray-200 dark:border-zinc-800 cursor-pointer'
+                                               : 'bg-white/60 dark:bg-zinc-900/40 border-gray-200/70 dark:border-zinc-800/70 opacity-75 cursor-pointer')"
+                                       class="flex items-start gap-3 p-3 rounded-xl border transition select-none">
+                                    <input type="checkbox"
+                                           :checked="String(primaryId) === '{{ $itemIdStr }}' || checkedIds.includes('{{ $itemIdStr }}')"
+                                           :disabled="String(primaryId) === '{{ $itemIdStr }}' || merging"
+                                           @change="toggleItem('{{ $itemIdStr }}')"
+                                           :class="String(primaryId) === '{{ $itemIdStr }}' ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'"
+                                           class="mt-0.5 rounded border-gray-300 text-[#0033a0] focus:ring-[#0033a0]">
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center justify-between gap-2 flex-wrap">
                                             <span class="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white">
                                                 #{{ $itemPad }} ({{ $item->tracking_code }}) — {{ $item->title }}
                                             </span>
-                                            @if($isPrimary)
-                                                <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#0033a0] text-white">
-                                                    Primary (Kept)
-                                                </span>
-                                            @elseif($isChecked)
-                                                <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                                                    Will Merge &amp; Close
-                                                </span>
-                                            @else
-                                                <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-gray-400">
-                                                    Unchecked (Keep Separate)
-                                                </span>
-                                            @endif
+                                            <span x-show="String(primaryId) === '{{ $itemIdStr }}'"
+                                                  class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#0033a0] text-white">
+                                                Primary (Kept)
+                                            </span>
+                                            <span x-show="String(primaryId) !== '{{ $itemIdStr }}' && checkedIds.includes('{{ $itemIdStr }}')"
+                                                  class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                                                Will Merge &amp; Close
+                                            </span>
+                                            <span x-show="String(primaryId) !== '{{ $itemIdStr }}' && !checkedIds.includes('{{ $itemIdStr }}')"
+                                                  class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-gray-400">
+                                                Unchecked (Keep Separate)
+                                            </span>
                                         </div>
                                         <p class="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5 break-words">
                                             By {{ $item->client->user->first_name ?? '' }} {{ $item->client->user->last_name ?? '' }} • {{ $item->campus }} • {{ $item->location }}
@@ -698,7 +744,8 @@
                         <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-gray-300 mb-1.5">
                             Optional Note for Audit &amp; Submitters
                         </label>
-                        <textarea wire:model="mergeRemarks"
+                        <textarea x-model="remarks"
+                                  :disabled="merging"
                                   rows="2"
                                   placeholder="e.g., Consolidated multiple duplicate entries for the same location and concern."
                                   class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#0033a0]"></textarea>
@@ -706,18 +753,17 @@
 
                     <div class="flex items-center justify-end gap-2.5 pt-2">
                         <button type="button"
-                                wire:click="clearSelection"
-                                class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-gray-300 rounded-xl text-xs font-bold transition cursor-pointer">
+                                @click="closeModal()"
+                                :disabled="merging"
+                                class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-gray-300 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50">
                             Cancel
                         </button>
                         <button type="button"
-                                wire:click="mergeSelected"
-                                @disabled(count($selectedIds) === 0)
-                                wire:loading.attr="disabled"
-                                wire:target="mergeSelected"
+                                @click="submitMerge()"
+                                :disabled="merging || checkedIds.length === 0"
                                 class="px-5 py-2 bg-[#0033a0] hover:bg-[#002480] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5 cursor-pointer">
-                            <span wire:loading.remove wire:target="mergeSelected">Confirm Merge ({{ count($selectedIds) }} Selected)</span>
-                            <span wire:loading wire:target="mergeSelected">Merging...</span>
+                            <svg x-show="merging" x-cloak class="animate-spin w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span x-text="merging ? 'Merging...' : ('Confirm Merge (' + checkedIds.length + ' Selected)')"></span>
                         </button>
                     </div>
                 </div>
