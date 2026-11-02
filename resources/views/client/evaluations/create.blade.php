@@ -18,7 +18,7 @@
                     </div>
                     <div>
                         <h1 class="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                            Clientele Satisfaction Survey &amp; Feedback
+                            Clientele Satisfaction Survey &amp;
                         </h1>
                         <p class="text-xs sm:text-sm text-[#0033a0] dark:text-blue-400 font-bold mt-0.5">
                             Bicol University — General Services Office (BU-GSO)
@@ -32,7 +32,7 @@
 
             <!-- Intro Instructions Text -->
             <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium mb-6">
-                This Feedback Form is an important tool for us to measure our performance to help us improve our services to our clients. Kindly fill out this form to assess the performance of our staff and to improve further the quality of our services. You may use this form to express your Praise, Recommendations, or Criticisms. Please let us know how we performed our services to you by checking the appropriate box opposite the respective rating scales.
+                This Clientele Satisfaction Form is an important tool for us to measure our performance to help us improve our services to our clients. Kindly fill out this form to assess the performance of our staff and to improve further the quality of our services. You may use this form to express your Praise, Recommendations, or Criticisms. Please let us know how we performed our services to you by checking the appropriate box opposite the respective rating scales.
             </p>
 
             <!-- Rating Scale Emote Legend Grid (Adaptive SVGs for Light & Dark Mode) -->
