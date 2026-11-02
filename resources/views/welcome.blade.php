@@ -27,12 +27,7 @@
             </a>
         </div>
 
-        <!-- Indicator Circles -->
-        <div class="flex items-center justify-center gap-3">
-            <div class="w-8 h-8 rounded-full bg-gray-300/60 dark:bg-zinc-700"></div>
-            <div class="w-8 h-8 rounded-full bg-gray-300/60 dark:bg-zinc-700"></div>
-            <div class="w-8 h-8 rounded-full bg-gray-300/60 dark:bg-zinc-700"></div>
-        </div>
+        <div class="h-8" aria-hidden="true"></div>
     </section>
 
     <!-- Services Offered Section (FIRST - WITH SCROLL OFFSET) -->

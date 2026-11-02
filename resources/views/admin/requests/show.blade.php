@@ -82,13 +82,13 @@
             </div>
 
             <!-- Clientele Satisfaction Button (Same line as badges) -->
-            <div class="shrink-0">
+            <div class="shrink-0 w-full sm:w-auto {{ $isManpower ? 'min-w-[180px]' : 'min-w-[300px]' }}">
                 @if($serviceRequest->evaluation)
-                    <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-4 py-1.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-full transition shadow-sm inline-flex items-center">
+                    <a href="{{ route('admin.requests.satisfaction', $serviceRequest->request_id) }}" target="_blank" class="px-5 py-2.5 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-md inline-flex items-center justify-center w-full">
                         Print Satisfaction Page
                     </a>
                 @else
-                    <button type="button" disabled class="px-4 py-1.5 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-full cursor-not-allowed inline-flex items-center opacity-80" title="Client has not rated this service request yet">
+                    <button type="button" disabled class="px-5 py-2.5 bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-xs font-bold rounded-xl cursor-not-allowed inline-flex items-center justify-center w-full opacity-80" title="Client has not rated this service request yet">
                         Print Satisfaction Page (Not Rated Yet)
                     </button>
                 @endif
@@ -1623,7 +1623,7 @@
                                 <button type="button" @click="showEditWorkersModal = false" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl hover:bg-gray-200 transition">
                                     Cancel
                                 </button>
-                                <button type="submit" class="px-5 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                                <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                     <span>Save Changes</span>
                                 </button>
@@ -2001,7 +2001,7 @@
 
                         <div class="flex justify-end gap-2 pt-2">
                             <button type="button" @click="closeModal()" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl cursor-pointer">Cancel</button>
-                            <button type="submit" data-no-auto-loading :disabled="saving" class="px-5 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
+                            <button type="submit" data-no-auto-loading :disabled="saving" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-60">
                                 <svg x-show="saving" x-cloak class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                 <span x-text="saving ? 'Completing...' : 'Complete & Close Requisition'">Complete &amp; Close Requisition</span>
                             </button>

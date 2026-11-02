@@ -24,9 +24,11 @@ class RequestTable extends Component
     public ?int $mergePrimaryId = null;
     public string $mergeRemarks = '';
     public bool $showMergeModal = false;
+    public int $mergeModalVersion = 0;
 
     protected $queryString = ['search', 'priority', 'status', 'ratingFilter', 'sortField', 'sortDirection'];
 
+    #[\Livewire\Attributes\Renderless]
     public function clearSelection(): void
     {
         $this->modalGroupIds = [];
@@ -87,18 +89,32 @@ class RequestTable extends Component
         $this->selectedIds = array_map('strval', array_slice($groupIds, 1)); // Pre-check duplicates; unchecking keeps them visible in list
         $this->mergeRemarks = '';
         $this->showMergeModal = true;
+        $this->mergeModalVersion++;
     }
 
-    public function mergeSelected(\App\Services\NotificationService $notificationService): void
-    {
-        $primaryId = (int) ($this->mergePrimaryId ?: ($this->modalGroupIds[0] ?? 0));
-        $duplicateIds = collect($this->selectedIds)
+    public function mergeSelected(
+        ?int $submittedPrimaryId = null,
+        ?array $submittedDuplicateIds = null,
+        ?string $submittedRemarks = null
+    ): void {
+        $notificationService = app(\App\Services\NotificationService::class);
+        $allowedGroupIds = array_map('intval', $this->modalGroupIds);
+
+        $candidatePrimary = (int) ($submittedPrimaryId ?? $this->mergePrimaryId ?: ($allowedGroupIds[0] ?? 0));
+        $primaryId = in_array($candidatePrimary, $allowedGroupIds, true)
+            ? $candidatePrimary
+            : ($allowedGroupIds[0] ?? 0);
+
+        $rawDuplicateIds = $submittedDuplicateIds ?? $this->selectedIds;
+        $duplicateIds = collect($rawDuplicateIds)
             ->map(fn ($id) => (int) $id)
-            ->filter(fn (int $id) => $id > 0 && $id !== $primaryId && in_array($id, $this->modalGroupIds, true))
+            ->filter(fn (int $id) => $id > 0 && $id !== $primaryId && in_array($id, $allowedGroupIds, true))
             ->unique()
             ->sort()
             ->values()
             ->all();
+
+        $remarks = trim((string) ($submittedRemarks ?? $this->mergeRemarks));
 
         if ($primaryId <= 0 || empty($duplicateIds)) {
             $this->dispatch('requests-merged', [
@@ -121,7 +137,7 @@ class RequestTable extends Component
             $primary,
             $duplicateIds,
             (int) auth()->id(),
-            $this->mergeRemarks ?: null,
+            $remarks !== '' ? $remarks : null,
             $notificationService
         );
 
