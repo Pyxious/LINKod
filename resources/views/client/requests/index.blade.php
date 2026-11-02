@@ -95,65 +95,67 @@
                     $currentStatus = strtolower(request('status', 'all'));
                     $searchParam = request('search', request('tracking_number'));
                 @endphp
-                <div class="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 scrollbar-none shrink-0 max-w-full">
-                    <a href="{{ route('client.requests.index', array_filter(['status' => 'all', 'search' => $searchParam])) }}" 
+                <div id="statusFilterPills" class="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 scrollbar-none shrink-0 max-w-full">
+                    <a data-status-pill="all" href="{{ route('client.requests.index', array_filter(['status' => 'all', 'search' => $searchParam])) }}" 
                        class="px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'all' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         All ({{ $totalRequests }})
                     </a>
 
                     @if(($actionRequiredCount ?? 0) > 0 || $currentStatus === 'action_required')
-                        <a href="{{ route('client.requests.index', array_filter(['status' => 'action_required', 'search' => $searchParam])) }}" 
+                        <a data-status-pill="action_required" href="{{ route('client.requests.index', array_filter(['status' => 'action_required', 'search' => $searchParam])) }}" 
                            class="px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition whitespace-nowrap shadow-2xs inline-flex items-center gap-1.5 {{ $currentStatus === 'action_required' ? 'bg-amber-600 text-white' : 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-100' }}">
                             <span class="w-2 h-2 rounded-full {{ $currentStatus === 'action_required' ? 'bg-white' : 'bg-amber-500 animate-pulse' }}"></span>
                             <span>Needs Action ({{ $actionRequiredCount ?? 0 }})</span>
                         </a>
                     @endif
 
-                    <a href="{{ route('client.requests.index', array_filter(['status' => 'pending', 'search' => $searchParam])) }}" 
+                    <a data-status-pill="pending" href="{{ route('client.requests.index', array_filter(['status' => 'pending', 'search' => $searchParam])) }}" 
                        class="px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'pending' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         Pending ({{ $pendingCount }})
                     </a>
 
-                    <a href="{{ route('client.requests.index', array_filter(['status' => 'in_progress', 'search' => $searchParam])) }}" 
+                    <a data-status-pill="in_progress" href="{{ route('client.requests.index', array_filter(['status' => 'in_progress', 'search' => $searchParam])) }}" 
                        class="px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'in_progress' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         In Progress ({{ $inProgressCount }})
                     </a>
 
-                    <a href="{{ route('client.requests.index', array_filter(['status' => 'completed', 'search' => $searchParam])) }}" 
+                    <a data-status-pill="completed" href="{{ route('client.requests.index', array_filter(['status' => 'completed', 'search' => $searchParam])) }}" 
                        class="px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'completed' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         Completed ({{ $completedCount }})
                     </a>
 
-                    <a href="{{ route('client.requests.index', array_filter(['status' => 'cancelled', 'search' => $searchParam])) }}" 
+                    <a data-status-pill="cancelled" href="{{ route('client.requests.index', array_filter(['status' => 'cancelled', 'search' => $searchParam])) }}" 
                        class="px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'cancelled' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         Cancelled
                     </a>
 
-                    <a href="{{ route('client.requests.index', array_filter(['status' => 'rejected', 'search' => $searchParam])) }}" 
+                    <a data-status-pill="rejected" href="{{ route('client.requests.index', array_filter(['status' => 'rejected', 'search' => $searchParam])) }}" 
                        class="px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition whitespace-nowrap shadow-2xs {{ $currentStatus === 'rejected' ? 'bg-[#0038A8] text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700' }}">
                         Disapproved
                     </a>
                 </div>
 
-                <!-- Search Input Field -->
-                <form method="GET" action="{{ route('client.requests.index') }}" class="w-full lg:w-80 shrink-0">
+                <!-- Live Search Input Field -->
+                <form id="clientRequestsSearchForm" method="GET" action="{{ route('client.requests.index') }}" class="w-full lg:w-80 shrink-0">
                     @if(request('status'))
                         <input type="hidden" name="status" value="{{ request('status') }}">
                     @endif
                     <div class="relative">
-                        <svg class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <svg id="clientRequestsSearchIcon" class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <svg id="clientRequestsSearchSpinner" class="hidden animate-spin w-4 h-4 text-[#0038A8] dark:text-blue-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         <input type="text" 
+                               id="clientRequestsLiveSearch"
                                name="search" 
                                value="{{ $searchParam }}" 
-                               placeholder="Search code (e.g. PLS-012), title, or room..." 
+                               autocomplete="off"
+                               placeholder="Search code (e.g. CMS, PLS-012), title, or room..." 
                                class="w-full pl-9 pr-8 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs sm:text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:border-[#0038A8] focus:ring-1 focus:ring-[#0038A8] shadow-2xs">
-                        @if($searchParam)
-                            <a href="{{ route('client.requests.index', array_filter(['status' => request('status')])) }}" 
-                               title="Clear search"
-                               class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs font-bold">
-                               ✕
-                            </a>
-                        @endif
+                        <button type="button"
+                                id="clientRequestsSearchClear"
+                                title="Clear search"
+                                class="{{ $searchParam ? '' : 'hidden' }} absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs font-bold cursor-pointer">
+                            ✕
+                        </button>
                     </div>
                 </form>
             </div>
@@ -359,6 +361,124 @@
 document.addEventListener('DOMContentLoaded', function() {
     const container = document.getElementById('requestsCardsContainer');
     const clientId = container ? container.getAttribute('data-client-id') : null;
+
+    // Live Search Updates (instant as-you-type filtering with AbortController)
+    const searchForm = document.getElementById('clientRequestsSearchForm');
+    const searchInput = document.getElementById('clientRequestsLiveSearch');
+    const clearBtn = document.getElementById('clientRequestsSearchClear');
+    const searchIcon = document.getElementById('clientRequestsSearchIcon');
+    const searchSpinner = document.getElementById('clientRequestsSearchSpinner');
+
+    if (searchForm && searchInput && container) {
+        let debounceTimer = null;
+        let activeAbortController = null;
+
+        const setLoading = (loading) => {
+            if (searchIcon && searchSpinner) {
+                searchIcon.classList.toggle('hidden', loading);
+                searchSpinner.classList.toggle('hidden', !loading);
+            }
+        };
+
+        const syncFilterLinksAndUrl = (rawTerm) => {
+            const term = rawTerm.trim();
+            if (clearBtn) {
+                clearBtn.classList.toggle('hidden', rawTerm.length === 0);
+            }
+
+            const currentUrl = new URL(window.location.href);
+            if (term) {
+                currentUrl.searchParams.set('search', term);
+            } else {
+                currentUrl.searchParams.delete('search');
+            }
+            currentUrl.searchParams.delete('tracking_number');
+            currentUrl.searchParams.delete('page');
+
+            window.history.replaceState({}, '', currentUrl.toString());
+
+            document.querySelectorAll('[data-status-pill]').forEach((pill) => {
+                const pillStatus = pill.getAttribute('data-status-pill');
+                const pillUrl = new URL(searchForm.action, window.location.origin);
+                if (pillStatus) {
+                    pillUrl.searchParams.set('status', pillStatus);
+                }
+                if (term) {
+                    pillUrl.searchParams.set('search', term);
+                }
+                pill.setAttribute('href', pillUrl.toString());
+            });
+
+            return currentUrl.toString();
+        };
+
+        const runLiveSearch = (immediate = false) => {
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+            }
+
+            const execute = async () => {
+                const targetUrl = syncFilterLinksAndUrl(searchInput.value);
+
+                if (activeAbortController) {
+                    activeAbortController.abort();
+                }
+                activeAbortController = new AbortController();
+                setLoading(true);
+
+                try {
+                    const res = await fetch(targetUrl, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'text/html'
+                        },
+                        signal: activeAbortController.signal
+                    });
+
+                    if (!res.ok) return;
+
+                    const html = await res.text();
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const updatedContainer = doc.getElementById('requestsCardsContainer');
+                    if (updatedContainer) {
+                        container.innerHTML = updatedContainer.innerHTML;
+                    }
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        console.warn('[LiveSearch] Fetch warning:', err);
+                    }
+                } finally {
+                    if (!activeAbortController.signal.aborted) {
+                        setLoading(false);
+                    }
+                }
+            };
+
+            if (immediate) {
+                execute();
+            } else {
+                if (clearBtn) {
+                    clearBtn.classList.toggle('hidden', searchInput.value.length === 0);
+                }
+                debounceTimer = setTimeout(execute, 150);
+            }
+        };
+
+        searchInput.addEventListener('input', () => runLiveSearch(false));
+
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            runLiveSearch(true);
+        });
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                searchInput.focus();
+                runLiveSearch(true);
+            });
+        }
+    }
 
     if (window.Echo && clientId) {
         try {
