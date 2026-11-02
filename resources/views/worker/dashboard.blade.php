@@ -85,6 +85,8 @@
                         <div class="w-3 h-3 rounded-full shrink-0 mt-1 sm:mt-0
                             @if($a->project->current_status === 'Pending') bg-red-500
                             @elseif($a->project->current_status === 'In Progress') bg-amber-500
+                            @elseif($a->project->current_status === 'Materials Arrived') bg-sky-500
+                            @elseif(in_array($a->project->current_status, ['Awaiting Materials', 'On Hold', 'Awaiting Verification of Bill of Materials', 'BOM Verified (Awaiting Client Approval)'])) bg-orange-500
                             @else bg-emerald-500 @endif">
                         </div>
                         <div class="min-w-0 flex-1">

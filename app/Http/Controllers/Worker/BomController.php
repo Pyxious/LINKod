@@ -35,7 +35,7 @@ class BomController extends Controller
 
         $canRequestMaterials = $project->request?->isScheduleApproved() 
             || !empty($project->date_approved) 
-            || in_array($project->request?->current_status, ['Approved', 'In Progress', 'Pending', 'On Hold', 'Awaiting Materials'])
+            || in_array($project->request?->current_status, ['Approved', 'In Progress', 'Pending', 'On Hold', 'Awaiting Materials', 'Materials Arrived'])
             || ($project->request?->is_manpower ?? false);
 
         if ($project->request && !$canRequestMaterials) {

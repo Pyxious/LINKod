@@ -46,6 +46,7 @@ class TaskProgressController extends Controller
                 'Schedule Confirmed',
                 'On Hold', 
                 'Awaiting Materials', 
+                'Materials Arrived',
                 'Awaiting Verification of Bill of Materials', 
                 'BOM Verified (Awaiting Client Approval)', 
                 'In Progress'
@@ -246,6 +247,7 @@ class TaskProgressController extends Controller
                 'Schedule Confirmed',
                 'On Hold', 
                 'Awaiting Materials', 
+                'Materials Arrived',
                 'Awaiting Verification of Bill of Materials', 
                 'BOM Verified (Awaiting Client Approval)', 
                 'In Progress'
@@ -276,6 +278,20 @@ class TaskProgressController extends Controller
             }
 
             $actualStatus = $validated['status'] === 'Completed' ? 'Pending Verification' : $validated['status'];
+
+            // Guard against duplicate rapid/retried syncs (unless worker is uploading a missing before-work photo for an In Progress task)
+            $hasExistingBeforePhoto = $project->histories()
+                ->where('current_status', 'In Progress')
+                ->whereNotNull('proof_attachment')
+                ->where('proof_attachment', '!=', '0')
+                ->exists();
+            if ($previousStatus === $actualStatus && !($actualStatus === 'In Progress' && !$hasExistingBeforePhoto && $proofPath)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Task status is already {$actualStatus}.",
+                    'status'  => $actualStatus,
+                ]);
+            }
 
             // Parse offline work timestamp if provided
             $performedAt = now();
@@ -309,11 +325,22 @@ class TaskProgressController extends Controller
                 $project->save();
             }
 
+            $remarks = null;
+            if ($validated['status'] === 'Completed') {
+                $remarks = ($project->nature_of_work ?? 'Completed') . ($project->recommendation ? ' — ' . $project->recommendation : '');
+            } elseif ($validated['status'] === 'In Progress') {
+                $remarks = 'Worker commenced task with documented Before-Work photo.';
+            }
+            if ($offlineNote) {
+                $remarks = $remarks ? ($remarks . " [{$offlineNote}]") : "[{$offlineNote}]";
+            }
+
             ProjectHistory::create([
                 'project_id'       => $project->project_id,
                 'previous_status'  => $previousStatus,
                 'current_status'   => $actualStatus,
                 'proof_attachment' => $proofPath,
+                'remarks'          => $remarks,
                 'updated_at'       => $performedAt,
                 'updated_by'       => auth()->id(),
             ]);
@@ -322,14 +349,6 @@ class TaskProgressController extends Controller
             if ($project->request_id) {
                 $serviceRequest = \App\Models\ServiceRequest::find($project->request_id);
                 if ($serviceRequest) {
-                    $remarks = null;
-                    if ($validated['status'] === 'Completed') {
-                        $remarks = ($project->nature_of_work ?? 'Completed') . ($project->recommendation ? ' — ' . $project->recommendation : '');
-                    }
-                    if ($offlineNote) {
-                        $remarks = $remarks ? ($remarks . " [{$offlineNote}]") : "[{$offlineNote}]";
-                    }
-
                     \App\Models\RequestHistory::create([
                         'request_id'      => $serviceRequest->request_id,
                         'previous_status' => $serviceRequest->current_status,
@@ -352,6 +371,18 @@ class TaskProgressController extends Controller
                 'ip_address' => request()->ip(),
                 'created_at' => now(),
             ]);
+
+            // If task moved to In Progress, notify client (triggers in-app and automated email)
+            if ($actualStatus === 'In Progress' && $project->client?->user_id) {
+                $notificationService = new \App\Services\NotificationService();
+                $notificationService->requestStatusChanged(
+                    $project->client->user_id,
+                    $project->request?->title ?? "Project #{$project->project_id}",
+                    'In Progress',
+                    $project->request_id ?? $project->project_id,
+                    'client'
+                );
+            }
 
             // If completed by worker, notify admins
             if ($validated['status'] === 'Completed') {
@@ -383,8 +414,9 @@ class TaskProgressController extends Controller
     }
 
     /**
-     * Worker confirms that materials have arrived and work can begin.
-     * Transitions status from "Awaiting Materials" → "In Progress".
+     * Worker confirms that materials have arrived on site.
+     * Transitions status from "Awaiting Materials" → "Materials Arrived"
+     * (does not set to "In Progress" until worker/admin explicitly starts the task).
      */
     public function confirmMaterialsArrived(int $projectId)
     {
@@ -401,31 +433,26 @@ class TaskProgressController extends Controller
         }
 
         $prevStatus = $project->current_status;
+        $targetStatus = 'Materials Arrived';
         $roleName = ($worker && $worker->isTeamLeader()) ? 'Team Leader' : 'Worker';
-        $remarks = "{$roleName} confirmed that all required materials have arrived. Work is ready to commence.";
-
-        $project->update([
-            'current_status' => 'In Progress',
-        ]);
+        $remarks = "{$roleName} confirmed that all required materials have arrived. Ready for on-site work to commence.";
 
         ProjectHistory::create([
             'project_id'      => $project->project_id,
             'previous_status' => $prevStatus,
-            'current_status'  => 'In Progress',
+            'current_status'  => $targetStatus,
             'remarks'         => $remarks,
             'updated_at'      => now(),
             'updated_by'      => auth()->id(),
         ]);
 
         if ($project->request) {
-            $project->request->update([
-                'current_status' => 'In Progress',
-            ]);
+            $prevReqStatus = $project->request->current_status;
 
             \App\Models\RequestHistory::create([
                 'request_id'      => $project->request->request_id,
-                'previous_status' => $prevStatus,
-                'current_status'  => 'In Progress',
+                'previous_status' => $prevReqStatus,
+                'current_status'  => $targetStatus,
                 'remarks'         => $remarks,
                 'updated_at'      => now(),
                 'updated_by'      => auth()->id(),
@@ -434,24 +461,12 @@ class TaskProgressController extends Controller
 
         \App\Models\UserLog::create([
             'user_id'    => auth()->id(),
-            'action'     => "{$roleName} confirmed materials arrived for project #{$project->project_id}. Status set to In Progress.",
+            'action'     => "{$roleName} confirmed materials arrived for project #{$project->project_id}. Status set to Materials Arrived.",
             'ip_address' => request()->ip(),
             'created_at' => now(),
         ]);
 
-        // Notify client that materials arrived and work has commenced
-        if ($project->client?->user_id) {
-            $notificationService = new \App\Services\NotificationService();
-            $notificationService->requestStatusChanged(
-                $project->client->user_id,
-                $project->request?->title ?? "Project #{$project->project_id}",
-                'In Progress',
-                $project->request_id ?? $project->project_id,
-                'client'
-            );
-        }
-
         return redirect()->route('worker.job-orders.show', $projectId)
-            ->with('success', 'Materials confirmed as arrived. You may now begin work.');
+            ->with('success', 'Materials confirmed as arrived. You may now start work and upload the Before-Work photo when ready.');
     }
 }

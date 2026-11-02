@@ -78,6 +78,8 @@ class EvaluationController extends Controller
             'created_at' => now(),
         ]);
 
+        \Illuminate\Support\Facades\Cache::forget("client_{$client->client_id}_request_kpi_v2");
+
         return redirect()->route('client.requests.show', $requestId)
             ->with('success', 'Thank you for your feedback! We are happy to serve!!!');
     }

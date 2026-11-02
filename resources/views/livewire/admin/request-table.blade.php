@@ -151,6 +151,7 @@
                 $sClass = match(true) {
                     $isAwaitingBom => 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
                     in_array($s, ['Pending', 'Approved', 'Submitted']) => 'bg-orange-50 text-orange-600 border-orange-300',
+                    $s === 'Materials Arrived' => 'bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-700',
                     in_array($s, ['On Hold', 'Awaiting Materials', 'BOM Verified (Awaiting Client Approval)', 'List of Materials Verified (Awaiting Client Approval)']) => 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
                     in_array($s, ['In Progress', 'Pending Verification']) => 'bg-blue-50 text-blue-700 border-blue-300',
                     $s === 'Completed' => 'bg-emerald-50 text-emerald-700 border-emerald-300',
@@ -158,14 +159,24 @@
                     default => 'bg-gray-50 text-gray-600 border-gray-300'
                 };
                 $assignedWorkers = $r->project?->workers ?? collect();
+                $canSelectRow = !in_array($s, ['Completed', 'Cancelled', 'Rejected']);
+                $rowSig = \App\Models\ServiceRequest::buildSameDetailsSignature((int) $r->category_id, $r->title, $r->campus, $r->location);
+                $dupGroupCount = $canSelectRow ? (int) ($activeDuplicateCounts[$rowSig] ?? 0) : 0;
             @endphp
 
             <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm space-y-3">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-2">
                     <span class="font-mono font-bold text-xs text-[#1a3c8f] dark:text-blue-400 bg-blue-50 dark:bg-zinc-800 px-2 py-0.5 rounded">{{ $reqCode }}</span>
-                    <div class="flex items-center gap-1.5">
-                        @if($r->is_recurring)
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800" title="Recurring Problem: {{ $r->recurring_count }} similar requests this month">
+                    <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                        @if($dupGroupCount >= 2)
+                            <button type="button"
+                                    wire:click="selectDuplicateGroup({{ $r->request_id }})"
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-950/60 dark:hover:bg-rose-900/70 dark:text-rose-300 border border-rose-300 dark:border-rose-800 transition cursor-pointer"
+                                    title="Click to mark and merge duplicate/recurring entries">
+                                Recurring
+                            </button>
+                        @elseif($r->is_recurring)
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800" title="Recurring Problem: {{ $r->recurring_count }} identical requests this month">
                                 Recurring
                             </span>
                         @endif
@@ -362,6 +373,12 @@
             </thead>
             <tbody>
                 @forelse($requests as $r)
+                @php
+                    $rowStatus = $r->current_status;
+                    $canSelectDesktopRow = !in_array($rowStatus, ['Completed', 'Cancelled', 'Rejected']);
+                    $desktopRowSig = \App\Models\ServiceRequest::buildSameDetailsSignature((int) $r->category_id, $r->title, $r->campus, $r->location);
+                    $desktopDupGroupCount = $canSelectDesktopRow ? (int) ($activeDuplicateCounts[$desktopRowSig] ?? 0) : 0;
+                @endphp
                 <tr class="bg-white dark:bg-[#1c1c1e] hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition shadow-xs group">
                     <td class="px-3.5 py-3 border-y border-l border-gray-200 dark:border-zinc-800 rounded-l-lg">
                         @php
@@ -380,8 +397,15 @@
                         @endphp
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <span class="font-bold text-[#1a3c8f] dark:text-blue-400 text-[13px] tracking-wide">{{ $reqCode }}</span>
-                            @if($r->is_recurring)
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800" title="Recurring Problem: {{ $r->recurring_count }} similar requests this month">
+                            @if($desktopDupGroupCount >= 2)
+                                <button type="button"
+                                        wire:click="selectDuplicateGroup({{ $r->request_id }})"
+                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-950/60 dark:hover:bg-rose-900/70 dark:text-rose-300 border border-rose-300 dark:border-rose-800 transition cursor-pointer"
+                                        title="Click to select and merge duplicate/recurring entries">
+                                    Recurring
+                                </button>
+                            @elseif($r->is_recurring)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800" title="Recurring Problem: {{ $r->recurring_count }} identical requests this month">
                                     Recurring
                                 </span>
                             @endif
@@ -488,6 +512,7 @@
                             $sClass = match(true) {
                                 $isAwaitingBom => 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
                                 in_array($s, ['Pending', 'Approved', 'Submitted']) => 'bg-orange-50 text-orange-600 border-orange-300',
+                                $s === 'Materials Arrived' => 'bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-700',
                                 in_array($s, ['On Hold', 'Awaiting Materials', 'BOM Verified (Awaiting Client Approval)', 'List of Materials Verified (Awaiting Client Approval)']) => 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
                                 in_array($s, ['In Progress', 'Pending Verification']) => 'bg-blue-50 text-blue-700 border-blue-300',
                                 $s === 'Completed' => 'bg-emerald-50 text-emerald-600 border-emerald-300',
@@ -528,6 +553,15 @@
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                             </a>
 
+                            @if($desktopDupGroupCount >= 2)
+                                <button type="button"
+                                        wire:click="selectDuplicateGroup({{ $r->request_id }})"
+                                        class="p-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 transition cursor-pointer"
+                                        title="Mark &amp; Merge {{ $desktopDupGroupCount }} duplicate entries">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                                </button>
+                            @endif
+
                             @if($status === 'Completed' && !$r->evaluation)
                                 <button wire:click="notifyToRate({{ $r->request_id }})"
                                         wire:loading.attr="disabled"
@@ -563,8 +597,145 @@
         </div>
     </div>
 
+    <!-- Wider Popup Modal for Marking & Merging Duplicate/Recurring Entries -->
+    @if($showMergeModal && $selectedModels->count() >= 2)
+        <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <div class="w-full max-w-2xl bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+                <div class="px-6 py-4 bg-[#fffde7] dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-base font-extrabold text-[#0033a0] dark:text-blue-400">Mark &amp; Merge Recurring / Duplicate Requests</h3>
+                        <p class="text-xs text-slate-600 dark:text-gray-400">Check which duplicate entries to consolidate into the primary requisition</p>
+                    </div>
+                    <button type="button" wire:click="clearSelection" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-gray-300 mb-1.5">
+                            1. Primary (First) Requisition to Keep Active
+                        </label>
+                        <select wire:model.live="mergePrimaryId"
+                                class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-[#0033a0]">
+                            @foreach($selectedModels as $idx => $item)
+                                <option value="{{ $item->request_id }}">
+                                    #{{ str_pad((string) $item->request_id, 4, '0', STR_PAD_LEFT) }} ({{ $item->tracking_code }}) — {{ $item->title }}{{ $idx === 0 ? ' [First Entry]' : '' }} • {{ $item->current_status }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-gray-300">
+                                2. Mark Duplicate Entries to Merge ({{ count($selectedIds) }} of {{ max(0, $selectedModels->count() - 1) }} checked)
+                            </label>
+                            <div class="flex items-center gap-2 text-[11px] font-bold">
+                                <button type="button" wire:click="selectAllModalDuplicates" class="text-[#0033a0] dark:text-blue-400 hover:underline cursor-pointer">Check All</button>
+                                <span class="text-gray-300 dark:text-zinc-700">|</span>
+                                <button type="button" wire:click="uncheckAllModalDuplicates" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 hover:underline cursor-pointer">Uncheck All</button>
+                            </div>
+                        </div>
+
+                        <div class="max-h-60 overflow-y-auto space-y-2 pr-1 border border-gray-200 dark:border-zinc-800 rounded-xl p-3 bg-slate-50/70 dark:bg-zinc-900/60">
+                            @foreach($selectedModels as $item)
+                                @php
+                                    $itemPad = str_pad((string) $item->request_id, 4, '0', STR_PAD_LEFT);
+                                    $isPrimary = (int) $mergePrimaryId === (int) $item->request_id;
+                                    $isChecked = !$isPrimary && in_array((string) $item->request_id, $selectedIds, true);
+                                    $rawDesc = trim((string) ($item->description ?? ''));
+                                    if (str_starts_with($rawDesc, '{') && str_ends_with($rawDesc, '}')) {
+                                        $parsedItem = json_decode($rawDesc, true);
+                                        $rawDesc = trim((string) ($parsedItem['general_description'] ?? $parsedItem['activity_title'] ?? ''));
+                                    }
+                                @endphp
+                                <label wire:key="merge-modal-item-{{ $item->request_id }}"
+                                       class="flex items-start gap-3 p-3 rounded-xl border transition {{ $isPrimary ? 'bg-blue-50/80 dark:bg-blue-950/30 border-[#0033a0]/40' : ($isChecked ? 'bg-white dark:bg-[#1c1c1e] border-gray-200 dark:border-zinc-800 cursor-pointer' : 'bg-white/60 dark:bg-zinc-900/40 border-gray-200/70 dark:border-zinc-800/70 opacity-75 cursor-pointer') }}">
+                                    @if($isPrimary)
+                                        <input type="checkbox"
+                                               checked
+                                               disabled
+                                               class="mt-0.5 rounded border-gray-300 text-[#0033a0] opacity-70 cursor-not-allowed">
+                                    @else
+                                        <input type="checkbox"
+                                               value="{{ $item->request_id }}"
+                                               wire:model.live="selectedIds"
+                                               class="mt-0.5 rounded border-gray-300 text-[#0033a0] focus:ring-[#0033a0] cursor-pointer">
+                                    @endif
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                                            <span class="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white">
+                                                #{{ $itemPad }} ({{ $item->tracking_code }}) — {{ $item->title }}
+                                            </span>
+                                            @if($isPrimary)
+                                                <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#0033a0] text-white">
+                                                    Primary (Kept)
+                                                </span>
+                                            @elseif($isChecked)
+                                                <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                                                    Will Merge &amp; Close
+                                                </span>
+                                            @else
+                                                <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-gray-400">
+                                                    Unchecked (Keep Separate)
+                                                </span>
+                                            @endif
+                                        </div>
+                                        <p class="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5 break-words">
+                                            By {{ $item->client->user->first_name ?? '' }} {{ $item->client->user->last_name ?? '' }} • {{ $item->campus }} • {{ $item->location }}
+                                            @if($rawDesc !== '')
+                                                — "{{ \Illuminate\Support\Str::limit($rawDesc, 90) }}"
+                                            @endif
+                                        </p>
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-gray-300 mb-1.5">
+                            Optional Note for Audit &amp; Submitters
+                        </label>
+                        <textarea wire:model="mergeRemarks"
+                                  rows="2"
+                                  placeholder="e.g., Consolidated multiple duplicate entries for the same location and concern."
+                                  class="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#0033a0]"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2.5 pt-2">
+                        <button type="button"
+                                wire:click="clearSelection"
+                                class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-gray-300 rounded-xl text-xs font-bold transition cursor-pointer">
+                            Cancel
+                        </button>
+                        <button type="button"
+                                wire:click="mergeSelected"
+                                @disabled(count($selectedIds) === 0)
+                                wire:loading.attr="disabled"
+                                wire:target="mergeSelected"
+                                class="px-5 py-2 bg-[#0033a0] hover:bg-[#002480] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5 cursor-pointer">
+                            <span wire:loading.remove wire:target="mergeSelected">Confirm Merge ({{ count($selectedIds) }} Selected)</span>
+                            <span wire:loading wire:target="mergeSelected">Merging...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('requests-merged', function(e) {
+            const detail = Array.isArray(e.detail) ? e.detail[0] : e.detail;
+            if (window.LINKodRealtime && window.LINKodRealtime.showNotificationToast) {
+                window.LINKodRealtime.showNotificationToast(
+                    detail?.success ? 'Requests Merged' : 'Notice',
+                    detail?.message || 'Selected duplicate requests have been merged.'
+                );
+            }
+        });
         window.addEventListener('rating-reminded', function(e) {
             const detail = e.detail;
             if (window.LINKodRealtime && window.LINKodRealtime.showNotificationToast) {

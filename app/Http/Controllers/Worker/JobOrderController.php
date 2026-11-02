@@ -53,6 +53,10 @@ class JobOrderController extends Controller
                 if ($status !== 'Completed') {
                     return false;
                 }
+            } elseif (strtolower($statusFilter) === 'pending') {
+                if (!in_array(strtolower($status), ['pending', 'approved', 'schedule confirmed', 'materials arrived'], true)) {
+                    return false;
+                }
             } elseif ($statusFilter !== 'all') {
                 if (strtolower($status) !== strtolower($statusFilter)) {
                     return false;

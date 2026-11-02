@@ -222,12 +222,29 @@
 
         <hr class="divider">
 
-        <form action="{{ route('logout') }}" method="POST" style="display: inline;">
-            @csrf
-            <button type="submit" class="footer-link" style="background: none; border: none; cursor: pointer;">
-                &larr; Cancel and Log Out
-            </button>
-        </form>
+        <button type="button" onclick="document.getElementById('logoutConfirmModal').style.display = 'flex'" class="footer-link" style="background: none; border: none; cursor: pointer;">
+            &larr; Cancel and Log Out
+        </button>
+
+        <div id="logoutConfirmModal" onclick="if (event.target === this) this.style.display = 'none'" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 16px;">
+            <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; max-width: 390px; width: 100%; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.22); text-align: left;">
+                <div style="padding: 16px 22px; background: #FFFDE6; border-bottom: 1px solid #e5e1b0; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <h3 style="font-size: 15px; font-weight: 800; color: #042B74; margin: 0;">Sign Out of LINKod?</h3>
+                        <p style="font-size: 11px; color: #64748b; margin-top: 2px;">BU-GSO Session Confirmation</p>
+                    </div>
+                    <button type="button" onclick="document.getElementById('logoutConfirmModal').style.display = 'none'" style="background: transparent; border: none; color: #94a3b8; font-size: 18px; line-height: 1; cursor: pointer;">&times;</button>
+                </div>
+                <div style="padding: 18px 22px;">
+                    <p style="font-size: 12.5px; color: #475569; line-height: 1.55; margin: 0;">Are you sure you want to cancel verification and sign out of your session?</p>
+                </div>
+                <form action="{{ route('logout') }}" method="POST" style="padding: 14px 22px; background: #f8fafc; border-top: 1px solid #f1f5f9; display: flex; gap: 10px;">
+                    @csrf
+                    <button type="button" onclick="document.getElementById('logoutConfirmModal').style.display = 'none'" style="flex: 1; padding: 10px 14px; border-radius: 11px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-size: 12px; font-weight: 700; cursor: pointer;">Stay Signed In</button>
+                    <button type="submit" style="flex: 1; padding: 10px 14px; border-radius: 11px; border: none; background: #dc2626; color: #ffffff; font-size: 12px; font-weight: 800; cursor: pointer;">Sign Out</button>
+                </form>
+            </div>
+        </div>
     </div>
 </body>
 </html>

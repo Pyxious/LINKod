@@ -141,28 +141,28 @@
 
             <!-- Right Form Box (Dotted Border Card) -->
             <div class="border-2 border-dashed border-[#0033a0] rounded-2xl p-7 bg-white dark:bg-zinc-900 shadow-sm">
-                <form method="GET" action="{{ route('client.requests.index') }}" x-data="{ tracking: false }" @submit="if ($el.checkValidity()) tracking = true">
+                <form method="GET" action="{{ route('client.requests.track') }}" x-data="{ tracking: false }" @submit="if ($el.checkValidity()) tracking = true">
                     <label class="block text-xs font-black text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-0.5">
-                        ENTER TRACKING NUMBER <span class="text-red-500">*</span>
+                        ENTER TRACKING CODE OR REQUEST # <span class="text-red-500">*</span>
                     </label>
                     <span class="text-[11px] text-gray-400 block mb-4">
-                        Your tracking number was provided when you submitted your request.
+                        Enter your requisition code (e.g., PLS-012, CMS-005) or sign in to view all your requests.
                     </span>
 
                     <input type="text" 
-                           name="search" 
+                           name="tracking_number" 
                            required
-                           placeholder="# e.g., PS-012" 
+                           placeholder="e.g., PLS-012, CMS-005, or #0012" 
                            class="w-full px-4 py-3 bg-[#edf4fb] dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-[#0033a0] mb-4">
 
                     <button type="submit" class="w-full py-3 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-2 cursor-pointer">
                         <svg x-show="tracking" x-cloak class="animate-spin -ml-1 mr-1.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span x-text="tracking ? 'Tracking...' : 'Track Now'">Track Now</span>
+                        <span x-text="tracking ? 'Tracking...' : 'Track Request'">Track Request</span>
                     </button>
 
                     <div class="text-center mt-3">
-                        <span class="text-[11px] text-gray-400">Can't find your number? </span>
-                        <a href="{{ route('client.requests.index') }}" class="text-[11px] font-bold text-[#0033a0] dark:text-blue-400 underline">View your requests</a>
+                        <span class="text-[11px] text-gray-400">Don't remember your tracking code? </span>
+                        <a href="{{ route('client.requests.index') }}" class="text-[11px] font-bold text-[#0033a0] dark:text-blue-400 underline">Sign in to view all requests</a>
                     </div>
                 </form>
             </div>

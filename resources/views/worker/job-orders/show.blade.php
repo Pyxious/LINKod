@@ -47,6 +47,7 @@
                 @if($project->current_status === 'Pending') bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300
                 @elseif($project->current_status === 'Awaiting Verification of Bill of Materials') bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300
                 @elseif($project->current_status === 'BOM Verified (Awaiting Client Approval)') bg-indigo-50 text-indigo-800 border border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300
+                @elseif($project->current_status === 'Materials Arrived') bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-300
                 @elseif($project->current_status === 'In Progress') bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300
                 @elseif($project->current_status === 'Pending Verification') bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300
                 @elseif($project->current_status === 'Completed') bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300
@@ -376,7 +377,7 @@
                           </div>
 
                           <p class="text-xs text-slate-600 dark:text-gray-300 leading-relaxed">
-                              Have all requested materials arrived at the site? Confirming will update the job order status to <span class="font-bold text-[#0038A8] dark:text-blue-400">In Progress</span> and let you proceed with work.
+                              Have all requested materials arrived at the site? Confirming will update the job order status to <span class="font-bold text-[#0038A8] dark:text-blue-400">Materials Arrived</span> and unlock Step 1 so you can start work when ready.
                           </p>
 
                           <form method="POST" action="{{ route('worker.task-progress.materials-arrived', $project->project_id) }}" 
@@ -397,6 +398,18 @@
                               </button>
                           </form>
                       </div>
+                  </div>
+              </div>
+              @endif
+
+              @if($project->current_status === 'Materials Arrived')
+              <div class="p-4 bg-emerald-50/90 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl mb-5 flex items-start sm:items-center gap-3 shadow-2xs">
+                  <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <div>
+                      <p class="font-extrabold text-xs sm:text-sm text-emerald-900 dark:text-emerald-200">Materials Confirmed on Site</p>
+                      <p class="text-emerald-700 dark:text-emerald-300 text-xs font-medium mt-0.5">All required materials have arrived. Capture a Before-Work photo below when you are ready to start and set this task to In Progress.</p>
                   </div>
               </div>
               @endif
@@ -1345,7 +1358,7 @@
 
             @if($project->current_status !== 'Completed' && $project->current_status !== 'Pending Verification')
                 {{-- Stage 1: Team Leader Verify & Submit to Client (Active when materials are requested but not yet submitted to client) --}}
-                @if($isTeamLeader && $project->billOfMaterials->count() > 0 && !in_array($project->current_status, ['BOM Verified (Awaiting Client Approval)', 'Awaiting Materials', 'In Progress', 'Completed', 'Cancelled', 'Rejected']) && $project->request?->bom_status !== 'awaiting_client' && $project->request?->bom_status !== 'approved')
+                @if($isTeamLeader && $project->billOfMaterials->count() > 0 && !in_array($project->current_status, ['BOM Verified (Awaiting Client Approval)', 'Awaiting Materials', 'Materials Arrived', 'In Progress', 'Completed', 'Cancelled', 'Rejected']) && $project->request?->bom_status !== 'awaiting_client' && $project->request?->bom_status !== 'approved')
                     <div x-data="{ showTlVerifyModal: false, submittingTlVerify: false }" class="mb-5 p-4 sm:p-5 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-indigo-50/70 dark:from-blue-950/40 dark:via-zinc-900 dark:to-blue-950/30 border-2 border-blue-200 dark:border-blue-800/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
                         <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
                             <div class="w-10 h-10 rounded-xl bg-[#0038A8]/10 dark:bg-blue-400/10 border border-[#0038A8]/20 dark:border-blue-400/20 text-[#0038A8] dark:text-blue-400 flex items-center justify-center shrink-0">
@@ -1633,7 +1646,7 @@
                             @php
                                 $canRequestMaterials = $project->request?->isScheduleApproved() 
                                     || !empty($project->date_approved) 
-                                    || in_array($project->request?->current_status, ['Approved', 'In Progress', 'Pending', 'On Hold', 'Awaiting Materials'])
+                                    || in_array($project->request?->current_status, ['Approved', 'In Progress', 'Pending', 'On Hold', 'Awaiting Materials', 'Materials Arrived'])
                                     || ($project->request?->is_manpower ?? false);
                             @endphp
                             @if($canRequestMaterials)

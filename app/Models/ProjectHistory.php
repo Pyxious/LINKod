@@ -19,10 +19,12 @@ class ProjectHistory extends Model
     protected static function booted(): void
     {
         static::saved(function (self $history) {
+            \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
             \App\Events\RequestUpdated::broadcastUpdate(null, (int) $history->project_id, 'project_history_saved');
         });
 
         static::deleted(function (self $history) {
+            \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
             \App\Events\RequestUpdated::broadcastUpdate(null, (int) $history->project_id, 'project_history_deleted');
         });
     }

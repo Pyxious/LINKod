@@ -97,10 +97,12 @@
                 $ipCatName = strtolower($inProg->project?->request?->category?->category_name ?? '');
                 $ipPrefix = match(true) {
                     str_contains($ipCatName, 'landscaping') => 'LS',
+                    str_contains($ipCatName, 'janitorial') => 'JS',
                     str_contains($ipCatName, 'electrical') || str_contains($ipCatName, 'mechanical') => 'EMS',
                     str_contains($ipCatName, 'carpentry') || str_contains($ipCatName, 'masonry') => 'CMS',
                     str_contains($ipCatName, 'plumbing') => 'PLS',
                     str_contains($ipCatName, 'painting') || str_contains($ipCatName, 'paint') => 'PAS',
+                    str_contains($ipCatName, 'manpower') || str_contains($ipCatName, 'event') => 'MAN',
                     default => 'REQ'
                 };
                 $ipReqCode = $ipReqId ? ($ipPrefix . '-' . str_pad($ipReqId, 3, '0', STR_PAD_LEFT)) : ('REQ-'.str_pad($inProg->project_id, 3, '0', STR_PAD_LEFT));
@@ -238,6 +240,7 @@
                         <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold 
                             @if($a->project->current_status === 'Pending') bg-red-50 text-red-700 border border-red-200
                             @elseif($a->project->current_status === 'In Progress') bg-amber-50 text-amber-700 border border-amber-200
+                            @elseif($a->project->current_status === 'Materials Arrived') bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800
                             @elseif($a->project->current_status === 'Completed') bg-emerald-50 text-emerald-700 border border-emerald-200
                             @else bg-blue-50 text-blue-700 border border-blue-200 @endif">
                             {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $a->project->current_status) }}
@@ -395,6 +398,7 @@
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold 
                                 @if($a->project->current_status === 'Pending') bg-red-50 text-red-700 border border-red-200
                                 @elseif($a->project->current_status === 'In Progress') bg-amber-50 text-amber-700 border border-amber-200
+                                @elseif($a->project->current_status === 'Materials Arrived') bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800
                                 @elseif($a->project->current_status === 'Completed') bg-emerald-50 text-emerald-700 border border-emerald-200
                                 @else bg-blue-50 text-blue-700 border border-blue-200 @endif">
                                 {{ str_ireplace(['Bill of Materials', 'BOM'], 'List of Materials', $a->project->current_status) }}

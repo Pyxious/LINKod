@@ -18,8 +18,12 @@
                 <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl sm:text-3xl font-black tracking-tight">Create Service Request</h1>
                 <p class="text-[#0033a0]/80 dark:text-gray-400 text-xs sm:text-sm font-medium mt-1">Submit an official job requisition to General Services Office (GSO).</p>
             </div>
-            <div class="hidden sm:flex items-center gap-2">
-                <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#0033a0]/10 text-[#0033a0] dark:bg-blue-900/30 dark:text-blue-300 border border-[#0033a0]/20">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border {{ ($reachedMaxActiveRequests ?? false) ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800' : 'bg-white/90 text-slate-700 border-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:border-zinc-700' }}">
+                    <span class="w-2 h-2 rounded-full {{ ($reachedMaxActiveRequests ?? false) ? 'bg-red-500' : 'bg-emerald-500' }}"></span>
+                    Active Requests: {{ $activeQuotaCount ?? 0 }} / 5
+                </span>
+                <span class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#0033a0]/10 text-[#0033a0] dark:bg-blue-900/30 dark:text-blue-300 border border-[#0033a0]/20">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     Requisition Form
                 </span>
@@ -55,9 +59,28 @@
                     </a>
                 </div>
             </div>
+        @elseif($reachedMaxActiveRequests ?? false)
+            <div class="w-full mb-8 p-6 bg-red-50 dark:bg-red-950/35 border-2 border-red-200 dark:border-red-800/80 rounded-2xl shadow-sm text-red-900 dark:text-red-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-900/60 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 flex items-center justify-center shrink-0">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-red-900 dark:text-red-200 mb-1">Active Request Limit Reached ({{ $activeQuotaCount ?? 5 }}/5)</h3>
+                        <p class="text-xs md:text-sm text-red-800 dark:text-red-300/90 leading-relaxed">
+                            You already have <strong>5 active service requests</strong> across all categories. A slot only opens once a request is <strong>disapproved</strong> or <strong>completed &amp; rated</strong>.
+                        </p>
+                    </div>
+                </div>
+                <a href="{{ route('client.requests.index') }}" class="shrink-0 px-5 py-2.5 bg-[#0038A8] hover:bg-[#002B82] text-white rounded-xl text-xs md:text-sm font-bold shadow-md transition inline-flex items-center gap-2">
+                    <span>View My Requests</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            </div>
         @endif
 
-        <form x-data="clientRequestForm({ preselectedCatId: '{{ old('category_id', $preselectedCatId ?? '') }}', oldCampus: '{{ old('campus', '') }}', oldInput: {{ Js::from(session()->getOldInput()) }} })" 
+        <form x-ref="requisitionForm"
+              x-data="clientRequestForm({ preselectedCatId: '{{ old('category_id', $preselectedCatId ?? '') }}', oldCampus: '{{ old('campus', '') }}', oldInput: {{ Js::from(session()->getOldInput()) }}, activeRequests: {{ Js::from($activeClientRequestsData ?? []) }}, serverSameDescWarning: {{ session('same_description_request_id') ? 'true' : 'false' }} })" 
               @input.debounce.250ms="saveDraft()"
               @change="saveDraft()"
               @submit.prevent="validateManpowerForm($event)" 
@@ -65,9 +88,37 @@
               method="POST" 
               enctype="multipart/form-data"
               class="w-full min-w-0 max-w-full">
+
+            @if(session('same_description_request_id'))
+                <div class="w-full mb-6 p-5 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/80 rounded-2xl shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div class="flex items-start gap-3.5">
+                        <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-extrabold text-amber-900 dark:text-amber-200">Same Request Warning ({{ session('same_description_tracking_code') }})</h3>
+                            <p class="text-xs text-amber-800 dark:text-amber-300 mt-0.5 leading-relaxed">
+                                Your description matches active request <strong>{{ session('same_description_tracking_code') }}</strong>. GSO Admin may merge duplicate descriptions. Submit anyway?
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                        <a href="{{ route('client.requests.show', session('same_description_request_id')) }}"
+                           class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 border border-amber-300 dark:border-zinc-700 rounded-xl text-xs font-bold transition">
+                            <span>View {{ session('same_description_tracking_code', 'Existing') }}</span>
+                        </a>
+                        <button type="button"
+                                @click="confirmAndSubmit()"
+                                class="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0038A8] hover:bg-[#002B82] text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer">
+                            <span>Submit Anyway</span>
+                        </button>
+                    </div>
+                </div>
+            @endif
             
-            <fieldset class="w-full min-w-0 max-w-full flex flex-col lg:flex-row gap-8 items-start" {{ (isset($unratedCompletedRequest) && $unratedCompletedRequest) ? 'disabled' : '' }}>
+            <fieldset class="w-full min-w-0 max-w-full flex flex-col lg:flex-row gap-8 items-start" {{ ((isset($unratedCompletedRequest) && $unratedCompletedRequest) || ($reachedMaxActiveRequests ?? false)) ? 'disabled' : '' }}>
                 @csrf
+                <input type="hidden" name="confirm_same_description" :value="confirmSameDescription ? '1' : '0'">
 
                 <!-- Left Column: Requisition Form Card -->
                 <div class="flex-1 min-w-0 max-w-full w-full bg-white dark:bg-[#1c1c1e] rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 p-4 sm:p-6 md:p-8 space-y-6">
@@ -747,11 +798,53 @@
                                 <span class="text-[#0033a0] dark:text-blue-400 font-bold">•</span>
                                 <span><strong>Photo Proof:</strong> Attach photos to help our team prepare necessary tools.</span>
                             </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-[#0033a0] dark:text-blue-400 font-bold">•</span>
+                                <span><strong>Request Limits:</strong> Up to <strong>5 active requests</strong> overall (and up to <strong>4</strong> for the same concern &amp; location). Slots reset once disapproved or completed &amp; rated.</span>
+                            </li>
                         </ul>
                     </div>
 
                 </div>
             </fieldset>
+
+            <!-- Instant Same-Description Warning Modal (Preserves File Attachments) -->
+            <div x-show="sameDescModalOpen" x-cloak class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4"
+                 @keydown.escape.window="sameDescModalOpen = false">
+                <div class="bg-white dark:bg-[#1c1c1e] border-2 border-amber-300 dark:border-amber-700/80 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4"
+                     @click.outside="sameDescModalOpen = false">
+                    <div class="flex items-start gap-3.5">
+                        <div class="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-base font-extrabold text-slate-900 dark:text-white">
+                                Same Request Warning (<span x-text="sameDescMatch?.tracking_code"></span>)
+                            </h3>
+                            <p class="text-xs text-slate-600 dark:text-gray-300 mt-1 leading-relaxed">
+                                You already have an active request with the <strong>exact same details and description</strong> (<span class="font-bold text-[#0033a0] dark:text-blue-400" x-text="sameDescMatch?.tracking_code"></span>). GSO Admin can merge duplicate descriptions if needed.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex flex-wrap items-center justify-end gap-2">
+                        <a :href="sameDescMatch?.show_url || '#'"
+                           class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-gray-200 rounded-xl text-xs font-bold transition">
+                            View <span x-text="sameDescMatch?.tracking_code"></span>
+                        </a>
+                        <button type="button"
+                                @click="sameDescModalOpen = false"
+                                class="px-3.5 py-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-bold transition cursor-pointer">
+                            Edit Description
+                        </button>
+                        <button type="button"
+                                @click="confirmAndSubmit()"
+                                class="px-4 py-2 bg-[#0038A8] hover:bg-[#002B82] text-white rounded-xl text-xs font-extrabold transition shadow-sm cursor-pointer">
+                            Submit Anyway
+                        </button>
+                    </div>
+                </div>
+            </div>
         </form>
     </main>
 </div>
@@ -763,6 +856,10 @@ function clientRequestForm(config = {}) {
     return {
         submitting: false,
         viewPreviewModal: false,
+        activeRequests: config.activeRequests || [],
+        confirmSameDescription: false,
+        sameDescModalOpen: false,
+        sameDescMatch: null,
         selectedCategoryId: old.category_id || config.preselectedCatId || '',
         selectedCategoryName: '',
         selectedCluster: old.campus || config.oldCampus || '',
@@ -1245,6 +1342,51 @@ function clientRequestForm(config = {}) {
             return timePattern.test(v);
         },
 
+        normText(val) {
+            return String(val || '').trim().replace(/\s+/g, ' ').toLowerCase();
+        },
+
+        buildCurrentDescNorm() {
+            const catId = Number(this.selectedCategoryId || 0);
+            if (catId === 4) {
+                if (this.activityTitle || this.prepDetails || this.prepDate || this.assistanceDetails || this.clearingDetails) {
+                    return [
+                        'manpower',
+                        this.normText(this.activityTitle || this.finalTitle),
+                        this.normText(this.finalLocation),
+                        this.normText(this.prepDetails),
+                        this.normText(this.assistanceDetails),
+                        this.normText(this.clearingDetails),
+                        this.normText(this.additionalNotes),
+                        this.normText(this.description),
+                    ].join('|');
+                }
+                if (this.janitorialAreas || this.isJanitorialConcern) {
+                    return [
+                        'janitorial',
+                        this.normText(this.janitorialAreas),
+                        this.normText(this.janitorialType),
+                        this.normText(this.janitorialFrequency),
+                        this.normText(this.janitorialSupplies),
+                        this.normText(this.description),
+                    ].join('|');
+                }
+            }
+            return this.normText(this.description);
+        },
+
+        confirmAndSubmit() {
+            this.confirmSameDescription = true;
+            this.sameDescModalOpen = false;
+            this.saveDraft();
+            this.submitting = true;
+            this.$nextTick(() => {
+                if (this.$refs.requisitionForm) {
+                    this.$refs.requisitionForm.submit();
+                }
+            });
+        },
+
         validateManpowerForm(event) {
             if (this.prepOvertime) {
                 if (!this.prepOvertimeTime || !this.isValidTimeFormat(this.prepOvertimeTime)) {
@@ -1270,6 +1412,33 @@ function clientRequestForm(config = {}) {
                     return false;
                 }
             }
+
+            // Check same structured details & same description against client's active requests
+            if (!this.confirmSameDescription && Array.isArray(this.activeRequests) && this.activeRequests.length > 0) {
+                const catId = Number(this.selectedCategoryId || 0);
+                const campusNorm = this.normText(this.selectedCampus);
+                const locNorm = this.normText(this.finalLocation);
+                const titleNorm = this.normText(this.finalTitle);
+
+                const sameDetailsMatches = this.activeRequests.filter(r =>
+                    Number(r.category_id) === catId &&
+                    r.campus_norm === campusNorm &&
+                    r.location_norm === locNorm &&
+                    r.title_norm === titleNorm
+                );
+
+                // If < 4 same-details requests exist, warn if description is also identical
+                if (sameDetailsMatches.length > 0 && sameDetailsMatches.length < 4) {
+                    const descNorm = this.buildCurrentDescNorm();
+                    const exactDescMatch = sameDetailsMatches.find(r => (r.desc_norm || '') === descNorm);
+                    if (exactDescMatch) {
+                        this.sameDescMatch = exactDescMatch;
+                        this.sameDescModalOpen = true;
+                        return false;
+                    }
+                }
+            }
+
             this.saveDraft();
             this.submitting = true;
             event.target.submit();

@@ -3,39 +3,35 @@
 @section('fullwidth', true)
 
 @section('content')
-<div class="w-full max-w-6xl mx-auto px-6 py-16 flex flex-col md:flex-row items-center justify-between gap-16">
-    
-    <!-- Left Side: Text Content -->
+<div class="w-full max-w-6xl mx-auto px-6 py-16 flex flex-col md:flex-row items-center justify-between gap-12">
     <div class="flex-1">
-        <h1 class="text-[#0033a0] text-5xl md:text-[56px] font-extrabold leading-[1.1] mb-6 tracking-tight">
+        <h1 class="text-[#0033a0] dark:text-blue-400 text-4xl md:text-5xl font-extrabold leading-tight mb-4 tracking-tight">
             Track your<br>request status
         </h1>
-        <p class="text-[#0033a0]/80 text-[15px] leading-relaxed max-w-sm">
-            Enter your tracking number to see the real-time status of your submitted service job request.
+        <p class="text-slate-600 dark:text-gray-300 text-sm sm:text-base leading-relaxed max-w-md">
+            Enter your tracking code (e.g., <span class="font-mono font-bold">PLS-012</span>) or view all your submitted service requisitions in one place.
         </p>
     </div>
 
-    <!-- Right Side: Tracking Form Card -->
     <div class="flex-1 w-full max-w-md">
-        <div class="bg-[#fefce8] rounded-2xl p-8 shadow-sm">
-            <h2 class="text-[#0033a0] font-extrabold text-sm uppercase tracking-widest mb-1">Enter Tracking Number</h2>
-            <p class="text-gray-400 text-xs mb-6 leading-relaxed">Your tracking number was provided when you submitted your request.</p>
+        <div class="bg-white dark:bg-[#1c1c1e] border border-gray-200 dark:border-zinc-800 rounded-2xl p-8 shadow-sm">
+            <h2 class="text-[#0033a0] dark:text-blue-400 font-extrabold text-sm uppercase tracking-wider mb-1">Enter Tracking Code</h2>
+            <p class="text-gray-500 dark:text-gray-400 text-xs mb-6 leading-relaxed">Jump straight to a request or open your full requests list below.</p>
 
             <form action="{{ route('client.requests.track') }}" method="GET" class="space-y-4">
                 <div class="relative">
                     <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">#</span>
-                    <input type="text" name="tracking_number" placeholder="e.g., PS-012" class="w-full pl-9 pr-4 py-4 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0] shadow-sm">
+                    <input type="text" name="tracking_number" required placeholder="e.g., PLS-012 or 0012" class="w-full pl-9 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#0033a0] focus:ring-1 focus:ring-[#0033a0]">
                 </div>
                 
-                <button type="submit" class="w-full py-4 bg-[#0033a0] text-white rounded-xl font-bold text-sm hover:bg-[#002480] transition shadow-md">
-                    Track Now
+                <button type="submit" class="w-full py-3.5 bg-[#0033a0] hover:bg-[#002480] text-white rounded-xl font-bold text-sm transition shadow-sm cursor-pointer">
+                    Track Request
                 </button>
             </form>
 
-            <div class="mt-5 text-center">
-                <span class="text-xs text-gray-400">Can't find your number? </span>
-                <a href="{{ route('client.requests.index') }}" class="text-xs text-[#0033a0] font-medium underline underline-offset-2 hover:text-[#002480] transition">
-                    View your requests
+            <div class="mt-5 pt-4 border-t border-gray-100 dark:border-zinc-800 text-center">
+                <a href="{{ route('client.requests.index') }}" class="text-xs text-[#0033a0] dark:text-blue-400 font-bold hover:underline transition">
+                    View all my submitted requests &rarr;
                 </a>
             </div>
         </div>

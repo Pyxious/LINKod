@@ -12,16 +12,16 @@
             <div>
                 <!-- Breadcrumb -->
                 <div class="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">
-                    <a href="{{ route('home') }}" class="hover:text-[#0033a0]">Home</a>
+                    <a href="{{ route('client.dashboard') }}" class="hover:text-[#0033a0] dark:hover:text-blue-400">Portal Home</a>
                     <span>/</span>
-                    <a href="{{ route('client.requests.index') }}" class="hover:text-[#0033a0]">Track Requests</a>
+                    <a href="{{ route('client.requests.index') }}" class="hover:text-[#0033a0] dark:hover:text-blue-400">My Requests</a>
                     <span>/</span>
-                    <span class="text-[#0033a0] dark:text-blue-400 font-bold">Request #{{ str_pad($request->request_id, 4, '0', STR_PAD_LEFT) }}</span>
+                    <span class="text-[#0033a0] dark:text-blue-400 font-bold">{{ $request->tracking_code }}</span>
                 </div>
 
-                <div class="flex items-center gap-3 mb-2 flex-wrap">
-                    <span class="px-3 py-1 bg-[#0033a0] text-white text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-sm">
-                        Requisition #{{ str_pad($request->request_id, 4, '0', STR_PAD_LEFT) }}
+                <div class="flex items-center gap-2.5 mb-2 flex-wrap">
+                    <span class="px-3 py-1 bg-[#0033a0] text-white text-[11px] font-extrabold font-mono uppercase tracking-wider rounded-full shadow-sm">
+                        {{ $request->tracking_code }} • #{{ str_pad($request->request_id, 4, '0', STR_PAD_LEFT) }}
                     </span>
                     @php
                         $clientDisplayStatus = match($request->current_status) {
@@ -38,6 +38,8 @@
                             bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800
                         @elseif($clientDisplayStatus === 'Awaiting Materials')
                             bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800
+                        @elseif($clientDisplayStatus === 'Materials Arrived')
+                            bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800
                         @elseif(in_array($clientDisplayStatus, ['In Progress', 'Pending Verification']))
                             bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800
                         @elseif(in_array($clientDisplayStatus, ['Cancelled', 'Disapproved']))
@@ -286,10 +288,96 @@
     <!-- Main Content Container -->
     <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 space-y-6">
         
-        <div data-realtime-container="client-req-banners" data-realtime-request-id="{{ $request->request_id }}" @if($request->project) data-realtime-project-id="{{ $request->project->project_id }}" @endif>
+        <div data-realtime-container="client-req-banners" data-realtime-request-id="{{ $request->request_id }}" @if($request->project) data-realtime-project-id="{{ $request->project->project_id }}" @endif class="space-y-6">
             @php
                 $latestRejection = $request->histories->where('current_status', 'Rejected')->last();
+                $rawStepStatus = strtolower($request->current_status ?? 'submitted');
+                $isClosedNegative = in_array($rawStepStatus, ['cancelled', 'rejected']);
+                $needsBomAction = ($request->bom_status === 'awaiting_client') || in_array($rawStepStatus, [
+                    'bom verified (awaiting client approval)',
+                    'list of materials verified (awaiting client approval)',
+                ]);
+                $needsEvalAction = ($rawStepStatus === 'completed') && !$request->evaluation;
+
+                $activeStep = match(true) {
+                    $rawStepStatus === 'completed' => 4,
+                    in_array($rawStepStatus, ['in progress', 'pending verification']) => 3,
+                    in_array($rawStepStatus, [
+                        'approved', 'schedule set', 'schedule refused', 'schedule confirmed',
+                        'awaiting verification of bill of materials', 'awaiting verification of list of materials',
+                        'bom verified (awaiting client approval)', 'list of materials verified (awaiting client approval)',
+                        'awaiting materials', 'waiting for materials', 'materials arrived', 'on hold'
+                    ]) => 2,
+                    default => 1,
+                };
+
+                $nextStepMessage = match(true) {
+                    $rawStepStatus === 'cancelled' => 'This request was withdrawn by the client and is closed.',
+                    $rawStepStatus === 'rejected' => 'This requisition was disapproved by GSO. Review the feedback below or submit a new requisition if needed.',
+                    $needsEvalAction => 'Maintenance work is complete! Please rate and evaluate the service above to finalize this request.',
+                    $rawStepStatus === 'completed' => 'This service request has been completed and evaluated. Thank you for your feedback!',
+                    $rawStepStatus === 'pending verification' => 'The maintenance team has finished on-site work. GSO Admin is conducting final verification and acceptance.',
+                    $rawStepStatus === 'in progress' => 'Assigned GSO personnel are actively working on your request. You can coordinate via the Messages box below.',
+                    $needsBomAction => 'Action Required: Please review and approve the List of Materials below so procurement and maintenance work can proceed.',
+                    $rawStepStatus === 'materials arrived' => 'All required materials have arrived. Assigned GSO personnel are ready to begin on-site work.',
+                    in_array($rawStepStatus, ['awaiting materials', 'waiting for materials']) => 'Materials have been approved and are being prepared prior to worker deployment.',
+                    $rawStepStatus === 'on hold' => 'This request is temporarily on hold pending materials or scheduling adjustments.',
+                    $activeStep === 2 => 'Your request has been approved by GSO and is being scheduled or prepared for maintenance deployment.',
+                    default => 'Your requisition has been received and is queued for GSO Admin review and scheduling.',
+                };
+
+                $steps = [
+                    1 => ['label' => 'Submitted', 'sub' => 'Received by GSO'],
+                    2 => ['label' => 'Approved & Prepared', 'sub' => 'Schedule & Materials'],
+                    3 => ['label' => 'In Progress', 'sub' => 'On-Site Work'],
+                    4 => ['label' => 'Completed', 'sub' => $request->evaluation ? 'Rated & Closed' : 'Ready for Rating'],
+                ];
             @endphp
+
+            <!-- Visual 4-Step Progress Tracker Card -->
+            @if(!$isClosedNegative)
+                <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-gray-200 dark:border-zinc-800 p-5 sm:p-6 shadow-sm">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 relative">
+                        @foreach($steps as $num => $stepInfo)
+                            @php
+                                $isDone = ($num < $activeStep) || ($num === 4 && $activeStep === 4 && $request->evaluation);
+                                $isCurrent = ($num === $activeStep) && !($num === 4 && $request->evaluation);
+                            @endphp
+                            <div class="flex items-start sm:items-center gap-3 relative">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-extrabold border-2 transition-all
+                                    @if($isDone)
+                                        bg-emerald-600 border-emerald-600 text-white
+                                    @elseif($isCurrent)
+                                        bg-[#0033a0] border-[#0033a0] text-white ring-4 ring-blue-100 dark:ring-blue-950/70
+                                    @else
+                                        bg-gray-50 dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-400 dark:text-gray-500
+                                    @endif">
+                                    @if($isDone)
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                    @else
+                                        {{ $num }}
+                                    @endif
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-xs font-extrabold leading-tight {{ ($isDone || $isCurrent) ? 'text-slate-900 dark:text-white' : 'text-gray-400 dark:text-gray-500' }}">
+                                        {{ $stepInfo['label'] }}
+                                    </div>
+                                    <div class="text-[11px] leading-snug mt-0.5 {{ $isCurrent ? 'text-[#0033a0] dark:text-blue-400 font-semibold' : 'text-gray-400 dark:text-gray-500' }}">
+                                        {{ $stepInfo['sub'] }}
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="mt-4 pt-3.5 border-t border-gray-100 dark:border-zinc-800 flex items-start sm:items-center gap-2.5 text-xs {{ ($needsBomAction || $needsEvalAction) ? 'text-amber-800 dark:text-amber-300 font-semibold' : 'text-slate-600 dark:text-gray-300' }}">
+                        <svg class="w-4 h-4 shrink-0 mt-0.5 sm:mt-0 {{ ($needsBomAction || $needsEvalAction) ? 'text-amber-600 dark:text-amber-400' : 'text-[#0033a0] dark:text-blue-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>{{ $nextStepMessage }}</span>
+                    </div>
+                </div>
+            @endif
 
             @if($request->current_status === 'Rejected')
                 <!-- Rejection Notice & Recommendation Banner -->
@@ -959,6 +1047,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 actionTitle = 'Schedule Declined';
                             } else if (rem.includes('confirmed visit schedule') || rem.includes('approved schedule') || actionTitle === 'Schedule Confirmed') {
                                 actionTitle = 'Schedule Confirmed';
+                            } else if (rem.includes('materials have arrived') || actionTitle === 'Materials Arrived') {
+                                actionTitle = 'Materials Arrived';
                             } else if (rem.includes('on behalf of the client') || rem.includes('client approved bill of materials') || rem.includes('approved the list of materials') || actionTitle === 'BOM Approved by Client') {
                                 actionTitle = 'List of Materials Approved';
                             } else if (rem.includes('client declined bill of materials') || rem.includes('declined the list of materials') || actionTitle === 'BOM Declined by Client') {
@@ -978,7 +1068,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
 
                             const isRej = actionTitle.includes('Rejected') || actionTitle.includes('Disapproved') || actionTitle.includes('Cancelled') || actionTitle.includes('Declined');
-                            const isComp = actionTitle.includes('Confirmed') || actionTitle.includes('Approved') || actionTitle.includes('Completed');
+                            const isComp = actionTitle.includes('Confirmed') || actionTitle.includes('Approved') || actionTitle.includes('Materials Arrived') || actionTitle.includes('Completed');
                             const isWarn = actionTitle.includes('Proposed') || actionTitle.includes('Submitted') || actionTitle.includes('Pending') || actionTitle.includes('On Hold');
                             const bulletBg = isRej ? 'bg-rose-500' : (isComp ? 'bg-emerald-500' : (isWarn ? 'bg-amber-500' : 'bg-blue-600'));
                             const badgeClass = isRej 

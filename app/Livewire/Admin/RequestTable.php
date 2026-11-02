@@ -18,7 +18,125 @@ class RequestTable extends Component
     public $sortField = '';
     public $sortDirection = 'asc';
 
+    // Popup mark & merge state for duplicate/recurring entries
+    public array $modalGroupIds = [];
+    public array $selectedIds = [];
+    public ?int $mergePrimaryId = null;
+    public string $mergeRemarks = '';
+    public bool $showMergeModal = false;
+
     protected $queryString = ['search', 'priority', 'status', 'ratingFilter', 'sortField', 'sortDirection'];
+
+    public function clearSelection(): void
+    {
+        $this->modalGroupIds = [];
+        $this->selectedIds = [];
+        $this->mergePrimaryId = null;
+        $this->mergeRemarks = '';
+        $this->showMergeModal = false;
+    }
+
+    public function updatedMergePrimaryId($value): void
+    {
+        $newPrimary = (int) $value;
+        // Remove the newly chosen primary from duplicate checkboxes so it isn't merged into itself
+        $this->selectedIds = array_values(array_filter(
+            $this->selectedIds,
+            fn ($id) => (int) $id !== $newPrimary
+        ));
+    }
+
+    public function selectAllModalDuplicates(): void
+    {
+        $primary = (int) $this->mergePrimaryId;
+        $this->selectedIds = collect($this->modalGroupIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0 && $id !== $primary)
+            ->map(fn (int $id) => (string) $id)
+            ->values()
+            ->all();
+    }
+
+    public function uncheckAllModalDuplicates(): void
+    {
+        $this->selectedIds = [];
+    }
+
+    public function selectDuplicateGroup(int $seedRequestId): void
+    {
+        $seed = ServiceRequest::find($seedRequestId);
+        if (!$seed || $seed->isResolved()) {
+            return;
+        }
+
+        $siblings = $seed->findPotentialPrimaryDuplicates();
+        $groupIds = collect([$seed->request_id])
+            ->concat($siblings->pluck('request_id'))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        if (count($groupIds) < 2) {
+            return;
+        }
+
+        $this->modalGroupIds = $groupIds;
+        $this->mergePrimaryId = $groupIds[0]; // First entry automatically chosen as primary
+        $this->selectedIds = array_map('strval', array_slice($groupIds, 1)); // Pre-check duplicates; unchecking keeps them visible in list
+        $this->mergeRemarks = '';
+        $this->showMergeModal = true;
+    }
+
+    public function mergeSelected(\App\Services\NotificationService $notificationService): void
+    {
+        $primaryId = (int) ($this->mergePrimaryId ?: ($this->modalGroupIds[0] ?? 0));
+        $duplicateIds = collect($this->selectedIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0 && $id !== $primaryId && in_array($id, $this->modalGroupIds, true))
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        if ($primaryId <= 0 || empty($duplicateIds)) {
+            $this->dispatch('requests-merged', [
+                'success' => false,
+                'message' => 'Please check at least 1 duplicate entry to merge into the primary requisition.',
+            ]);
+            return;
+        }
+
+        $primary = ServiceRequest::with(['client.user', 'category', 'latestHistory'])->find($primaryId);
+        if (!$primary || in_array($primary->current_status, ['Cancelled', 'Rejected'], true)) {
+            $this->dispatch('requests-merged', [
+                'success' => false,
+                'message' => 'Selected primary requisition is invalid or closed.',
+            ]);
+            return;
+        }
+
+        $mergedCount = ServiceRequest::mergeDuplicatesIntoPrimary(
+            $primary,
+            $duplicateIds,
+            (int) auth()->id(),
+            $this->mergeRemarks ?: null,
+            $notificationService
+        );
+
+        $this->clearSelection();
+        Cache::forget('admin_requests_table_kpis');
+        Cache::forget('admin_requests_table_kpis_v2');
+
+        $primaryPad = str_pad((string) $primary->request_id, 4, '0', STR_PAD_LEFT);
+        $this->dispatch('requests-merged', [
+            'success' => $mergedCount > 0,
+            'message' => $mergedCount > 0
+                ? "Merged {$mergedCount} duplicate " . \Illuminate\Support\Str::plural('entry', $mergedCount) . " into #{$primaryPad} ({$primary->tracking_code})."
+                : 'No active duplicates needed merging.',
+        ]);
+    }
 
     public function setPriority($prio)
     {
@@ -135,7 +253,7 @@ class RequestTable extends Component
             }
         } elseif ($this->status === 'Pending') {
             $query->whereHas('latestHistory', function($q) {
-                $q->whereIn('current_status', ['Pending', 'Approved', 'Submitted']);
+                $q->whereIn('current_status', ['Pending', 'Approved', 'Submitted', 'Schedule Confirmed', 'Materials Arrived']);
             });
         } elseif (in_array($this->status, ['Awaiting Materials', 'On Hold'])) {
             $query->whereHas('latestHistory', function($q) {
@@ -309,8 +427,28 @@ class RequestTable extends Component
         $requests = $query->paginate(15);
         ServiceRequest::warmRecurringCounts($requests->getCollection());
 
+        $activeDuplicateCounts = ServiceRequest::whereDoesntHave('latestHistory', function ($q) {
+            $q->whereIn('current_status', ['Completed', 'Cancelled', 'Rejected']);
+        })
+            ->get(['request_id', 'category_id', 'title', 'campus', 'location'])
+            ->groupBy(fn ($r) => ServiceRequest::buildSameDetailsSignature(
+                (int) $r->category_id,
+                $r->title,
+                $r->campus,
+                $r->location
+            ))
+            ->map(fn ($group) => $group->count())
+            ->all();
+
+        $selectedModels = !empty($this->modalGroupIds)
+            ? ServiceRequest::with(['client.user', 'category', 'latestHistory'])
+                ->whereIn('request_id', array_map('intval', $this->modalGroupIds))
+                ->orderBy('request_id', 'asc')
+                ->get()
+            : collect();
+
         // KPI metrics cached for 180 seconds (busted immediately on any request update)
-        $kpis = Cache::remember('admin_requests_table_kpis', 180, function () {
+        $kpis = Cache::remember('admin_requests_table_kpis_v2', 180, function () {
             $totalRequests = ServiceRequest::count();
 
             $statusCounts = \App\Models\RequestHistory::whereIn('history_id', function ($sub) {
@@ -356,7 +494,9 @@ class RequestTable extends Component
         });
 
         return view('livewire.admin.request-table', array_merge([
-            'requests' => $requests,
+            'requests'              => $requests,
+            'activeDuplicateCounts' => $activeDuplicateCounts,
+            'selectedModels'        => $selectedModels,
         ], $kpis));
     }
 
@@ -365,5 +505,6 @@ class RequestTable extends Component
     {
         // Bust KPI cache so real-time Supabase events recalculate immediately
         Cache::forget('admin_requests_table_kpis');
+        Cache::forget('admin_requests_table_kpis_v2');
     }
 }
