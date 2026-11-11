@@ -23,7 +23,7 @@
     </div>
 
     <form action="{{ route('admin.requests.store') }}" method="POST" enctype="multipart/form-data" 
-        x-data="adminRequestForm({ preselectedCatId: '{{ $preselectedCatId ?? '' }}', oldCampus: '{{ old('campus', '') }}' })"
+        x-data="adminRequestForm({ preselectedCatId: '{{ $preselectedCatId ?? '' }}', oldCampus: '{{ old('campus', '') }}', formOptions: {{ Js::from($formOptions ?? null) }} })"
         @submit.prevent="validateManpowerForm($event)" class="space-y-6">
         @csrf
 
@@ -620,23 +620,15 @@ function adminRequestForm(config = {}) {
         },
 
         // Concerns grouped by category keyword
-        concernsMap: {
-            'Electrical': [
-                'Power Outlet Repair / Installation',
-                'Lighting Fixture Repair / Replacement',
-                'Circuit Breaker Tripping / Power Outage',
-                'Wiring Inspection & Electrical Safety',
-                'Ceiling Fan / Exhaust Fan Repair',
+        concernsMap: (config.formOptions && config.formOptions.concernsMap) ? config.formOptions.concernsMap : {
+            'Carpentry/Masonry/Electrical': [
+                'Power Outlet / Lighting Fixture Repair',
+                'Circuit Breaker / Electrical Wiring Inspection',
+                'Door / Window / Lock & Frame Repair',
+                'Table / Chair / Cabinet Repair',
+                'Ceiling / Wall / Concrete & Masonry Repair',
+                'Floor Tile / Concrete Pavement Repair',
                 'Other Electrical/Carpentry/Masonry Concern'
-            ],
-            'Carpentry': [
-                'Door Lock / Handle / Hinge Repair',
-                'Window Glass & Wooden Frame Repair',
-                'Table / Desk Fabrication or Repair',
-                'Chair / Bench Repair',
-                'Ceiling / Roof Leak Inspection & Repair',
-                'Cabinet / Drawer Repair',
-                'Other Carpentry Concern'
             ],
             'Plumbing': [
                 'Faucet / Pipe Leak Repair',
@@ -652,13 +644,6 @@ function adminRequestForm(config = {}) {
                 'Door / Window Repainting',
                 'Gate / Fence Repainting',
                 'Other Painting Concern'
-            ],
-            'Air Conditioning': [
-                'Aircon Cleaning & Preventive Maintenance',
-                'Aircon Cooling Failure / Freon Refill',
-                'Aircon Water Leakage Repair',
-                'Aircon Noise / Power Issue',
-                'Other Aircon Concern'
             ],
             'Landscaping': [
                 'Grass Cutting / Lawn Mowing',
@@ -680,7 +665,7 @@ function adminRequestForm(config = {}) {
             ]
         },
 
-        collegeOffices: [
+        collegeOffices: (config.formOptions && config.formOptions.collegeOffices) ? config.formOptions.collegeOffices : [
             'Dean\'s Office',
             'Administrative Office',
             'Accounting Office',
@@ -696,32 +681,32 @@ function adminRequestForm(config = {}) {
         ],
 
         // Combined College & Campus Units: (Cluster) College Name
-        collegeUnits: [
-            { cluster: 'Main', label: 'GASS & Auxiliary Services', college: 'GASS & Auxiliary Services' },
-            { cluster: 'Cluster 1', label: 'BUCE (College of Education)', college: 'BUCE (College of Education)' },
-            { cluster: 'Cluster 1', label: 'BUCM (College of Medicine)', college: 'BUCM (College of Medicine)' },
-            { cluster: 'Cluster 1', label: 'IPESR (Institute of Physical Education, Sports and Recreation)', college: 'IPESR (Institute of Physical Education, Sports and Recreation)' },
-            { cluster: 'Cluster 2', label: 'CAL (College of Arts and Letters)', college: 'CAL (College of Arts and Letters)' },
-            { cluster: 'Cluster 2', label: 'BUGS (Graduate School)', college: 'BUGS (Graduate School)' },
-            { cluster: 'Cluster 2', label: 'Language Center', college: 'Language Center' },
-            { cluster: 'Cluster 2', label: 'BU College of Law', college: 'BU College of Law' },
-            { cluster: 'Cluster 2', label: 'BU Open University', college: 'BU Open University' },
-            { cluster: 'Cluster 2', label: 'Dental Medicine (College of Dental Medicine)', college: 'Dental Medicine (College of Dental Medicine)' },
-            { cluster: 'Cluster 2', label: 'BUJMRIGD (Jesse M. Robredo Institute of Governance and Development)', college: 'BUJMRIGD (Jesse M. Robredo Institute of Governance and Development)' },
-            { cluster: 'Cluster 3', label: 'CS (College of Science)', college: 'CS (College of Science)' },
-            { cluster: 'Cluster 3', label: 'CN (College of Nursing)', college: 'CN (College of Nursing)' },
-            { cluster: 'Cluster 3', label: 'RCSMED (Regional Center for Science and Mathematics Education Development)', college: 'RCSMED (Regional Center for Science and Mathematics Education Development)' },
-            { cluster: 'Cluster 4', label: 'CIT (College of Industrial Technology)', college: 'CIT (College of Industrial Technology)' },
-            { cluster: 'Cluster 4', label: 'CENG (College of Engineering)', college: 'CENG (College of Engineering)' },
-            { cluster: 'Cluster 4', label: 'IA (Institute of Design and Architecture)', college: 'IA (Institute of Design and Architecture)' },
-            { cluster: 'Cluster 4', label: 'ESC (East Campus Facilities)', college: 'ESC (East Campus Facilities)' },
-            { cluster: 'Cluster 4', label: 'RDC (Research and Development Center)', college: 'RDC (Research and Development Center)' },
-            { cluster: 'Cluster Daraga', label: 'CSSP (College of Social Sciences and Philosophy)', college: 'CSSP (College of Social Sciences and Philosophy)' },
-            { cluster: 'Cluster Daraga', label: 'CBEM (College of Business, Economics and Management)', college: 'CBEM (College of Business, Economics and Management)' },
-            { cluster: 'Guinobatan', label: 'BUCAF (College of Agriculture and Forestry)', college: 'BUCAF (College of Agriculture and Forestry)' },
-            { cluster: 'Polangui', label: 'BUPC (Polangui Campus)', college: 'BUPC (Polangui Campus)' },
-            { cluster: 'Tabaco', label: 'BUTC (Tabaco Campus)', college: 'BUTC (Tabaco Campus)' },
-            { cluster: 'Gubat', label: 'BUGC (Gubat Campus)', college: 'BUGC (Gubat Campus)' }
+        collegeUnits: (config.formOptions && config.formOptions.collegeUnits) ? config.formOptions.collegeUnits : [
+            { cluster: 'Main', label: 'GASS - General Administration and Support Services', college: 'GASS - General Administration and Support Services' },
+            { cluster: 'Cluster 1', label: 'CE - College of Education', college: 'CE - College of Education' },
+            { cluster: 'Cluster 1', label: 'CM - College of Medicine', college: 'CM - College of Medicine' },
+            { cluster: 'Cluster 1', label: 'IPESR - Institute of Physical Education, Sports and Recreation', college: 'IPESR - Institute of Physical Education, Sports and Recreation' },
+            { cluster: 'Cluster 2', label: 'CAL - College of Arts and Letters', college: 'CAL - College of Arts and Letters' },
+            { cluster: 'Cluster 2', label: 'GS - Graduate School', college: 'GS - Graduate School' },
+            { cluster: 'Cluster 2', label: 'LC - Language Center', college: 'LC - Language Center' },
+            { cluster: 'Cluster 2', label: 'CL - College of Law', college: 'CL - College of Law' },
+            { cluster: 'Cluster 2', label: 'OU - Open University', college: 'OU - Open University' },
+            { cluster: 'Cluster 2', label: 'CDM - College of Dental Medicine', college: 'CDM - College of Dental Medicine' },
+            { cluster: 'Cluster 2', label: 'JMRIGD - Jesse M. Robredo Institute of Governance and Development', college: 'JMRIGD - Jesse M. Robredo Institute of Governance and Development' },
+            { cluster: 'Cluster 3', label: 'CS - College of Science', college: 'CS - College of Science' },
+            { cluster: 'Cluster 3', label: 'CN - College of Nursing', college: 'CN - College of Nursing' },
+            { cluster: 'Cluster 3', label: 'RCSMED - Regional Center for Science and Mathematics Education Development', college: 'RCSMED - Regional Center for Science and Mathematics Education Development' },
+            { cluster: 'Cluster 4', label: 'CIT - College of Industrial Technology', college: 'CIT - College of Industrial Technology' },
+            { cluster: 'Cluster 4', label: 'CENG - College of Engineering', college: 'CENG - College of Engineering' },
+            { cluster: 'Cluster 4', label: 'IDeA - Institute of Design and Architecture', college: 'IDeA - Institute of Design and Architecture' },
+            { cluster: 'Cluster 4', label: 'ESC - East Campus Facilities', college: 'ESC - East Campus Facilities' },
+            { cluster: 'Cluster 4', label: 'RDC - Research and Development Center', college: 'RDC - Research and Development Center' },
+            { cluster: 'Cluster Daraga', label: 'CSSP - College of Social Sciences and Philosophy', college: 'CSSP - College of Social Sciences and Philosophy' },
+            { cluster: 'Cluster Daraga', label: 'CBEM - College of Business, Economics and Management', college: 'CBEM - College of Business, Economics and Management' },
+            { cluster: 'Guinobatan', label: 'CAF - College of Agriculture and Forestry', college: 'CAF - College of Agriculture and Forestry' },
+            { cluster: 'Polangui', label: 'PC - Polangui Campus', college: 'PC - Polangui Campus' },
+            { cluster: 'Tabaco', label: 'TC - Tabaco Campus', college: 'TC - Tabaco Campus' },
+            { cluster: 'Gubat', label: 'GC - Gubat Campus', college: 'GC - Gubat Campus' }
         ],
 
         onCollegeChange() {
@@ -743,13 +728,21 @@ function adminRequestForm(config = {}) {
         get availableConcerns() {
             if (!this.selectedCategoryName) return [];
             const catLower = this.selectedCategoryName.toLowerCase();
-            const matchKey = Object.keys(this.concernsMap).find(k => catLower.includes(k.toLowerCase()));
-            return matchKey ? this.concernsMap[matchKey] : [
+            const matchKey = Object.keys(this.concernsMap).find(k => {
+                const kLower = k.toLowerCase();
+                return catLower.includes(kLower) || kLower.includes(catLower) ||
+                       ((catLower.includes('electrical') || catLower.includes('carpentry') || catLower.includes('masonry')) &&
+                        (kLower.includes('electrical') || kLower.includes('carpentry') || kLower.includes('masonry')));
+            });
+            const list = matchKey ? this.concernsMap[matchKey] : [
                 'General Repair & Maintenance Request',
                 'Equipment Repair Request',
                 'Facility Inspection Request',
                 'Other Concern'
             ];
+            const regular = list.filter(item => !/^other\b/i.test(String(item).trim()));
+            const others = list.filter(item => /^other\b/i.test(String(item).trim()));
+            return [...regular, ...others];
         },
 
         get isManpowerCategory() {

@@ -22,6 +22,8 @@ Route::middleware(['auth', '2fa', 'role:admin'])->prefix('admin')->name('admin.'
     Route::get('/requests',              [RequestController::class, 'index'])->name('requests.index');
     Route::get('/requests/create',       [RequestController::class, 'create'])->name('requests.create');
     Route::post('/requests',             [RequestController::class, 'store'])->name('requests.store')->middleware('throttle:10,1');
+    Route::post('/requests/form-options',[RequestController::class, 'updateFormOptions'])->name('requests.form-options.update')->middleware('throttle:20,1');
+    Route::post('/requests/form-options/reset', [RequestController::class, 'resetFormOptions'])->name('requests.form-options.reset')->middleware('throttle:10,1');
     Route::get('/requests/{id}',         [RequestController::class, 'show'])->name('requests.show');
     Route::post('/requests/{id}/messages', [\App\Http\Controllers\RequestMessageController::class, 'store'])->name('requests.messages.store')->middleware('throttle:15,1');
     Route::post('/requests/{id}/messages/mark-read', [\App\Http\Controllers\RequestMessageController::class, 'markAsRead'])->name('requests.messages.mark-read');

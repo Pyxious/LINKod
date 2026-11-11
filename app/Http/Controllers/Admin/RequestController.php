@@ -16,17 +16,181 @@ use App\Services\DecisionTreeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class RequestController extends Controller
 {
+    public const FORM_OPTIONS_DB_KEY = 'linkod_custom_request_form_options_v1';
+
     public function __construct(
         protected NotificationService $notifications,
         protected DecisionTreeService $decisionTree
     ) {}
 
+    public static function getDefaultFormOptions(): array
+    {
+        return [
+            'concernsMap' => [
+                'Carpentry/Masonry/Electrical' => [
+                    'Power Outlet / Lighting Fixture Repair',
+                    'Circuit Breaker / Electrical Wiring Inspection',
+                    'Door / Window / Lock & Frame Repair',
+                    'Table / Chair / Cabinet Repair',
+                    'Ceiling / Wall / Concrete & Masonry Repair',
+                    'Floor Tile / Concrete Pavement Repair',
+                    'Other Electrical/Carpentry/Masonry Concern',
+                ],
+                'Plumbing' => [
+                    'Faucet / Pipe Leak Repair',
+                    'Toilet / Urinal Clog Repair',
+                    'Water Pressure Issue / Pump Concern',
+                    'Drainage / Sewage Clog',
+                    'Water Tank / Fixture Installation',
+                    'Other Plumbing Concern',
+                ],
+                'Painting' => [
+                    'Wall / Ceiling Repainting',
+                    'Exterior Facade Repainting',
+                    'Door / Window Repainting',
+                    'Gate / Fence Repainting',
+                    'Other Painting Concern',
+                ],
+                'Landscaping' => [
+                    'Grass Cutting / Lawn Mowing',
+                    'Tree Trimming & Branch Removal',
+                    'Garden & Grounds Cleaning / Clearing',
+                    'Planting & Campus Beautification Request',
+                    'Weed Control & Soil Maintenance',
+                    'Other Landscaping Concern',
+                ],
+                'Janitorial and Manpower' => [
+                    'Event & Activity Venue Setup',
+                    'Heavy Equipment & Furniture Relocation',
+                    'Hauling & Waste Disposal Assistance',
+                    'Deep Cleaning & Disinfection Service',
+                    'Waste Management & Garbage Collection',
+                    'Restroom Sanitation & Supplies Check',
+                    'Other manpower service',
+                    'Other janitorial service',
+                ],
+            ],
+            'collegeUnits' => [
+                ['cluster' => 'Main',           'label' => 'GASS - General Administration and Support Services',                         'college' => 'GASS - General Administration and Support Services'],
+                ['cluster' => 'Cluster 1',      'label' => 'CE - College of Education',                                                   'college' => 'CE - College of Education'],
+                ['cluster' => 'Cluster 1',      'label' => 'CM - College of Medicine',                                                    'college' => 'CM - College of Medicine'],
+                ['cluster' => 'Cluster 1',      'label' => 'IPESR - Institute of Physical Education, Sports and Recreation',              'college' => 'IPESR - Institute of Physical Education, Sports and Recreation'],
+                ['cluster' => 'Cluster 2',      'label' => 'CAL - College of Arts and Letters',                                           'college' => 'CAL - College of Arts and Letters'],
+                ['cluster' => 'Cluster 2',      'label' => 'GS - Graduate School',                                                        'college' => 'GS - Graduate School'],
+                ['cluster' => 'Cluster 2',      'label' => 'LC - Language Center',                                                        'college' => 'LC - Language Center'],
+                ['cluster' => 'Cluster 2',      'label' => 'CL - College of Law',                                                         'college' => 'CL - College of Law'],
+                ['cluster' => 'Cluster 2',      'label' => 'OU - Open University',                                                        'college' => 'OU - Open University'],
+                ['cluster' => 'Cluster 2',      'label' => 'CDM - College of Dental Medicine',                                            'college' => 'CDM - College of Dental Medicine'],
+                ['cluster' => 'Cluster 2',      'label' => 'JMRIGD - Jesse M. Robredo Institute of Governance and Development',          'college' => 'JMRIGD - Jesse M. Robredo Institute of Governance and Development'],
+                ['cluster' => 'Cluster 3',      'label' => 'CS - College of Science',                                                     'college' => 'CS - College of Science'],
+                ['cluster' => 'Cluster 3',      'label' => 'CN - College of Nursing',                                                     'college' => 'CN - College of Nursing'],
+                ['cluster' => 'Cluster 3',      'label' => 'RCSMED - Regional Center for Science and Mathematics Education Development', 'college' => 'RCSMED - Regional Center for Science and Mathematics Education Development'],
+                ['cluster' => 'Cluster 4',      'label' => 'CIT - College of Industrial Technology',                                      'college' => 'CIT - College of Industrial Technology'],
+                ['cluster' => 'Cluster 4',      'label' => 'CENG - College of Engineering',                                               'college' => 'CENG - College of Engineering'],
+                ['cluster' => 'Cluster 4',      'label' => 'IDeA - Institute of Design and Architecture',                                 'college' => 'IDeA - Institute of Design and Architecture'],
+                ['cluster' => 'Cluster 4',      'label' => 'ESC - East Campus Facilities',                                                'college' => 'ESC - East Campus Facilities'],
+                ['cluster' => 'Cluster 4',      'label' => 'RDC - Research and Development Center',                                       'college' => 'RDC - Research and Development Center'],
+                ['cluster' => 'Cluster Daraga', 'label' => 'CSSP - College of Social Sciences and Philosophy',                            'college' => 'CSSP - College of Social Sciences and Philosophy'],
+                ['cluster' => 'Cluster Daraga', 'label' => 'CBEM - College of Business, Economics and Management',                        'college' => 'CBEM - College of Business, Economics and Management'],
+                ['cluster' => 'Guinobatan',     'label' => 'CAF - College of Agriculture and Forestry',                                   'college' => 'CAF - College of Agriculture and Forestry'],
+                ['cluster' => 'Polangui',       'label' => 'PC - Polangui Campus',                                                        'college' => 'PC - Polangui Campus'],
+                ['cluster' => 'Tabaco',         'label' => 'TC - Tabaco Campus',                                                          'college' => 'TC - Tabaco Campus'],
+                ['cluster' => 'Gubat',          'label' => 'GC - Gubat Campus',                                                           'college' => 'GC - Gubat Campus'],
+            ],
+            'collegeOffices' => [
+                'Dean\'s Office',
+                'Administrative Office',
+                'Accounting Office',
+                'Budget Office',
+                'Supply Office',
+                'Cashier\'s Office',
+                'Registrar\'s Office',
+                'Back/Procurement Office',
+                'Motorpool Office',
+                'Library',
+                'Clinic/Health Services',
+                'Others Offices',
+            ],
+            'clusters' => [
+                'Main',
+                'Cluster 1',
+                'Cluster 2',
+                'Cluster 3',
+                'Cluster 4',
+                'Cluster Daraga',
+                'Guinobatan',
+                'Polangui',
+                'Tabaco',
+                'Gubat',
+            ],
+        ];
+    }
+
+    public static function getFormOptions(): array
+    {
+        $defaults = self::getDefaultFormOptions();
+        try {
+            if (!Schema::hasTable('cache')) {
+                return $defaults;
+            }
+            $row = DB::table('cache')->where('key', self::FORM_OPTIONS_DB_KEY)->first();
+            if (!$row || empty($row->value)) {
+                return $defaults;
+            }
+            $decoded = json_decode($row->value, true);
+            if (!is_array($decoded)) {
+                return $defaults;
+            }
+            $savedConcerns = isset($decoded['concernsMap']) && is_array($decoded['concernsMap'])
+                ? $decoded['concernsMap']
+                : $defaults['concernsMap'];
+
+            // Migrate legacy 'Electrical' / 'Carpentry' keys to unified 'Carpentry/Masonry/Electrical'
+            if (!isset($savedConcerns['Carpentry/Masonry/Electrical'])) {
+                $savedConcerns['Carpentry/Masonry/Electrical'] = $defaults['concernsMap']['Carpentry/Masonry/Electrical'];
+            }
+            unset($savedConcerns['Electrical'], $savedConcerns['Carpentry'], $savedConcerns['Air Conditioning']);
+
+            // Always keep "Other ..." choices at the bottom of each category list
+            foreach ($savedConcerns as $catKey => $items) {
+                if (is_array($items)) {
+                    $regular = array_values(array_filter($items, fn($v) => !preg_match('/^other\b/i', trim((string) $v))));
+                    $others  = array_values(array_filter($items, fn($v) => preg_match('/^other\b/i', trim((string) $v))));
+                    $savedConcerns[$catKey] = array_merge($regular, $others);
+                }
+            }
+
+            $savedOffices = isset($decoded['collegeOffices']) && is_array($decoded['collegeOffices'])
+                ? array_values($decoded['collegeOffices'])
+                : $defaults['collegeOffices'];
+            $regularOffices = array_values(array_filter($savedOffices, fn($v) => !preg_match('/^other/i', trim((string) $v))));
+            $otherOffices   = array_values(array_filter($savedOffices, fn($v) => preg_match('/^other/i', trim((string) $v))));
+            $savedOffices   = array_merge($regularOffices, $otherOffices);
+
+            return [
+                'concernsMap'    => $savedConcerns,
+                'collegeUnits'   => isset($decoded['collegeUnits']) && is_array($decoded['collegeUnits'])
+                    ? array_values($decoded['collegeUnits'])
+                    : $defaults['collegeUnits'],
+                'collegeOffices' => $savedOffices,
+                'clusters'       => isset($decoded['clusters']) && is_array($decoded['clusters'])
+                    ? array_values($decoded['clusters'])
+                    : $defaults['clusters'],
+            ];
+        } catch (\Throwable $e) {
+            return $defaults;
+        }
+    }
+
     public function index(Request $request)
     {
-        return view('admin.requests.index');
+        $formOptions = self::getFormOptions();
+        return view('admin.requests.index', compact('formOptions'));
     }
 
     public function create(Request $request)
@@ -45,7 +209,9 @@ class RequestController extends Controller
             }
         }
 
-        return view('admin.requests.create', compact('categories', 'preselectedCatId'));
+        $formOptions = self::getFormOptions();
+
+        return view('admin.requests.create', compact('categories', 'preselectedCatId', 'formOptions'));
     }
 
     public function store(Request $request)
@@ -1480,6 +1646,122 @@ class RequestController extends Controller
                 ->with('success', "Worker {$workerName} removed from assigned personnel.");
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error removing assigned worker: ' . $e->getMessage());
+        }
+    }
+
+    public function updateFormOptions(Request $request)
+    {
+        try {
+            $payload = $request->input('options_json');
+            $decoded = is_string($payload) ? json_decode($payload, true) : $request->all();
+
+            if (!is_array($decoded)) {
+                return redirect()->back()->with('error', 'Invalid form options data submitted.');
+            }
+
+            $defaults = self::getDefaultFormOptions();
+
+            $cleanConcerns = [];
+            foreach ($defaults['concernsMap'] as $catKey => $defaultList) {
+                if (isset($decoded['concernsMap']) && array_key_exists($catKey, $decoded['concernsMap']) && is_array($decoded['concernsMap'][$catKey])) {
+                    $items = array_values(array_filter(
+                        array_map(fn($v) => trim((string) $v), $decoded['concernsMap'][$catKey]),
+                        fn($v) => $v !== ''
+                    ));
+                    $regular = array_values(array_filter($items, fn($v) => !preg_match('/^other\b/i', $v)));
+                    $others  = array_values(array_filter($items, fn($v) => preg_match('/^other\b/i', $v)));
+                    $cleanConcerns[$catKey] = array_merge($regular, $others);
+                } else {
+                    $cleanConcerns[$catKey] = $defaultList;
+                }
+            }
+
+            $cleanColleges = [];
+            if (isset($decoded['collegeUnits']) && is_array($decoded['collegeUnits'])) {
+                foreach ($decoded['collegeUnits'] as $u) {
+                    $college = trim((string) ($u['college'] ?? $u['label'] ?? ''));
+                    $cluster = trim((string) ($u['cluster'] ?? 'Main'));
+                    if ($college !== '') {
+                        $cleanColleges[] = [
+                            'cluster' => $cluster !== '' ? $cluster : 'Main',
+                            'label'   => $college,
+                            'college' => $college,
+                        ];
+                    }
+                }
+            } else {
+                $cleanColleges = $defaults['collegeUnits'];
+            }
+
+            $cleanOffices = [];
+            if (isset($decoded['collegeOffices']) && is_array($decoded['collegeOffices'])) {
+                foreach ($decoded['collegeOffices'] as $o) {
+                    $office = trim((string) $o);
+                    if ($office !== '') {
+                        $cleanOffices[] = $office;
+                    }
+                }
+            } else {
+                $cleanOffices = $defaults['collegeOffices'];
+            }
+
+            $cleanClusters = [];
+            if (isset($decoded['clusters']) && is_array($decoded['clusters'])) {
+                foreach ($decoded['clusters'] as $c) {
+                    $cl = trim((string) $c);
+                    if ($cl !== '') {
+                        $cleanClusters[] = $cl;
+                    }
+                }
+            } else {
+                $cleanClusters = $defaults['clusters'];
+            }
+
+            $toStore = [
+                'concernsMap'    => $cleanConcerns,
+                'collegeUnits'   => $cleanColleges,
+                'collegeOffices' => $cleanOffices,
+                'clusters'       => $cleanClusters,
+            ];
+
+            DB::table('cache')->updateOrInsert(
+                ['key' => self::FORM_OPTIONS_DB_KEY],
+                [
+                    'value'      => json_encode($toStore, JSON_UNESCAPED_UNICODE),
+                    'expiration' => 2147483647,
+                ]
+            );
+
+            UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => 'Admin updated Request Form dropdown options (Concerns, Colleges, Offices)',
+                'ip_address' => $request->ip(),
+                'created_at' => now(),
+            ]);
+
+            return redirect()->back()->with('success', 'Request form dropdown options updated successfully.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Failed to update form options: ' . $e->getMessage());
+        }
+    }
+
+    public function resetFormOptions(Request $request)
+    {
+        try {
+            if (Schema::hasTable('cache')) {
+                DB::table('cache')->where('key', self::FORM_OPTIONS_DB_KEY)->delete();
+            }
+
+            UserLog::create([
+                'user_id'    => auth()->id(),
+                'action'     => 'Admin restored Request Form dropdown options to defaults',
+                'ip_address' => $request->ip(),
+                'created_at' => now(),
+            ]);
+
+            return redirect()->back()->with('success', 'Request form dropdown options restored to system defaults.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Failed to reset form options: ' . $e->getMessage());
         }
     }
 }

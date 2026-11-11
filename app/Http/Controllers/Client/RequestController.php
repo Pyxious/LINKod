@@ -208,13 +208,16 @@ class RequestController extends Controller
             }
         }
 
+        $formOptions = \App\Http\Controllers\Admin\RequestController::getFormOptions();
+
         return view('client.requests.create', compact(
             'categories',
             'preselectedCatId',
             'unratedCompletedRequest',
             'activeQuotaCount',
             'reachedMaxActiveRequests',
-            'activeClientRequestsData'
+            'activeClientRequestsData',
+            'formOptions'
         ));
     }
 
