@@ -20,6 +20,11 @@ class DecisionTreeService
 
     protected function calculate(ServiceRequest $request): string
     {
+        // Requests from campuses/locations outside Main, Daraga, and East are automatically Urgent
+        if ($this->isOutsideMainDaragaEast($request)) {
+            return 'urgent';
+        }
+
         $title = strtolower($request->title ?? '');
         $description = strtolower($request->description ?? '');
         $combinedText = $title . ' ' . $description;
@@ -33,6 +38,62 @@ class DecisionTreeService
 
         // All non-emergency maintenance tasks are Routine under BU GSO WORK-I
         return 'routine';
+    }
+
+    /**
+     * Determine if the request originates outside the Main, Daraga, and East campuses
+     * (e.g., Guinobatan/BUCAF, Polangui/BUPC, Tabaco/BUTC, Gubat/BUGC).
+     */
+    protected function isOutsideMainDaragaEast(ServiceRequest $request): bool
+    {
+        $campus = strtolower(trim($request->campus ?? ''));
+        $location = strtolower(trim($request->location ?? ''));
+        $combinedLocation = $campus . ' ' . $location;
+
+        // Explicit satellite campuses outside Main, Daraga, and East
+        $externalCampusKeywords = [
+            'guinobatan', 'bucaf',
+            'polangui', 'bupc',
+            'tabaco', 'butc',
+            'gubat', 'bugc',
+        ];
+
+        foreach ($externalCampusKeywords as $keyword) {
+            if (str_contains($combinedLocation, $keyword)) {
+                return true;
+            }
+        }
+
+        if ($campus === '') {
+            return false;
+        }
+
+        // Local campuses/clusters covering Main, Daraga, and East
+        $localCampuses = [
+            'main',
+            'bu main',
+            'main campus',
+            'cluster 1',
+            'cluster 2',
+            'cluster 3',
+            'cluster 4',
+            'cluster daraga',
+            'daraga',
+            'bu daraga',
+            'daraga campus',
+            'east',
+            'bu east',
+            'east campus',
+            'legazpi',
+        ];
+
+        foreach ($localCampuses as $local) {
+            if ($campus === $local || str_contains($campus, $local)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
