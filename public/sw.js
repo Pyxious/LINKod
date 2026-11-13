@@ -1,7 +1,10 @@
-const CACHE_NAME = 'linkod-worker-v10';
+const CACHE_NAME = 'linkod-pwa-v11';
 const STATIC_ASSETS = [
     '/offline.html',
     '/manifest.json',
+    '/images/pwa-icon-192.png',
+    '/images/pwa-icon-512.png',
+    '/images/apple-touch-icon.png',
     '/images/LINKOD logo.png',
     '/images/BUlogo.png',
     '/images/DASHBOARD LOGO.png',
@@ -72,10 +75,10 @@ self.addEventListener('install', (event) => {
                 }
             } catch (e) {}
 
-            // Pre-cache core worker offline routes
+            // Pre-cache core worker offline routes only when authenticated as worker (not redirected)
             try {
                 const joRes = await fetch('/worker/job-orders', { credentials: 'same-origin' });
-                if (joRes && joRes.ok) {
+                if (joRes && joRes.ok && !joRes.redirected) {
                     await cache.put('/worker/job-orders', joRes.clone());
                     await cache.put(self.location.origin + '/worker/job-orders', joRes);
                 }
@@ -83,7 +86,7 @@ self.addEventListener('install', (event) => {
 
             try {
                 const dashRes = await fetch('/worker/dashboard', { credentials: 'same-origin' });
-                if (dashRes && dashRes.ok) {
+                if (dashRes && dashRes.ok && !dashRes.redirected) {
                     await cache.put('/worker/dashboard', dashRes.clone());
                     await cache.put(self.location.origin + '/worker/dashboard', dashRes);
                 }
@@ -122,9 +125,27 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 3. Navigation Requests (HTML Pages) — Worker routes only
+    // 3. Navigation Requests (HTML Pages)
     if (request.mode === 'navigate') {
         if (!url.pathname.startsWith('/worker')) {
+            if (self.navigator && self.navigator.onLine === false) {
+                event.respondWith(
+                    (async () => {
+                        if (url.pathname === '/') {
+                            const dashMatch = await caches.match('/worker/dashboard');
+                            if (dashMatch) return dashMatch;
+                            const joMatch = await caches.match('/worker/job-orders');
+                            if (joMatch) return joMatch;
+                        }
+                        const cachedOffline = await caches.match('/offline.html');
+                        if (cachedOffline) return cachedOffline;
+                        return new Response(INLINE_OFFLINE_HTML, {
+                            status: 200,
+                            headers: { 'Content-Type': 'text/html; charset=utf-8' }
+                        });
+                    })()
+                );
+            }
             return;
         }
 
@@ -133,7 +154,7 @@ self.addEventListener('fetch', (event) => {
                 // Online: always fetch fresh from network
                 try {
                     const networkResponse = await fetch(request, { cache: 'no-cache' });
-                    if (networkResponse && networkResponse.status === 200) {
+                    if (networkResponse && networkResponse.status === 200 && !networkResponse.redirected) {
                         const responseToCache = networkResponse.clone();
                         const cache = await caches.open(CACHE_NAME);
                         // Only save unqueried base page for offline fallback

@@ -9,6 +9,7 @@
     @endauth
     <meta name="supabase-url" content="{{ config('services.supabase.url') }}">
     <meta name="supabase-anon-key" content="{{ config('services.supabase.anon_key') }}">
+    @include('partials.pwa-head')
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
