@@ -1,8 +1,9 @@
 {
+  "id": "/",
   "name": "LINKod — Bicol University Service Request System",
   "short_name": "LINKod",
-  "description": "BU Physical Plant Office Service Request & Worker Task System",
-  "start_url": "/worker/dashboard",
+  "description": "BU General Services Office Service Request & Worker Task System",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -10,16 +11,28 @@
   "theme_color": "#0033a0",
   "icons": [
     {
-      "src": "/images/LINKOD logo.png",
+      "src": "/images/pwa-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/images/BUlogo.png",
+      "src": "/images/pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/images/pwa-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/images/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
