@@ -329,7 +329,7 @@
     async function precacheActivePageAssets() {
         if (!('caches' in window) || !navigator.onLine) return;
         try {
-            const cache = await caches.open('linkod-pwa-v11');
+            const cache = await caches.open('linkod-pwa-v12');
             const stylesheets = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(el => el.href).filter(Boolean);
             const scripts = Array.from(document.querySelectorAll('script[src]')).map(el => el.src).filter(Boolean);
             const images = Array.from(document.querySelectorAll('img[src]')).map(el => el.src).filter(Boolean);
@@ -366,7 +366,7 @@
     async function precacheWorkerPages() {
         if (!('caches' in window) || !navigator.onLine) return;
         try {
-            const cache = await caches.open('linkod-pwa-v11');
+            const cache = await caches.open('linkod-pwa-v12');
 
             // 1. Cache main index routes
             const mainRoutes = ['/worker/job-orders', '/worker/dashboard'];
@@ -391,7 +391,7 @@
                     const match = await cache.match(link);
                     if (!match) {
                         const res = await fetch(link, { credentials: 'same-origin' });
-                        if (res && res.ok) {
+                        if (res && res.ok && !res.redirected) {
                             await cache.put(link, res.clone());
                             await cache.put(window.location.origin + link, res);
                         }

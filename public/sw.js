@@ -1,7 +1,6 @@
-const CACHE_NAME = 'linkod-pwa-v11';
+const CACHE_NAME = 'linkod-pwa-v12';
 const STATIC_ASSETS = [
     '/offline.html',
-    '/manifest.json',
     '/images/pwa-icon-192.png',
     '/images/pwa-icon-512.png',
     '/images/apple-touch-icon.png',
@@ -15,7 +14,7 @@ const STATIC_ASSETS = [
     '/favicon.ico'
 ];
 
-// Inline Fallback Response if cache is somehow empty
+// Inline Role-Aware Fallback Response if cache is somehow empty
 const INLINE_OFFLINE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,6 +33,7 @@ const INLINE_OFFLINE_HTML = `<!DOCTYPE html>
         .btn-primary { background: #0033a0; color: #fff; }
         .btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
         .notice { margin-top: 1.25rem; padding: 0.75rem; background: #eff6ff; border: 1px dashed #93c5fd; border-radius: 0.5rem; font-size: 0.75rem; color: #1e40af; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -42,16 +42,56 @@ const INLINE_OFFLINE_HTML = `<!DOCTYPE html>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path><path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
         </div>
         <h1>No Internet Connection</h1>
-        <p>This page requires an active connection. You can continue viewing and updating your assigned tasks offline.</p>
-        <div class="actions">
+        <p id="offline-desc">You are currently offline. Please check your internet connection—this page will automatically reload as soon as you reconnect.</p>
+        <div id="default-actions" class="actions">
+            <button type="button" onclick="reconnectNow()" class="btn btn-primary">Try Reconnecting</button>
+            <a id="role-home-link" href="/" class="btn btn-secondary">Return to Home</a>
+        </div>
+        <div id="worker-actions" class="actions hidden">
             <a href="/worker/job-orders" class="btn btn-primary">Open Job Orders</a>
             <a href="/worker/dashboard" class="btn btn-secondary">Go to Worker Dashboard</a>
-            <button onclick="window.location.reload()" class="btn btn-secondary">Try Reconnecting</button>
+            <button type="button" onclick="reconnectNow()" class="btn btn-secondary">Try Reconnecting</button>
         </div>
-        <div class="notice">
+        <div id="worker-notice" class="notice hidden">
             💡 <strong>Offline Mode:</strong> Task updates and photos taken offline are saved and will auto-sync when online.
         </div>
     </div>
+    <script>
+        function getRoleConfig() {
+            var role = 'guest', homeUrl = '/', lastUrl = '/';
+            try {
+                role = localStorage.getItem('linkod_pwa_user_role') || 'guest';
+                homeUrl = localStorage.getItem('linkod_pwa_home_url') || (role === 'admin' ? '/admin/dashboard' : role === 'worker' ? '/worker/dashboard' : role === 'client' ? '/client/dashboard' : '/');
+                lastUrl = localStorage.getItem('linkod_pwa_last_url') || homeUrl;
+            } catch (e) {}
+            return { role: role, homeUrl: homeUrl, lastUrl: lastUrl };
+        }
+        function reconnectNow() {
+            var cfg = getRoleConfig();
+            var currentPath = window.location.pathname;
+            if (cfg.role !== 'worker' && currentPath.indexOf('/worker') === 0) { window.location.replace(cfg.homeUrl); return; }
+            if (currentPath === '/offline.html') {
+                var target = (cfg.role !== 'worker' && cfg.lastUrl.indexOf('/worker') === 0) ? cfg.homeUrl : cfg.lastUrl;
+                window.location.replace(target || cfg.homeUrl);
+                return;
+            }
+            window.location.reload();
+        }
+        (function () {
+            var cfg = getRoleConfig();
+            if (cfg.role === 'worker') {
+                document.getElementById('offline-desc').textContent = 'This page requires an active connection. You can continue viewing and updating your assigned tasks offline.';
+                document.getElementById('default-actions').classList.add('hidden');
+                document.getElementById('worker-actions').classList.remove('hidden');
+                document.getElementById('worker-notice').classList.remove('hidden');
+            } else {
+                var hl = document.getElementById('role-home-link');
+                hl.setAttribute('href', cfg.homeUrl);
+                hl.textContent = cfg.role === 'client' ? 'Go to Client Dashboard' : cfg.role === 'admin' ? 'Go to Admin Dashboard' : 'Return to Home';
+            }
+            window.addEventListener('online', reconnectNow);
+        })();
+    </script>
 </body>
 </html>`;
 
@@ -74,23 +114,6 @@ self.addEventListener('install', (event) => {
                     }
                 }
             } catch (e) {}
-
-            // Pre-cache core worker offline routes only when authenticated as worker (not redirected)
-            try {
-                const joRes = await fetch('/worker/job-orders', { credentials: 'same-origin' });
-                if (joRes && joRes.ok && !joRes.redirected) {
-                    await cache.put('/worker/job-orders', joRes.clone());
-                    await cache.put(self.location.origin + '/worker/job-orders', joRes);
-                }
-            } catch (e) {}
-
-            try {
-                const dashRes = await fetch('/worker/dashboard', { credentials: 'same-origin' });
-                if (dashRes && dashRes.ok && !dashRes.redirected) {
-                    await cache.put('/worker/dashboard', dashRes.clone());
-                    await cache.put(self.location.origin + '/worker/dashboard', dashRes);
-                }
-            } catch (e) {}
         }).then(() => self.skipWaiting())
     );
 });
@@ -108,6 +131,28 @@ self.addEventListener('activate', (event) => {
             );
         }).then(() => self.clients.claim())
     );
+});
+
+// Message Event (Purge worker pages when non-worker logs in or logs out)
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'CLEAR_WORKER_CACHE') {
+        event.waitUntil(
+            caches.open(CACHE_NAME).then(async (cache) => {
+                const keys = await cache.keys();
+                await Promise.all(
+                    keys.map((req) => {
+                        try {
+                            const u = new URL(req.url);
+                            if (u.pathname.startsWith('/worker')) {
+                                return cache.delete(req);
+                            }
+                        } catch (e) {}
+                        return Promise.resolve();
+                    })
+                );
+            })
+        );
+    }
 });
 
 // Fetch Event
@@ -131,12 +176,6 @@ self.addEventListener('fetch', (event) => {
             if (self.navigator && self.navigator.onLine === false) {
                 event.respondWith(
                     (async () => {
-                        if (url.pathname === '/') {
-                            const dashMatch = await caches.match('/worker/dashboard');
-                            if (dashMatch) return dashMatch;
-                            const joMatch = await caches.match('/worker/job-orders');
-                            if (joMatch) return joMatch;
-                        }
                         const cachedOffline = await caches.match('/offline.html');
                         if (cachedOffline) return cachedOffline;
                         return new Response(INLINE_OFFLINE_HTML, {
@@ -153,7 +192,7 @@ self.addEventListener('fetch', (event) => {
             (async () => {
                 // Online: always fetch fresh from network
                 try {
-                    const networkResponse = await fetch(request, { cache: 'no-cache' });
+                    const networkResponse = await fetch(request);
                     if (networkResponse && networkResponse.status === 200 && !networkResponse.redirected) {
                         const responseToCache = networkResponse.clone();
                         const cache = await caches.open(CACHE_NAME);
@@ -166,7 +205,7 @@ self.addEventListener('fetch', (event) => {
                     }
                     return networkResponse;
                 } catch (networkError) {
-                    // Offline fallback:
+                    // Offline fallback for Worker routes:
                     if (url.pathname.startsWith('/worker/job-orders') || url.pathname === '/worker/dashboard') {
                         let cachedResponse = await caches.match(request);
                         if (cachedResponse) return cachedResponse;
@@ -175,7 +214,7 @@ self.addEventListener('fetch', (event) => {
                         if (joMatch) return joMatch;
                     }
 
-                    // For live-only pages (Messages, Notifications, Units, Profile) or uncached pages, return offline HTML
+                    // For live-only pages or uncached pages, return offline HTML
                     const cachedOffline = await caches.match('/offline.html');
                     if (cachedOffline) {
                         return cachedOffline;
@@ -192,7 +231,11 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 4. Static Assets (CSS, JS, Fonts, Images)
+    // 4. Static Assets (CSS, JS, Fonts, Images) — Never cache-first manifest.json
+    if (url.pathname === '/manifest.json') {
+        return;
+    }
+
     const isSameOriginAsset = (url.origin === self.location.origin) && (
         url.pathname.startsWith('/build/') ||
         url.pathname.startsWith('/images/') ||

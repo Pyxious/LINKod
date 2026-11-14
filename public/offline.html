@@ -100,6 +100,9 @@
             font-size: 0.75rem;
             color: #1e40af;
         }
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -119,15 +122,86 @@
             </svg>
         </div>
         <h1>No Internet Connection</h1>
-        <p>This page requires an active connection. You can continue viewing and updating your assigned tasks offline.</p>
-        <div class="actions">
+        <p id="offline-desc">You are currently offline. Please check your internet connection—this page will automatically reload as soon as you reconnect.</p>
+
+        <!-- Non-Worker Actions (Default for Client, Admin, Guest) -->
+        <div id="default-actions" class="actions">
+            <button type="button" onclick="reconnectNow()" class="btn btn-primary">Try Reconnecting</button>
+            <a id="role-home-link" href="/" class="btn btn-secondary">Return to Home</a>
+        </div>
+
+        <!-- Worker-Only Actions -->
+        <div id="worker-actions" class="actions hidden">
             <a href="/worker/job-orders" class="btn btn-primary">Open Job Orders</a>
             <a href="/worker/dashboard" class="btn btn-secondary">Go to Worker Dashboard</a>
-            <button onclick="window.location.reload()" class="btn btn-secondary">Try Reconnecting</button>
+            <button type="button" onclick="reconnectNow()" class="btn btn-secondary">Try Reconnecting</button>
         </div>
-        <div class="notice">
+
+        <div id="worker-notice" class="notice hidden">
             💡 <strong>Offline Mode:</strong> Task updates and photos taken offline are saved and will auto-sync when online.
         </div>
     </div>
+
+    <script>
+        function getRoleConfig() {
+            var role = 'guest';
+            var homeUrl = '/';
+            var lastUrl = '/';
+            try {
+                role = localStorage.getItem('linkod_pwa_user_role') || 'guest';
+                homeUrl = localStorage.getItem('linkod_pwa_home_url') || (
+                    role === 'admin' ? '/admin/dashboard' :
+                    role === 'worker' ? '/worker/dashboard' :
+                    role === 'client' ? '/client/dashboard' : '/'
+                );
+                lastUrl = localStorage.getItem('linkod_pwa_last_url') || homeUrl;
+            } catch (e) {}
+            return { role: role, homeUrl: homeUrl, lastUrl: lastUrl };
+        }
+
+        function reconnectNow() {
+            var cfg = getRoleConfig();
+            var currentPath = window.location.pathname;
+
+            if (cfg.role !== 'worker' && currentPath.indexOf('/worker') === 0) {
+                window.location.replace(cfg.homeUrl);
+                return;
+            }
+            if (currentPath === '/offline.html') {
+                var target = (cfg.role !== 'worker' && cfg.lastUrl.indexOf('/worker') === 0) ? cfg.homeUrl : cfg.lastUrl;
+                window.location.replace(target || cfg.homeUrl);
+                return;
+            }
+            window.location.reload();
+        }
+
+        (function initOfflineView() {
+            var cfg = getRoleConfig();
+            var descEl = document.getElementById('offline-desc');
+            var defaultActions = document.getElementById('default-actions');
+            var workerActions = document.getElementById('worker-actions');
+            var workerNotice = document.getElementById('worker-notice');
+            var homeLink = document.getElementById('role-home-link');
+
+            if (cfg.role === 'worker') {
+                if (descEl) {
+                    descEl.textContent = 'This page requires an active connection. You can continue viewing and updating your assigned tasks offline.';
+                }
+                if (defaultActions) defaultActions.classList.add('hidden');
+                if (workerActions) workerActions.classList.remove('hidden');
+                if (workerNotice) workerNotice.classList.remove('hidden');
+            } else {
+                if (homeLink) {
+                    homeLink.setAttribute('href', cfg.homeUrl);
+                    homeLink.textContent = cfg.role === 'client' ? 'Go to Client Dashboard' :
+                                           cfg.role === 'admin' ? 'Go to Admin Dashboard' : 'Return to Home';
+                }
+            }
+
+            window.addEventListener('online', function () {
+                reconnectNow();
+            });
+        })();
+    </script>
 </body>
 </html>
