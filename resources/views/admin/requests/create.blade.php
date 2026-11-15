@@ -8,8 +8,11 @@
     <!-- Top Banner -->
     <div class="bg-[#fffde7] dark:bg-[#1c1c1e] border-2 border-[#0033a0] dark:border-blue-600 rounded-2xl px-8 py-6 mb-6 shadow-sm flex justify-between items-center">
         <div>
-            <div class="flex items-center gap-2 mb-1">
-                <a href="{{ route('admin.requests.index') }}" class="text-[#0033a0] dark:text-blue-400 hover:underline text-xs font-semibold uppercase tracking-wider">&larr; Back to Requests</a>
+            <div class="flex items-center gap-2 mb-1.5">
+                <a href="{{ route('admin.requests.index') }}" class="text-[#0033a0] dark:text-blue-400 hover:underline text-xs sm:text-sm font-bold uppercase tracking-wider inline-flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    <span>Back to Requests</span>
+                </a>
             </div>
             <h1 class="text-[#0033a0] dark:text-blue-400 text-2xl font-bold mb-1">Walk-In Service Request</h1>
             <p class="text-[#0033a0]/80 dark:text-gray-300 text-sm font-medium">File a service request on behalf of a walk-in client without an active portal account.</p>
