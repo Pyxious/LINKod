@@ -1106,7 +1106,7 @@
 
                     <div class="flex items-center gap-3">
                         <button type="submit" 
-                                class="w-full sm:w-auto px-7 py-3 bg-[#0033a0] hover:bg-[#002480] text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-md inline-flex items-center justify-center gap-2 cursor-pointer">
+                                class="w-full sm:w-auto px-7 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-md inline-flex items-center justify-center gap-2 cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             <span>{{ $isManpower ? 'Approve Manpower Request & Assign Workers' : 'Confirm Details' }}</span>
                         </button>
@@ -1685,7 +1685,7 @@
                     @endif
 
                     @if(in_array($serviceRequest->current_status, ['In Progress', 'Pending Verification']) && $overrideHasBeforePhoto)
-                        <button type="button" @click="showCompleteModal = true" class="px-4 py-2 bg-[#0033a0] hover:bg-[#002480] text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                        <button type="button" @click="showCompleteModal = true" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             <span>Complete Task (After Photo &amp; Close)</span>
                         </button>
@@ -2759,7 +2759,7 @@
                     @endif
 
                     <div class="flex justify-end pt-1">
-                        <button type="submit" class="w-full sm:w-auto bg-[#0033a0] hover:bg-[#002480] text-white font-bold py-3 px-7 rounded-xl transition shadow-md flex justify-center items-center gap-2 text-xs">
+                        <button type="submit" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-7 rounded-xl transition shadow-md flex justify-center items-center gap-2 text-xs cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             Verify Completion &amp; Close Request
                         </button>
