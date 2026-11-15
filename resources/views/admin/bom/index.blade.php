@@ -147,7 +147,10 @@
 
                 <div class="pt-2 flex justify-between items-center text-xs border-t border-gray-100 dark:border-zinc-800">
                     <a href="{{ route('admin.requests.show', $p->request->request_id) }}#bom-section" class="text-gray-500 dark:text-gray-400 font-semibold hover:underline">View Request</a>
-                    <a href="{{ route('admin.requests.show', $p->request->request_id) }}#bom-section" class="text-[#1a3c8f] dark:text-blue-400 font-bold hover:underline">Manage Materials &rarr;</a>
+                    <a href="{{ route('admin.requests.show', $p->request->request_id) }}#bom-section" class="text-[#1a3c8f] dark:text-blue-400 font-bold hover:underline inline-flex items-center gap-1.5">
+                        <span>Manage Materials</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </a>
                 </div>
             </div>
         @empty
@@ -315,9 +318,9 @@
                         <!-- Actions -->
                         <td class="px-4 py-4 border-y border-r border-gray-200 dark:border-zinc-800 rounded-r-lg text-right">
                             <a href="{{ route('admin.requests.show', $p->request->request_id) }}#bom-section" 
-                               class="text-[#1a3c8f] dark:text-blue-400 font-bold hover:underline text-xs inline-flex items-center gap-1">
+                               class="text-[#1a3c8f] dark:text-blue-400 font-bold hover:underline text-xs inline-flex items-center gap-1.5 whitespace-nowrap">
                                 <span>Manage Materials</span>
-                                <span>&rarr;</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                             </a>
                         </td>
                     </tr>
