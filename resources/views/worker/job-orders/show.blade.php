@@ -303,7 +303,7 @@
             ]);
         @endphp
 
-        <div data-realtime-container="worker-job-box2" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif>
+        <div data-realtime-container="worker-job-box2" data-realtime-project-id="{{ $project->project_id }}" @if($reqId) data-realtime-request-id="{{ $reqId }}" @endif class="space-y-6">
         @if(!in_array($project->current_status, ['Completed', 'Pending Verification']))
 
         <!-- 2nd Box: Update Task Progress & Attach Proofs -->
@@ -757,14 +757,12 @@
                 <!-- Before Photo Card -->
                 <div class="p-4 rounded-xl border flex flex-col justify-between {{ $hasBeforePhoto ? 'bg-gray-50/70 dark:bg-zinc-800/40 border-gray-200 dark:border-zinc-700' : 'bg-amber-50/30 dark:bg-amber-950/10 border-dashed border-amber-300 dark:border-amber-800/80' }}">
                     <div>
-                        <div class="flex items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10.5px] font-extrabold {{ $hasBeforePhoto ? 'bg-blue-100 text-[#0033a0] dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200 dark:border-blue-800' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700' }} shrink-0">
                                 1. BEFORE WORK PHOTO
                             </span>
                             @if($beforeHistory)
                                 <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap shrink-0">{{ \Carbon\Carbon::parse($beforeHistory->updated_at)->format('M d, Y h:i A') }}</span>
-                            @else
-                                <span class="text-[10px] font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap shrink-0">Required to Begin</span>
                             @endif
                         </div>
 
@@ -802,14 +800,12 @@
                 <!-- After Photo Card -->
                 <div class="p-4 rounded-xl border flex flex-col justify-between {{ $hasAfterPhoto ? 'bg-gray-50/70 dark:bg-zinc-800/40 border-gray-200 dark:border-zinc-700' : 'bg-blue-50/20 dark:bg-blue-950/10 border-dashed border-blue-200 dark:border-blue-900/60' }}">
                     <div>
-                        <div class="flex items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10.5px] font-extrabold {{ $hasAfterPhoto ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700' : 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-gray-300 border border-gray-300 dark:border-zinc-700' }} shrink-0">
                                 2. AFTER WORK PHOTO (COMPLETION)
                             </span>
                             @if($afterHistory)
                                 <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap shrink-0">{{ \Carbon\Carbon::parse($afterHistory->updated_at)->format('M d, Y h:i A') }}</span>
-                            @else
-                                <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 whitespace-nowrap shrink-0">Required to Complete</span>
                             @endif
                         </div>
 

@@ -18,7 +18,7 @@
                     </div>
                     <div>
                         <h1 class="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                            Clientele Satisfaction Survey &amp;
+                            Clientele Satisfaction Survey
                         </h1>
                         <p class="text-xs sm:text-sm text-[#0033a0] dark:text-blue-400 font-bold mt-0.5">
                             Bicol University — General Services Office (BU-GSO)
